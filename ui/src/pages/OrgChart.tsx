@@ -2,16 +2,6 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "@/lib/router";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDraggable,
-  useDroppable,
-  type DragStartEvent,
-  type DragEndEvent,
-} from "@dnd-kit/core";
 import { agentsApi, type OrgNode } from "../api/agents";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -170,80 +160,14 @@ function findNode(id: string, nodes: LayoutNode[]): LayoutNode | null {
   return null;
 }
 
-// ── Draggable + Droppable card ─────────────────────────────────────────
+// ── Card drag state type ────────────────────────────────────────────────
 
-function OrgCardDropZone({ id, children }: { id: string; children: (isOver: boolean) => React.ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  return <div ref={setNodeRef}>{children(isOver)}</div>;
-}
-
-function OrgCardDraggable({
-  node,
-  agent,
-  dotColor,
-  onNavigate,
-  isOver,
-  zoom,
-}: {
-  node: LayoutNode;
-  agent: Agent | undefined;
-  dotColor: string;
-  onNavigate: (id: string) => void;
-  isOver: boolean;
-  zoom: number;
-}) {
-  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: node.id });
-
-  // Divide by zoom because the card is inside a scale(zoom) container.
-  // Without this, a 100px mouse move only moves the card 100*zoom px visually.
-  const dragStyle = transform
-    ? { transform: `translate(${transform.x / zoom}px, ${transform.y / zoom}px)`, zIndex: 999 }
-    : {};
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      data-org-card
-      className={`absolute bg-card border rounded-lg shadow-sm transition-shadow select-none ${
-        isDragging ? "shadow-xl cursor-grabbing ring-2 ring-cyan-500" : "cursor-grab hover:shadow-md hover:border-foreground/20"
-      } ${isOver && !isDragging ? "ring-2 ring-cyan-500 border-cyan-500" : "border-border"}`}
-      style={{
-        left: node.x,
-        top: node.y,
-        width: CARD_W,
-        minHeight: CARD_H,
-        ...dragStyle,
-      }}
-      onClick={() => { if (!isDragging) onNavigate(node.id); }}
-    >
-      <div className="flex items-center px-4 py-3 gap-3">
-        <div className="relative shrink-0">
-          <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-            <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
-          </div>
-          <span
-            className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
-            style={{ backgroundColor: dotColor }}
-          />
-        </div>
-        <div className="flex flex-col items-start min-w-0 flex-1">
-          <span className="text-sm font-semibold text-foreground leading-tight">
-            {node.name}
-          </span>
-          <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-            {agent?.title ?? roleLabel(node.role)}
-          </span>
-          {agent && (
-            <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight mt-1">
-              {adapterLabels[agent.adapterType] ?? agent.adapterType}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+interface CardDragState {
+  nodeId: string;
+  startX: number; // pointer start in screen px
+  startY: number;
+  offsetX: number; // current delta in chart-space px
+  offsetY: number;
 }
 
 // ── Main component ──────────────────────────────────────────────────────
@@ -255,9 +179,9 @@ export function OrgChart() {
   const { pushToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  );
+  const [cardDrag, setCardDrag] = useState<CardDragState | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const cardDragRef = useRef<CardDragState | null>(null);
 
   const updateReportsTo = useMutation({
     mutationFn: ({ agentId, reportsTo }: { agentId: string; reportsTo: string | null }) =>
@@ -344,23 +268,71 @@ export function OrgChart() {
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    // Don't drag if clicking a card
     const target = e.target as HTMLElement;
-    if (target.closest("[data-org-card]")) return;
+    const card = target.closest("[data-org-card]") as HTMLElement | null;
+    if (card) {
+      // Start card drag
+      const nodeId = card.dataset.orgCard!;
+      const state: CardDragState = {
+        nodeId,
+        startX: e.clientX,
+        startY: e.clientY,
+        offsetX: 0,
+        offsetY: 0,
+      };
+      cardDragRef.current = state;
+      setCardDrag(state);
+      e.preventDefault();
+      return;
+    }
+    // Canvas pan
     setDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
   }, [pan]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (cardDragRef.current) {
+      const dx = (e.clientX - cardDragRef.current.startX) / zoom;
+      const dy = (e.clientY - cardDragRef.current.startY) / zoom;
+      const updated = { ...cardDragRef.current, offsetX: dx, offsetY: dy };
+      cardDragRef.current = updated;
+      setCardDrag(updated);
+
+      // Hit-test: find card under cursor (excluding the dragged card)
+      const elUnder = document.elementFromPoint(e.clientX, e.clientY);
+      const cardUnder = elUnder?.closest("[data-org-card]") as HTMLElement | null;
+      const targetId = cardUnder?.dataset.orgCard ?? null;
+      setDropTargetId(targetId !== cardDragRef.current.nodeId ? targetId : null);
+      return;
+    }
     if (!dragging) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
     setPan({ x: dragStart.current.panX + dx, y: dragStart.current.panY + dy });
-  }, [dragging]);
+  }, [dragging, zoom]);
 
   const handleMouseUp = useCallback(() => {
+    if (cardDragRef.current) {
+      const draggedId = cardDragRef.current.nodeId;
+      const targetId = dropTargetId;
+      const hasMoved = Math.abs(cardDragRef.current.offsetX) > 5 || Math.abs(cardDragRef.current.offsetY) > 5;
+
+      cardDragRef.current = null;
+      setCardDrag(null);
+      setDropTargetId(null);
+
+      if (!hasMoved) return; // Was a click, not a drag
+
+      if (targetId && targetId !== draggedId && !isDescendant(draggedId, targetId, layout)) {
+        updateReportsTo.mutate({ agentId: draggedId, reportsTo: targetId });
+      } else if (!targetId && hasMoved) {
+        // Dropped on empty space → move to root
+        updateReportsTo.mutate({ agentId: draggedId, reportsTo: null });
+      }
+      return;
+    }
     setDragging(false);
-  }, []);
+  }, [dropTargetId, layout, updateReportsTo]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -507,26 +479,7 @@ export function OrgChart() {
         </g>
       </svg>
 
-      {/* Card layer with DnD */}
-      <DndContext
-        sensors={sensors}
-        onDragEnd={(event: DragEndEvent) => {
-          const { active, over } = event;
-          if (!active || !over) {
-            // Dropped on empty area → move to root
-            if (active) {
-              updateReportsTo.mutate({ agentId: String(active.id), reportsTo: null });
-            }
-            return;
-          }
-          const draggedId = String(active.id);
-          const targetId = String(over.id);
-          if (draggedId === targetId) return;
-          // Prevent cycles
-          if (isDescendant(draggedId, targetId, layout)) return;
-          updateReportsTo.mutate({ agentId: draggedId, reportsTo: targetId });
-        }}
-      >
+      {/* Card layer */}
       <div
         className="absolute inset-0"
         style={{
@@ -534,31 +487,64 @@ export function OrgChart() {
           transformOrigin: "0 0",
         }}
       >
-          {allNodes.map((node) => {
-            const agent = agentMap.get(node.id);
-            const dotColor = statusDotColor[node.status] ?? defaultDotColor;
+        {allNodes.map((node) => {
+          const agent = agentMap.get(node.id);
+          const dotColor = statusDotColor[node.status] ?? defaultDotColor;
+          const isDragging = cardDrag?.nodeId === node.id;
+          const isDropTarget = dropTargetId === node.id;
+          const dx = isDragging ? cardDrag!.offsetX : 0;
+          const dy = isDragging ? cardDrag!.offsetY : 0;
 
-            return (
-              <OrgCardDropZone key={node.id} id={node.id}>
-                {(isOver) => (
-                  <OrgCardDraggable
-                    node={node}
-                    agent={agent}
-                    dotColor={dotColor}
-                    onNavigate={(id) => {
-                      const a = agentMap.get(id);
-                      navigate(a ? agentUrl(a) : `/agents/${id}`);
-                    }}
-                    isOver={isOver}
-                    zoom={zoom}
+          return (
+            <div
+              key={node.id}
+              data-org-card={node.id}
+              className={`absolute bg-card border rounded-lg shadow-sm select-none transition-shadow ${
+                isDragging
+                  ? "shadow-xl cursor-grabbing ring-2 ring-cyan-500 pointer-events-none"
+                  : "cursor-grab hover:shadow-md hover:border-foreground/20"
+              } ${isDropTarget ? "ring-2 ring-cyan-500 border-cyan-500" : "border-border"}`}
+              style={{
+                left: node.x + dx,
+                top: node.y + dy,
+                width: CARD_W,
+                minHeight: CARD_H,
+                zIndex: isDragging ? 50 : undefined,
+              }}
+              onClick={() => {
+                if (!cardDrag) {
+                  navigate(agent ? agentUrl(agent) : `/agents/${node.id}`);
+                }
+              }}
+            >
+              <div className="flex items-center px-4 py-3 gap-3">
+                <div className="relative shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+                    <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
+                  </div>
+                  <span
+                    className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
+                    style={{ backgroundColor: dotColor }}
                   />
-                )}
-              </OrgCardDropZone>
-            );
-          })}
+                </div>
+                <div className="flex flex-col items-start min-w-0 flex-1">
+                  <span className="text-sm font-semibold text-foreground leading-tight">
+                    {node.name}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                    {agent?.title ?? roleLabel(node.role)}
+                  </span>
+                  {agent && (
+                    <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight mt-1">
+                      {adapterLabels[agent.adapterType] ?? agent.adapterType}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
-
-      </DndContext>
     </div>
     </div>
   );
