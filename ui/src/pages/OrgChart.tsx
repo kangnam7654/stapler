@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
@@ -191,7 +190,11 @@ function OrgCardDraggable({
   onNavigate: (id: string) => void;
   isOver: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: node.id });
+  const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: node.id });
+
+  const dragStyle = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 999 }
+    : {};
 
   return (
     <div
@@ -199,14 +202,15 @@ function OrgCardDraggable({
       {...listeners}
       {...attributes}
       data-org-card
-      className={`absolute bg-card border rounded-lg shadow-sm transition-all duration-150 select-none ${
-        isDragging ? "opacity-40 scale-95 cursor-grabbing" : "cursor-grab hover:shadow-md hover:border-foreground/20"
-      } ${isOver ? "ring-2 ring-cyan-500 border-cyan-500" : "border-border"}`}
+      className={`absolute bg-card border rounded-lg shadow-sm transition-shadow select-none ${
+        isDragging ? "shadow-xl cursor-grabbing ring-2 ring-cyan-500" : "cursor-grab hover:shadow-md hover:border-foreground/20"
+      } ${isOver && !isDragging ? "ring-2 ring-cyan-500 border-cyan-500" : "border-border"}`}
       style={{
         left: node.x,
         top: node.y,
         width: CARD_W,
         minHeight: CARD_H,
+        ...dragStyle,
       }}
       onClick={() => { if (!isDragging) onNavigate(node.id); }}
     >
@@ -247,8 +251,6 @@ export function OrgChart() {
   const { pushToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
@@ -504,11 +506,7 @@ export function OrgChart() {
       {/* Card layer with DnD */}
       <DndContext
         sensors={sensors}
-        onDragStart={(event: DragStartEvent) => {
-          setActiveDragId(String(event.active.id));
-        }}
         onDragEnd={(event: DragEndEvent) => {
-          setActiveDragId(null);
           const { active, over } = event;
           if (!active || !over) {
             // Dropped on empty area → move to root
@@ -524,7 +522,6 @@ export function OrgChart() {
           if (isDescendant(draggedId, targetId, layout)) return;
           updateReportsTo.mutate({ agentId: draggedId, reportsTo: targetId });
         }}
-        onDragCancel={() => setActiveDragId(null)}
       >
       <div
         className="absolute inset-0"
@@ -556,40 +553,6 @@ export function OrgChart() {
           })}
       </div>
 
-      <DragOverlay>
-        {activeDragId ? (() => {
-          const node = findNode(activeDragId, layout);
-          if (!node) return null;
-          const agent = agentMap.get(node.id);
-          const dotColor = statusDotColor[node.status] ?? defaultDotColor;
-          return (
-            <div
-              className="bg-card border border-cyan-500 rounded-lg shadow-lg opacity-90"
-              style={{ width: CARD_W * zoom, minHeight: CARD_H * zoom }}
-            >
-              <div className="flex items-center px-4 py-3 gap-3" style={{ transform: `scale(${zoom})`, transformOrigin: "0 0" }}>
-                <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-                    <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
-                  </div>
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
-                    style={{ backgroundColor: dotColor }}
-                  />
-                </div>
-                <div className="flex flex-col items-start min-w-0 flex-1">
-                  <span className="text-sm font-semibold text-foreground leading-tight">
-                    {node.name}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                    {agent?.title ?? roleLabel(node.role)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })() : null}
-      </DragOverlay>
       </DndContext>
     </div>
     </div>
