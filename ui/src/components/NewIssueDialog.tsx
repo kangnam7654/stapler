@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent, type DragEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { pickTextColorForSolidBg } from "@/lib/color-contrast";
 import { useDialog } from "../context/DialogContext";
@@ -268,6 +269,7 @@ function issueExecutionWorkspaceModeForExistingWorkspace(mode: string | null | u
 }
 
 export function NewIssueDialog() {
+  const { t } = useTranslation();
   const { newIssueOpen, newIssueDefaults, closeNewIssue } = useDialog();
   const { companies, selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
@@ -812,7 +814,7 @@ export function NewIssueDialog() {
   const hasSavedDraft = Boolean(savedDraft?.title.trim() || savedDraft?.description.trim());
   const canDiscardDraft = hasDraft || hasSavedDraft;
   const createIssueErrorMessage =
-    createIssue.error instanceof Error ? createIssue.error.message : "Failed to create issue. Try again.";
+    createIssue.error instanceof Error ? createIssue.error.message : t("issues.failedToCreate");
   const stagedDocuments = stagedFiles.filter((file) => file.kind === "document");
   const stagedAttachments = stagedFiles.filter((file) => file.kind === "attachment");
 
@@ -951,7 +953,7 @@ export function NewIssueDialog() {
               </PopoverContent>
             </Popover>
             <span className="text-muted-foreground/60">&rsaquo;</span>
-            <span>New issue</span>
+            <span>{t("nav.newIssue")}</span>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -979,7 +981,7 @@ export function NewIssueDialog() {
         <div className="px-4 pt-4 pb-2 shrink-0">
           <textarea
             className="w-full text-lg font-semibold bg-transparent outline-none resize-none overflow-hidden placeholder:text-muted-foreground/50"
-            placeholder="Issue title"
+            placeholder={t("issues.title") + "..."}
             rows={1}
             value={title}
             onChange={(e) => {
@@ -1024,11 +1026,11 @@ export function NewIssueDialog() {
                 ref={assigneeSelectorRef}
                 value={assigneeValue}
                 options={assigneeOptions}
-                placeholder="Assignee"
+                placeholder={t("issues.assignee")}
                 disablePortal
-                noneLabel="No assignee"
-                searchPlaceholder="Search assignees..."
-                emptyMessage="No assignees found."
+                noneLabel={t("issues.noAssignee")}
+                searchPlaceholder={t("issues.searchAgents")}
+                emptyMessage={t("issues.noAgentsFound")}
                 onChange={(value) => {
                   const nextAssignee = parseAssigneeValue(value);
                   if (nextAssignee.assigneeAgentId) {
@@ -1054,7 +1056,7 @@ export function NewIssueDialog() {
                       <span className="truncate">{option.label}</span>
                     )
                   ) : (
-                    <span className="text-muted-foreground">Assignee</span>
+                    <span className="text-muted-foreground">{t("issues.assignee")}</span>
                   )
                 }
                 renderOption={(option) => {
@@ -1075,11 +1077,11 @@ export function NewIssueDialog() {
                 ref={projectSelectorRef}
                 value={projectId}
                 options={projectOptions}
-                placeholder="Project"
+                placeholder={t("common.project")}
                 disablePortal
-                noneLabel="No project"
-                searchPlaceholder="Search projects..."
-                emptyMessage="No projects found."
+                noneLabel={t("issues.noProject")}
+                searchPlaceholder={t("issues.searchProjects")}
+                emptyMessage={t("issues.noProjectsFound")}
                 onChange={handleProjectChange}
                 onConfirm={() => {
                   descriptionEditorRef.current?.focus();
@@ -1094,7 +1096,7 @@ export function NewIssueDialog() {
                       <span className="truncate">{option.label}</span>
                     </>
                   ) : (
-                    <span className="text-muted-foreground">Project</span>
+                    <span className="text-muted-foreground">{t("common.project")}</span>
                   )
                 }
                 renderOption={(option) => {
@@ -1118,7 +1120,7 @@ export function NewIssueDialog() {
         {currentProject && currentProjectSupportsExecutionWorkspace && (
           <div className="px-4 py-3 shrink-0 space-y-2">
             <div className="space-y-1.5">
-              <div className="text-xs font-medium">Execution workspace</div>
+              <div className="text-xs font-medium">{t("projects.executionWorkspace")}</div>
               <div className="text-[11px] text-muted-foreground">
                 Control whether this issue runs in the shared workspace, a new isolated workspace, or an existing one.
               </div>
@@ -1144,7 +1146,7 @@ export function NewIssueDialog() {
                   value={selectedExecutionWorkspaceId}
                   onChange={(e) => setSelectedExecutionWorkspaceId(e.target.value)}
                 >
-                  <option value="">Choose an existing workspace</option>
+                  <option value="">{t("projects.executionWorkspace")}</option>
                   {deduplicatedReusableWorkspaces.map((workspace) => (
                     <option key={workspace.id} value={workspace.id}>
                       {workspace.name} · {workspace.status} · {workspace.branchName ?? workspace.cwd ?? workspace.id.slice(0, 8)}
@@ -1177,11 +1179,11 @@ export function NewIssueDialog() {
                   <InlineEntitySelector
                     value={assigneeModelOverride}
                     options={modelOverrideOptions}
-                    placeholder="Default model"
+                    placeholder={t("common.none")}
                     disablePortal
-                    noneLabel="Default model"
-                    searchPlaceholder="Search models..."
-                    emptyMessage="No models found."
+                    noneLabel={t("common.none")}
+                    searchPlaceholder={t("common.search") + "..."}
+                    emptyMessage={t("common.noResults")}
                     onChange={setAssigneeModelOverride}
                   />
                 </div>
@@ -1245,7 +1247,7 @@ export function NewIssueDialog() {
               ref={descriptionEditorRef}
               value={description}
               onChange={setDescription}
-              placeholder="Add description..."
+              placeholder={t("issues.addDescription")}
               bordered={false}
               mentions={mentionOptions}
               contentClassName={cn("text-sm text-muted-foreground pb-12", expanded ? "min-h-[220px]" : "min-h-[120px]")}
@@ -1259,7 +1261,7 @@ export function NewIssueDialog() {
             <div className="mt-4 space-y-3 rounded-lg border border-border/70 p-3">
               {stagedDocuments.length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-xs font-medium text-muted-foreground">Documents</div>
+                  <div className="text-xs font-medium text-muted-foreground">{t("issues.addDocuments")}</div>
                   <div className="space-y-2">
                     {stagedDocuments.map((file) => (
                       <div key={file.id} className="flex items-start justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
@@ -1295,7 +1297,7 @@ export function NewIssueDialog() {
 
               {stagedAttachments.length > 0 ? (
                 <div className="space-y-2">
-                  <div className="text-xs font-medium text-muted-foreground">Attachments</div>
+                  <div className="text-xs font-medium text-muted-foreground">{t("issues.dragFilesHere")}</div>
                   <div className="space-y-2">
                     {stagedAttachments.map((file) => (
                       <div key={file.id} className="flex items-start justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
@@ -1334,7 +1336,7 @@ export function NewIssueDialog() {
             <PopoverTrigger asChild>
               <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 transition-colors">
                 <CircleDot className={cn("h-3 w-3", currentStatus.color)} />
-                {currentStatus.label}
+                {t(`status.${currentStatus.value}`)}
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-36 p-1" align="start">
@@ -1348,7 +1350,7 @@ export function NewIssueDialog() {
                   onClick={() => { setStatus(s.value); setStatusOpen(false); }}
                 >
                   <CircleDot className={cn("h-3 w-3", s.color)} />
-                  {s.label}
+                  {t(`status.${s.value}`)}
                 </button>
               ))}
             </PopoverContent>
@@ -1361,12 +1363,12 @@ export function NewIssueDialog() {
                 {currentPriority ? (
                   <>
                     <currentPriority.icon className={cn("h-3 w-3", currentPriority.color)} />
-                    {currentPriority.label}
+                    {t(`priority.${currentPriority.value}`)}
                   </>
                 ) : (
                   <>
                     <Minus className="h-3 w-3 text-muted-foreground" />
-                    Priority
+                    {t("common.priority")}
                   </>
                 )}
               </button>
@@ -1382,7 +1384,7 @@ export function NewIssueDialog() {
                   onClick={() => { setPriority(p.value); setPriorityOpen(false); }}
                 >
                   <p.icon className={cn("h-3 w-3", p.color)} />
-                  {p.label}
+                  {t(`priority.${p.value}`)}
                 </button>
               ))}
             </PopoverContent>
@@ -1391,7 +1393,7 @@ export function NewIssueDialog() {
           {/* Labels chip (placeholder) */}
           <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent/50 transition-colors text-muted-foreground">
             <Tag className="h-3 w-3" />
-            Labels
+            {t("issues.labels")}
           </button>
 
           <input
@@ -1408,7 +1410,7 @@ export function NewIssueDialog() {
             disabled={createIssue.isPending}
           >
             <Paperclip className="h-3 w-3" />
-            Upload
+            {t("common.import")}
           </button>
 
           {/* More (dates) */}
@@ -1421,11 +1423,11 @@ export function NewIssueDialog() {
             <PopoverContent className="w-44 p-1" align="start">
               <button className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                Start date
+                {t("common.date")}
               </button>
               <button className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                Due date
+                {t("common.date")}
               </button>
             </PopoverContent>
           </Popover>
@@ -1440,14 +1442,14 @@ export function NewIssueDialog() {
             onClick={discardDraft}
             disabled={createIssue.isPending || !canDiscardDraft}
           >
-            Discard Draft
+            {t("documents.unsavedChanges")}
           </Button>
           <div className="flex items-center gap-3">
             <div className="min-h-5 text-right">
               {createIssue.isPending ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Creating issue...
+                  {t("common.creating")}
                 </span>
               ) : createIssue.isError ? (
                 <span className="text-xs text-destructive">{createIssueErrorMessage}</span>
@@ -1462,7 +1464,7 @@ export function NewIssueDialog() {
             >
               <span className="inline-flex items-center justify-center gap-1.5">
                 {createIssue.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                <span>{createIssue.isPending ? "Creating..." : "Create Issue"}</span>
+                <span>{createIssue.isPending ? t("common.creating") : t("issues.createIssue")}</span>
               </span>
             </Button>
           </div>

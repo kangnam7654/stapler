@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, Link, Navigate, useBeforeUnload } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -162,10 +163,10 @@ function formatEnvForDisplay(envValue: unknown, censorUsernameInLogs: boolean): 
 }
 
 const sourceLabels: Record<string, string> = {
-  timer: "Timer",
-  assignment: "Assignment",
-  on_demand: "On-demand",
-  automation: "Automation",
+  timer: "타이머",
+  assignment: "할당",
+  on_demand: "수동",
+  automation: "자동화",
 };
 
 const LIVE_SCROLL_BOTTOM_TOLERANCE_PX = 32;
@@ -308,13 +309,13 @@ function parseStoredLogContent(content: string): RunLogChunk[] {
 function workspaceOperationPhaseLabel(phase: WorkspaceOperation["phase"]) {
   switch (phase) {
     case "worktree_prepare":
-      return "Worktree setup";
+      return "워크트리 설정";
     case "workspace_provision":
-      return "Provision";
+      return "프로비저닝";
     case "workspace_teardown":
-      return "Teardown";
+      return "해체";
     case "worktree_cleanup":
-      return "Worktree cleanup";
+      return "워크트리 정리";
     default:
       return phase;
   }
@@ -375,18 +376,18 @@ function WorkspaceOperationLogViewer({
         className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
         onClick={() => setOpen((value) => !value)}
       >
-        {open ? "Hide full log" : "Show full log"}
+        {open ? "전체 로그 숨기기" : "전체 로그 보기"}
       </button>
       {open && (
         <div className="rounded-md border border-border bg-background/70 p-2">
-          {isLoading && <div className="text-xs text-muted-foreground">Loading log...</div>}
+          {isLoading && <div className="text-xs text-muted-foreground">로그 불러오는 중...</div>}
           {error && (
             <div className="text-xs text-destructive">
-              {error instanceof Error ? error.message : "Failed to load workspace operation log"}
+              {error instanceof Error ? error.message : "워크스페이스 작업 로그 불러오기 실패"}
             </div>
           )}
           {!isLoading && !error && chunks.length === 0 && (
-            <div className="text-xs text-muted-foreground">No persisted log lines.</div>
+            <div className="text-xs text-muted-foreground">저장된 로그 라인이 없습니다.</div>
           )}
           {chunks.length > 0 && (
             <div className="max-h-64 overflow-y-auto rounded bg-neutral-100 p-2 font-mono text-xs dark:bg-neutral-950">
@@ -430,7 +431,7 @@ function WorkspaceOperationsSection({
   return (
     <div className="rounded-lg border border-border bg-background/60 p-3 space-y-3">
       <div className="text-xs font-medium text-muted-foreground">
-        Workspace ({operations.length})
+        워크스페이스 ({operations.length})
       </div>
       <div className="space-y-3">
         {operations.map((operation) => {
@@ -447,13 +448,13 @@ function WorkspaceOperationsSection({
               </div>
               {operation.command && (
                 <div className="text-xs break-all">
-                  <span className="text-muted-foreground">Command: </span>
+                  <span className="text-muted-foreground">명령어: </span>
                   <span className="font-mono">{operation.command}</span>
                 </div>
               )}
               {operation.cwd && (
                 <div className="text-xs break-all">
-                  <span className="text-muted-foreground">Working dir: </span>
+                  <span className="text-muted-foreground">작업 디렉토리: </span>
                   <span className="font-mono">{operation.cwd}</span>
                 </div>
               )}
@@ -464,30 +465,30 @@ function WorkspaceOperationsSection({
                 || asNonEmptyString(metadata?.cleanupAction)) && (
                 <div className="grid gap-1 text-xs sm:grid-cols-2">
                   {asNonEmptyString(metadata?.branchName) && (
-                    <div><span className="text-muted-foreground">Branch: </span><span className="font-mono">{metadata?.branchName as string}</span></div>
+                    <div><span className="text-muted-foreground">브랜치: </span><span className="font-mono">{metadata?.branchName as string}</span></div>
                   )}
                   {asNonEmptyString(metadata?.baseRef) && (
-                    <div><span className="text-muted-foreground">Base ref: </span><span className="font-mono">{metadata?.baseRef as string}</span></div>
+                    <div><span className="text-muted-foreground">기준 ref: </span><span className="font-mono">{metadata?.baseRef as string}</span></div>
                   )}
                   {asNonEmptyString(metadata?.worktreePath) && (
-                    <div className="break-all"><span className="text-muted-foreground">Worktree: </span><span className="font-mono">{metadata?.worktreePath as string}</span></div>
+                    <div className="break-all"><span className="text-muted-foreground">워크트리: </span><span className="font-mono">{metadata?.worktreePath as string}</span></div>
                   )}
                   {asNonEmptyString(metadata?.repoRoot) && (
-                    <div className="break-all"><span className="text-muted-foreground">Repo root: </span><span className="font-mono">{metadata?.repoRoot as string}</span></div>
+                    <div className="break-all"><span className="text-muted-foreground">저장소 루트: </span><span className="font-mono">{metadata?.repoRoot as string}</span></div>
                   )}
                   {asNonEmptyString(metadata?.cleanupAction) && (
-                    <div><span className="text-muted-foreground">Cleanup: </span><span className="font-mono">{metadata?.cleanupAction as string}</span></div>
+                    <div><span className="text-muted-foreground">정리 작업: </span><span className="font-mono">{metadata?.cleanupAction as string}</span></div>
                   )}
                 </div>
               )}
               {typeof metadata?.created === "boolean" && (
                 <div className="text-xs text-muted-foreground">
-                  {metadata.created ? "Created by this run" : "Reused existing workspace"}
+                  {metadata.created ? "이번 실행으로 생성됨" : "기존 워크스페이스 재사용"}
                 </div>
               )}
               {operation.stderrExcerpt && operation.stderrExcerpt.trim() && (
                 <div>
-                  <div className="mb-1 text-xs text-red-700 dark:text-red-300">stderr excerpt</div>
+                  <div className="mb-1 text-xs text-red-700 dark:text-red-300">stderr 발췌</div>
                   <pre className="rounded-md bg-red-50 p-2 text-xs whitespace-pre-wrap break-all text-red-800 dark:bg-neutral-950 dark:text-red-100">
                     {redactPathText(operation.stderrExcerpt, censorUsernameInLogs)}
                   </pre>
@@ -495,7 +496,7 @@ function WorkspaceOperationsSection({
               )}
               {operation.stdoutExcerpt && operation.stdoutExcerpt.trim() && (
                 <div>
-                  <div className="mb-1 text-xs text-muted-foreground">stdout excerpt</div>
+                  <div className="mb-1 text-xs text-muted-foreground">stdout 발췌</div>
                   <pre className="rounded-md bg-neutral-100 p-2 text-xs whitespace-pre-wrap break-all dark:bg-neutral-950">
                     {redactPathText(operation.stdoutExcerpt, censorUsernameInLogs)}
                   </pre>
@@ -516,6 +517,7 @@ function WorkspaceOperationsSection({
 }
 
 export function AgentDetail() {
+  const { t } = useTranslation();
   const { companyPrefix, agentId, tab: urlTab, runId: urlRunId } = useParams<{
     companyPrefix?: string;
     agentId: string;
@@ -754,32 +756,32 @@ export function AgentDetail() {
 
   useEffect(() => {
     const crumbs: { label: string; href?: string }[] = [
-      { label: "Agents", href: "/agents" },
+      { label: t("nav.agents"), href: "/agents" },
     ];
-    const agentName = agent?.name ?? routeAgentRef ?? "Agent";
+    const agentName = agent?.name ?? routeAgentRef ?? t("common.agent");
     if (activeView === "dashboard" && !urlRunId) {
       crumbs.push({ label: agentName });
     } else {
       crumbs.push({ label: agentName, href: `/agents/${canonicalAgentRef}/dashboard` });
       if (urlRunId) {
-        crumbs.push({ label: "Runs", href: `/agents/${canonicalAgentRef}/runs` });
-        crumbs.push({ label: `Run ${urlRunId.slice(0, 8)}` });
+        crumbs.push({ label: "실행 기록", href: `/agents/${canonicalAgentRef}/runs` });
+        crumbs.push({ label: `실행 ${urlRunId.slice(0, 8)}` });
       } else if (activeView === "instructions") {
-        crumbs.push({ label: "Instructions" });
+        crumbs.push({ label: "지시사항" });
       } else if (activeView === "configuration") {
-        crumbs.push({ label: "Configuration" });
+        crumbs.push({ label: t("projects.configuration") });
       // } else if (activeView === "skills") { // TODO: bring back later
-      //   crumbs.push({ label: "Skills" });
+      //   crumbs.push({ label: t("nav.skills") });
       } else if (activeView === "runs") {
-        crumbs.push({ label: "Runs" });
+        crumbs.push({ label: "실행 기록" });
       } else if (activeView === "budget") {
-        crumbs.push({ label: "Budget" });
+        crumbs.push({ label: t("projects.budget") });
       } else {
-        crumbs.push({ label: "Dashboard" });
+        crumbs.push({ label: t("projects.overview") });
       }
     }
     setBreadcrumbs(crumbs);
-  }, [setBreadcrumbs, agent, routeAgentRef, canonicalAgentRef, activeView, urlRunId]);
+  }, [setBreadcrumbs, agent, routeAgentRef, canonicalAgentRef, activeView, urlRunId, t]);
 
   useEffect(() => {
     closePanel();
@@ -831,12 +833,12 @@ export function AgentDetail() {
             onClick={() => openNewIssue({ assigneeAgentId: agent.id })}
           >
             <Plus className="h-3.5 w-3.5 sm:mr-1" />
-            <span className="hidden sm:inline">Assign Task</span>
+            <span className="hidden sm:inline">작업 배정</span>
           </Button>
           <RunButton
             onClick={() => agentAction.mutate("invoke")}
             disabled={agentAction.isPending || isPendingApproval}
-            label="Run Heartbeat"
+            label="하트비트 실행"
           />
           <PauseResumeButton
             isPaused={agent.status === "paused"}
@@ -874,7 +876,7 @@ export function AgentDetail() {
                 }}
               >
                 <Copy className="h-3 w-3" />
-                Copy Agent ID
+                에이전트 ID 복사
               </button>
               <button
                 className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50"
@@ -884,7 +886,7 @@ export function AgentDetail() {
                 }}
               >
                 <RotateCcw className="h-3 w-3" />
-                Reset Sessions
+                세션 초기화
               </button>
               <button
                 className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-destructive"
@@ -894,7 +896,7 @@ export function AgentDetail() {
                 }}
               >
                 <Trash2 className="h-3 w-3" />
-                Terminate
+                종료
               </button>
             </PopoverContent>
           </Popover>
@@ -908,12 +910,12 @@ export function AgentDetail() {
         >
           <PageTabBar
             items={[
-              { value: "dashboard", label: "Dashboard" },
-              { value: "instructions", label: "Instructions" },
-              { value: "skills", label: "Skills" },
-              { value: "configuration", label: "Configuration" },
-              { value: "runs", label: "Runs" },
-              { value: "budget", label: "Budget" },
+              { value: "dashboard", label: t("projects.overview") },
+              { value: "instructions", label: "지시사항" },
+              { value: "skills", label: t("nav.skills") },
+              { value: "configuration", label: t("projects.configuration") },
+              { value: "runs", label: "실행 기록" },
+              { value: "budget", label: t("projects.budget") },
             ]}
             value={activeView}
             onValueChange={(value) => navigate(`/agents/${canonicalAgentRef}/${value}`)}
@@ -924,7 +926,7 @@ export function AgentDetail() {
       {actionError && <p className="text-sm text-destructive">{actionError}</p>}
       {isPendingApproval && (
         <p className="text-sm text-amber-500">
-          This agent is pending board approval and cannot be invoked yet.
+          이 에이전트는 이사회 승인 대기 중으로 아직 실행할 수 없습니다.
         </p>
       )}
 
@@ -945,14 +947,14 @@ export function AgentDetail() {
               onClick={() => cancelConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
               onClick={() => saveConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              {configSaving ? "Saving…" : "Save"}
+              {configSaving ? t("common.saving") : t("common.save")}
             </Button>
           </div>
         </div>
@@ -971,14 +973,14 @@ export function AgentDetail() {
               onClick={() => cancelConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               size="sm"
               onClick={() => saveConfigActionRef.current?.()}
               disabled={configSaving}
             >
-              {configSaving ? "Saving…" : "Save"}
+              {configSaving ? t("common.saving") : t("common.save")}
             </Button>
           </div>
         </div>
@@ -1064,6 +1066,7 @@ function SummaryRow({ label, children }: { label: string; children: React.ReactN
 }
 
 function LatestRunCard({ runs, agentId }: { runs: HeartbeatRun[]; agentId: string }) {
+  const { t } = useTranslation();
   if (runs.length === 0) return null;
 
   const sorted = [...runs].sort(
@@ -1107,13 +1110,13 @@ function LatestRunCard({ runs, agentId }: { runs: HeartbeatRun[]; agentId: strin
               <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400" />
             </span>
           )}
-          {isLive ? "Live Run" : "Latest Run"}
+          {isLive ? "실시간 실행" : "최근 실행"}
         </h3>
         <Link
           to={`/agents/${agentId}/runs/${run.id}`}
           className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors no-underline"
         >
-          View details &rarr;
+          상세 보기 &rarr;
         </Link>
       </div>
 
@@ -1167,6 +1170,7 @@ function AgentOverview({
   agentId: string;
   agentRouteId: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-8">
       {/* Latest Run */}
@@ -1174,16 +1178,16 @@ function AgentOverview({
 
       {/* Charts */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <ChartCard title="Run Activity" subtitle="Last 14 days">
+        <ChartCard title="실행 활동" subtitle="최근 14일">
           <RunActivityChart runs={runs} />
         </ChartCard>
-        <ChartCard title="Issues by Priority" subtitle="Last 14 days">
+        <ChartCard title="우선순위별 이슈" subtitle="최근 14일">
           <PriorityChart issues={assignedIssues} />
         </ChartCard>
-        <ChartCard title="Issues by Status" subtitle="Last 14 days">
+        <ChartCard title="상태별 이슈" subtitle="최근 14일">
           <IssueStatusChart issues={assignedIssues} />
         </ChartCard>
-        <ChartCard title="Success Rate" subtitle="Last 14 days">
+        <ChartCard title="성공률" subtitle="최근 14일">
           <SuccessRateChart runs={runs} />
         </ChartCard>
       </div>
@@ -1191,16 +1195,16 @@ function AgentOverview({
       {/* Recent Issues */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Recent Issues</h3>
+          <h3 className="text-sm font-medium">최근 이슈</h3>
           <Link
             to={`/issues?participantAgentId=${agentId}`}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            See All &rarr;
+            전체 보기 &rarr;
           </Link>
         </div>
         {assignedIssues.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No recent issues.</p>
+          <p className="text-sm text-muted-foreground">최근 이슈가 없습니다.</p>
         ) : (
           <div className="border border-border rounded-lg">
             {assignedIssues.slice(0, 10).map((issue) => (
@@ -1214,7 +1218,7 @@ function AgentOverview({
             ))}
             {assignedIssues.length > 10 && (
               <div className="px-3 py-2 text-xs text-muted-foreground text-center border-t border-border">
-                +{assignedIssues.length - 10} more issues
+                +{assignedIssues.length - 10} 개 이슈 더 보기
               </div>
             )}
           </div>
@@ -1223,7 +1227,7 @@ function AgentOverview({
 
       {/* Costs */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">Costs</h3>
+        <h3 className="text-sm font-medium">비용</h3>
         <CostsSection runtimeState={runtimeState} runs={runs} />
       </div>
     </div>
@@ -1252,19 +1256,19 @@ function CostsSection({
         <div className="border border-border rounded-lg p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 tabular-nums">
             <div>
-              <span className="text-xs text-muted-foreground block">Input tokens</span>
+              <span className="text-xs text-muted-foreground block">입력 토큰</span>
               <span className="text-lg font-semibold">{formatTokens(runtimeState.totalInputTokens)}</span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block">Output tokens</span>
+              <span className="text-xs text-muted-foreground block">출력 토큰</span>
               <span className="text-lg font-semibold">{formatTokens(runtimeState.totalOutputTokens)}</span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block">Cached tokens</span>
+              <span className="text-xs text-muted-foreground block">캐시 토큰</span>
               <span className="text-lg font-semibold">{formatTokens(runtimeState.totalCachedInputTokens)}</span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block">Total cost</span>
+              <span className="text-xs text-muted-foreground block">총 비용</span>
               <span className="text-lg font-semibold">{formatCents(runtimeState.totalCostCents)}</span>
             </div>
           </div>
@@ -1275,11 +1279,11 @@ function CostsSection({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-border bg-accent/20">
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Date</th>
-                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Run</th>
-                <th className="text-right px-3 py-2 font-medium text-muted-foreground">Input</th>
-                <th className="text-right px-3 py-2 font-medium text-muted-foreground">Output</th>
-                <th className="text-right px-3 py-2 font-medium text-muted-foreground">Cost</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">날짜</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">실행</th>
+                <th className="text-right px-3 py-2 font-medium text-muted-foreground">입력</th>
+                <th className="text-right px-3 py-2 font-medium text-muted-foreground">출력</th>
+                <th className="text-right px-3 py-2 font-medium text-muted-foreground">비용</th>
               </tr>
             </thead>
             <tbody>
@@ -1329,6 +1333,7 @@ function AgentConfigurePage({
   onSavingChange: (saving: boolean) => void;
   updatePermissions: { mutate: (permissions: AgentPermissionUpdate) => void; isPending: boolean };
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [revisionsOpen, setRevisionsOpen] = useState(false);
 
@@ -1360,7 +1365,7 @@ function AgentConfigurePage({
         hideInstructionsFile
       />
       <div>
-        <h3 className="text-sm font-medium mb-3">API Keys</h3>
+        <h3 className="text-sm font-medium mb-3">API 키</h3>
         <KeysTab agentId={agentId} companyId={companyId} />
       </div>
 
@@ -1374,13 +1379,13 @@ function AgentConfigurePage({
             ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           }
-          Configuration Revisions
+          설정 변경 이력
           <span className="text-xs font-normal text-muted-foreground">{configRevisions?.length ?? 0}</span>
         </button>
         {revisionsOpen && (
           <div className="mt-3">
             {(configRevisions ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No configuration revisions yet.</p>
+              <p className="text-sm text-muted-foreground">설정 변경 이력이 없습니다.</p>
             ) : (
               <div className="space-y-2">
                 {(configRevisions ?? []).slice(0, 10).map((revision) => (
@@ -1400,12 +1405,12 @@ function AgentConfigurePage({
                         onClick={() => rollbackConfig.mutate(revision.id)}
                         disabled={rollbackConfig.isPending}
                       >
-                        Restore
+                        {t("common.restore")}
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Changed:{" "}
-                      {revision.changedKeys.length > 0 ? revision.changedKeys.join(", ") : "no tracked changes"}
+                      변경됨:{" "}
+                      {revision.changedKeys.length > 0 ? revision.changedKeys.join(", ") : "추적된 변경 없음"}
                     </p>
                   </div>
                 ))}
@@ -1441,6 +1446,7 @@ function ConfigurationTab({
   hidePromptTemplate?: boolean;
   hideInstructionsFile?: boolean;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
   const [awaitingRefreshAfterSave, setAwaitingRefreshAfterSave] = useState(false);
@@ -1474,7 +1480,7 @@ function ConfigurationTab({
           : err instanceof Error
             ? err.message
             : "Could not save agent";
-      pushToast({ title: "Save failed", body: message, tone: "error" });
+      pushToast({ title: t("toast.saveFailed"), body: message, tone: "error" });
     },
   });
 
@@ -1521,13 +1527,13 @@ function ConfigurationTab({
       />
 
       <div>
-        <h3 className="text-sm font-medium mb-3">Permissions</h3>
+        <h3 className="text-sm font-medium mb-3">권한</h3>
         <div className="border border-border rounded-lg p-4 space-y-4">
           <div className="flex items-center justify-between gap-4 text-sm">
             <div className="space-y-1">
-              <div>Can create new agents</div>
+              <div>새 에이전트 생성 가능</div>
               <p className="text-xs text-muted-foreground">
-                Lets this agent create or hire agents and implicitly assign tasks.
+                이 에이전트가 새 에이전트를 생성하거나 채용하고 작업을 암묵적으로 배정할 수 있도록 합니다.
               </p>
             </div>
             <button
@@ -1557,7 +1563,7 @@ function ConfigurationTab({
           </div>
           <div className="flex items-center justify-between gap-4 text-sm">
             <div className="space-y-1">
-              <div>Can assign tasks</div>
+              <div>작업 배정 가능</div>
               <p className="text-xs text-muted-foreground">
                 {taskAssignHint}
               </p>
@@ -1610,6 +1616,7 @@ function PromptsTab({
   onCancelActionChange: (cancel: (() => void) | null) => void;
   onSavingChange: (saving: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { selectedCompanyId } = useCompany();
   const { isMobile } = useSidebar();
@@ -1906,7 +1913,7 @@ function PromptsTab({
     return (
       <div className="max-w-3xl">
         <p className="text-sm text-muted-foreground">
-          Instructions bundles are only available for local adapters.
+          지시사항 번들은 로컬 어댑터에서만 사용할 수 있습니다.
         </p>
       </div>
     );
@@ -2088,7 +2095,7 @@ function PromptsTab({
           isMobile && !showFilePanel && "hidden",
         )} style={isMobile ? undefined : { width: filePanelWidth }}>
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium">Files</h4>
+            <h4 className="text-sm font-medium">파일</h4>
             <div className="flex items-center gap-1">
               {!showNewFileInput && (
                 <Button
@@ -2146,7 +2153,7 @@ function PromptsTab({
                     setShowNewFileInput(false);
                   }}
                 >
-                  Create
+                  {t("common.create")}
                 </Button>
                 <Button
                   type="button"
@@ -2158,7 +2165,7 @@ function PromptsTab({
                     setNewFilePath("");
                   }}
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </div>
             </div>
@@ -2234,9 +2241,9 @@ function PromptsTab({
                 <p className="text-xs text-muted-foreground">
                   {selectedFileExists
                     ? selectedFileSummary?.deprecated
-                      ? "Deprecated virtual file"
-                      : `${selectedFileDetail?.language ?? "text"} file`
-                    : "New file in this bundle"}
+                      ? "사용 중단된 가상 파일"
+                      : `${selectedFileDetail?.language ?? "text"} 파일`
+                    : "번들에 추가될 새 파일"}
                 </p>
               </div>
             </div>
@@ -2246,7 +2253,7 @@ function PromptsTab({
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  if (confirm(`Delete ${selectedOrEntryFile}?`)) {
+                  if (confirm(`${selectedOrEntryFile} 파일을 삭제하시겠습니까?`)) {
                     deleteFile.mutate(selectedOrEntryFile, {
                       onSuccess: () => {
                         setSelectedFile(currentEntryFile);
@@ -2257,7 +2264,7 @@ function PromptsTab({
                 }}
                 disabled={deleteFile.isPending}
               >
-                Delete
+                {t("common.delete")}
               </Button>
             )}
           </div>
@@ -2366,6 +2373,7 @@ function AgentSkillsTab({
     adapterEntry: AgentSkillEntry | null;
   };
 
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [skillDraft, setSkillDraft] = useState<string[]>([]);
   const [lastSavedSkills, setLastSavedSkills] = useState<string[]>([]);
@@ -2518,13 +2526,13 @@ function AgentSkillsTab({
   const skillApplicationLabel = useMemo(() => {
     switch (skillSnapshot?.mode) {
       case "persistent":
-        return "Kept in the workspace";
+        return "워크스페이스에 유지됨";
       case "ephemeral":
-        return "Applied when the agent runs";
+        return "에이전트 실행 시 적용됨";
       case "unsupported":
-        return "Tracked only";
+        return "추적만 됨";
       default:
-        return "Unknown";
+        return "알 수 없음";
     }
   }, [skillSnapshot?.mode]);
   const unsupportedSkillMessage = useMemo(() => {
@@ -2536,9 +2544,9 @@ function AgentSkillsTab({
   }, [agent.adapterType, skillSnapshot?.mode]);
   const hasUnsavedChanges = !arraysEqual(skillDraft, lastSavedSkills);
   const saveStatusLabel = syncSkills.isPending
-    ? "Saving changes..."
+    ? "변경사항 저장 중..."
     : hasUnsavedChanges
-      ? "Saving soon..."
+      ? "잠시 후 저장됩니다..."
       : null;
 
   return (
@@ -2548,7 +2556,7 @@ function AgentSkillsTab({
           to="/skills"
           className="text-sm font-medium text-foreground underline-offset-4 no-underline transition-colors hover:text-foreground/70 hover:underline"
         >
-          View company skills library
+          회사 스킬 라이브러리 보기
         </Link>
         {saveStatusLabel ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -2672,7 +2680,7 @@ function AgentSkillsTab({
               return (
                 <section className="border-y border-border">
                   <div className="px-3 py-6 text-sm text-muted-foreground">
-                    Import skills into the company library first, then attach them here.
+                    먼저 회사 라이브러리에 스킬을 가져온 후 여기에 추가하세요.
                   </div>
                 </section>
               );
@@ -2690,7 +2698,7 @@ function AgentSkillsTab({
                   <section className="border-y border-border">
                     <div className="border-b border-border bg-muted/40 px-3 py-2">
                       <span className="text-xs font-medium text-muted-foreground">
-                        Required by Paperclip
+                        Paperclip 필수 스킬
                       </span>
                     </div>
                     {requiredSkillRows.map(renderSkillRow)}
@@ -2707,7 +2715,7 @@ function AgentSkillsTab({
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setUnmanagedOpen((v) => !v); } }}
                     >
                       <span className="text-xs font-medium text-muted-foreground">
-                        ({unmanagedSkillRows.length}) User-installed skills, not managed by Paperclip
+                        ({unmanagedSkillRows.length}) 사용자 설치 스킬 — Paperclip이 관리하지 않음
                       </span>
                       {unmanagedOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                     </div>
@@ -2720,7 +2728,7 @@ function AgentSkillsTab({
 
           {desiredOnlyMissingSkills.length > 0 && (
             <div className="rounded-xl border border-amber-300/60 bg-amber-50/60 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-200">
-              <div className="font-medium">Requested skills missing from the company library</div>
+              <div className="font-medium">회사 라이브러리에 없는 요청된 스킬</div>
               <div className="mt-1 text-xs">
                 {desiredOnlyMissingSkills.join(", ")}
               </div>
@@ -2730,22 +2738,22 @@ function AgentSkillsTab({
           <section className="border-t border-border pt-4">
             <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-                <span className="text-muted-foreground">Adapter</span>
+                <span className="text-muted-foreground">어댑터</span>
                 <span className="font-medium">{adapterLabels[agent.adapterType] ?? agent.adapterType}</span>
               </div>
               <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-                <span className="text-muted-foreground">Skills applied</span>
+                <span className="text-muted-foreground">스킬 적용 방식</span>
                 <span>{skillApplicationLabel}</span>
               </div>
               <div className="flex items-center justify-between gap-3 border-b border-border/60 py-2">
-                <span className="text-muted-foreground">Selected skills</span>
+                <span className="text-muted-foreground">선택된 스킬</span>
                 <span>{skillDraft.length}</span>
               </div>
             </div>
 
             {syncSkills.isError && (
               <p className="mt-3 text-xs text-destructive">
-                {syncSkills.error instanceof Error ? syncSkills.error.message : "Failed to update skills"}
+                {syncSkills.error instanceof Error ? syncSkills.error.message : "스킬 업데이트에 실패했습니다"}
               </p>
             )}
           </section>
@@ -2824,7 +2832,7 @@ function RunsTab({
   const { isMobile } = useSidebar();
 
   if (runs.length === 0) {
-    return <p className="text-sm text-muted-foreground">No runs yet.</p>;
+    return <p className="text-sm text-muted-foreground">아직 실행 기록이 없습니다</p>;
   }
 
   // Sort by created descending
@@ -2846,7 +2854,7 @@ function RunsTab({
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors no-underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to runs
+            실행 목록으로
           </Link>
           <RunDetail key={selectedRun.id} run={selectedRun} agentRouteId={agentRouteId} adapterType={adapterType} />
         </div>
@@ -2889,6 +2897,7 @@ function RunsTab({
 /* ---- Run Detail (expanded) ---- */
 
 function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: HeartbeatRun; agentRouteId: string; adapterType: string }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data: hydratedRun } = useQuery({
@@ -3054,7 +3063,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
                   onClick={() => cancelRun.mutate()}
                   disabled={cancelRun.isPending}
                 >
-                  {cancelRun.isPending ? "Cancelling…" : "Cancel"}
+                  {cancelRun.isPending ? t("common.cancelling") : t("common.cancel")}
                 </Button>
               )}
               {canResumeLostRun && (
@@ -3066,7 +3075,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
                   disabled={resumeRun.isPending}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                  {resumeRun.isPending ? "Resuming…" : "Resume"}
+                  {resumeRun.isPending ? t("common.resuming") : t("common.resume")}
                 </Button>
               )}
               {canRetryRun && !canResumeLostRun && (
@@ -3078,7 +3087,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
                   disabled={retryRun.isPending}
                 >
                   <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                  {retryRun.isPending ? "Retrying…" : "Retry"}
+                  {retryRun.isPending ? "재시도 중…" : "재시도"}
                 </Button>
               )}
             </div>
@@ -3105,7 +3114,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
                 </div>
                 {displayDurationSec !== null && (
                   <div className="text-xs text-muted-foreground">
-                    Duration: {displayDurationSec >= 60 ? `${Math.floor(displayDurationSec / 60)}m ${displayDurationSec % 60}s` : `${displayDurationSec}s`}
+                    소요 시간: {displayDurationSec >= 60 ? `${Math.floor(displayDurationSec / 60)}분 ${displayDurationSec % 60}초` : `${displayDurationSec}초`}
                   </div>
                 )}
               </div>
@@ -3125,18 +3134,18 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
                   onClick={() => runClaudeLogin.mutate()}
                   disabled={runClaudeLogin.isPending}
                 >
-                  {runClaudeLogin.isPending ? "Running claude login..." : "Login to Claude Code"}
+                  {runClaudeLogin.isPending ? "Claude 로그인 실행 중..." : "Claude Code 로그인"}
                 </Button>
                 {runClaudeLogin.isError && (
                   <p className="text-xs text-destructive">
                     {runClaudeLogin.error instanceof Error
                       ? runClaudeLogin.error.message
-                      : "Failed to run Claude login"}
+                      : "Claude 로그인 실행에 실패했습니다"}
                   </p>
                 )}
                 {claudeLoginResult?.loginUrl && (
                   <p className="text-xs">
-                    Login URL:
+                    로그인 URL:
                     <a
                       href={claudeLoginResult.loginUrl}
                       className="text-blue-600 underline underline-offset-2 ml-1 break-all dark:text-blue-400"
@@ -3175,19 +3184,19 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
           {hasMetrics && (
             <div className="border-t sm:border-t-0 sm:border-l border-border p-4 grid grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-3 content-center tabular-nums">
               <div>
-                <div className="text-xs text-muted-foreground">Input</div>
+                <div className="text-xs text-muted-foreground">입력</div>
                 <div className="text-sm font-medium font-mono">{formatTokens(metrics.input)}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Output</div>
+                <div className="text-xs text-muted-foreground">출력</div>
                 <div className="text-sm font-medium font-mono">{formatTokens(metrics.output)}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Cached</div>
+                <div className="text-xs text-muted-foreground">캐시</div>
                 <div className="text-sm font-medium font-mono">{formatTokens(metrics.cached)}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Cost</div>
+                <div className="text-xs text-muted-foreground">비용</div>
                 <div className="text-sm font-medium font-mono">{metrics.cost > 0 ? `$${metrics.cost.toFixed(4)}` : "-"}</div>
               </div>
             </div>
@@ -3202,20 +3211,20 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
               onClick={() => setSessionOpen((v) => !v)}
             >
               <ChevronRight className={cn("h-3 w-3 transition-transform", sessionOpen && "rotate-90")} />
-              Session
-              {sessionChanged && <span className="text-yellow-400 ml-1">(changed)</span>}
+              세션
+              {sessionChanged && <span className="text-yellow-400 ml-1">(변경됨)</span>}
             </button>
             {sessionOpen && (
               <div className="px-4 pb-3 space-y-1 text-xs">
                 {run.sessionIdBefore && (
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-12">{sessionChanged ? "Before" : "ID"}</span>
+                    <span className="text-muted-foreground w-12">{sessionChanged ? "이전" : "ID"}</span>
                     <CopyText text={run.sessionIdBefore} className="font-mono" />
                   </div>
                 )}
                 {sessionChanged && run.sessionIdAfter && (
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground w-12">After</span>
+                    <span className="text-muted-foreground w-12">이후</span>
                     <CopyText text={run.sessionIdAfter} className="font-mono" />
                   </div>
                 )}
@@ -3235,14 +3244,14 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
                       }}
                     >
                       {clearSessionsForTouchedIssues.isPending
-                        ? "clearing session..."
-                        : "clear session for these issues"}
+                        ? "세션 초기화 중..."
+                        : "이 이슈들의 세션 초기화"}
                     </button>
                     {clearSessionsForTouchedIssues.isError && (
                       <p className="text-[11px] text-destructive mt-1">
                         {clearSessionsForTouchedIssues.error instanceof Error
                           ? clearSessionsForTouchedIssues.error.message
-                          : "Failed to clear sessions"}
+                          : "세션 초기화에 실패했습니다"}
                       </p>
                     )}
                   </div>
@@ -3256,7 +3265,7 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType }: { run: Heartb
       {/* Issues touched by this run */}
       {touchedIssues && touchedIssues.length > 0 && (
         <div className="space-y-2">
-          <span className="text-xs font-medium text-muted-foreground">Issues Touched ({touchedIssues.length})</span>
+          <span className="text-xs font-medium text-muted-foreground">관련 이슈 ({touchedIssues.length})</span>
           <div className="border border-border rounded-lg divide-y divide-border">
             {touchedIssues.map((issue) => (
               <Link
@@ -3681,11 +3690,11 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
   }, [run.id]);
 
   if (loading && logLoading) {
-    return <p className="text-xs text-muted-foreground">Loading run logs...</p>;
+    return <p className="text-xs text-muted-foreground">실행 로그 불러오는 중...</p>;
   }
 
   if (events.length === 0 && logLines.length === 0 && !logError) {
-    return <p className="text-xs text-muted-foreground">No log events.</p>;
+    return <p className="text-xs text-muted-foreground">로그 이벤트가 없습니다.</p>;
   }
 
   const levelColors: Record<string, string> = {
@@ -3708,16 +3717,16 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
       />
       {adapterInvokePayload && (
         <div className="rounded-lg border border-border bg-background/60 p-3 space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">Invocation</div>
+          <div className="text-xs font-medium text-muted-foreground">호출 정보</div>
           {typeof adapterInvokePayload.adapterType === "string" && (
-            <div className="text-xs"><span className="text-muted-foreground">Adapter: </span>{adapterInvokePayload.adapterType}</div>
+            <div className="text-xs"><span className="text-muted-foreground">어댑터: </span>{adapterInvokePayload.adapterType}</div>
           )}
           {typeof adapterInvokePayload.cwd === "string" && (
-            <div className="text-xs break-all"><span className="text-muted-foreground">Working dir: </span><span className="font-mono">{adapterInvokePayload.cwd}</span></div>
+            <div className="text-xs break-all"><span className="text-muted-foreground">작업 디렉토리: </span><span className="font-mono">{adapterInvokePayload.cwd}</span></div>
           )}
           {typeof adapterInvokePayload.command === "string" && (
             <div className="text-xs break-all">
-              <span className="text-muted-foreground">Command: </span>
+              <span className="text-muted-foreground">명령어: </span>
               <span className="font-mono">
                 {[
                   adapterInvokePayload.command,
@@ -3730,7 +3739,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {Array.isArray(adapterInvokePayload.commandNotes) && adapterInvokePayload.commandNotes.length > 0 && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Command notes</div>
+              <div className="text-xs text-muted-foreground mb-1">명령어 참고사항</div>
               <ul className="list-disc pl-5 space-y-1">
                 {adapterInvokePayload.commandNotes
                   .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
@@ -3744,7 +3753,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {adapterInvokePayload.prompt !== undefined && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Prompt</div>
+              <div className="text-xs text-muted-foreground mb-1">프롬프트</div>
               <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap">
                 {typeof adapterInvokePayload.prompt === "string"
                   ? redactPathText(adapterInvokePayload.prompt, censorUsernameInLogs)
@@ -3754,7 +3763,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {adapterInvokePayload.context !== undefined && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Context</div>
+              <div className="text-xs text-muted-foreground mb-1">컨텍스트</div>
               <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap">
                 {JSON.stringify(redactPathValue(adapterInvokePayload.context, censorUsernameInLogs), null, 2)}
               </pre>
@@ -3762,7 +3771,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {adapterInvokePayload.env !== undefined && (
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Environment</div>
+              <div className="text-xs text-muted-foreground mb-1">환경</div>
               <pre className="bg-neutral-100 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap font-mono">
                 {formatEnvForDisplay(adapterInvokePayload.env, censorUsernameInLogs)}
               </pre>
@@ -3773,7 +3782,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">
-          Transcript ({transcript.length})
+          트랜스크립트 ({transcript.length})
         </span>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-lg border border-border/70 bg-background/70 p-0.5">
@@ -3805,7 +3814,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
                 lastMetricsRef.current = readScrollMetrics(container);
               }}
             >
-              Jump to live
+              실시간으로 이동
             </Button>
           )}
           {isLive && (
@@ -3824,7 +3833,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           entries={transcript}
           mode={transcriptMode}
           streaming={isLive}
-          emptyMessage={run.logRef ? "Waiting for transcript..." : "No persisted transcript for this run."}
+          emptyMessage={run.logRef ? "트랜스크립트 대기 중..." : "이 실행의 저장된 트랜스크립트가 없습니다."}
         />
         {logError && (
           <div className="mt-3 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-xs text-red-700 dark:text-red-300">
@@ -3836,16 +3845,16 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 
       {(run.status === "failed" || run.status === "timed_out") && (
         <div className="rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-950/20 p-3 space-y-2">
-          <div className="text-xs font-medium text-red-700 dark:text-red-300">Failure details</div>
+          <div className="text-xs font-medium text-red-700 dark:text-red-300">실패 상세</div>
           {run.error && (
             <div className="text-xs text-red-600 dark:text-red-200">
-              <span className="text-red-700 dark:text-red-300">Error: </span>
+              <span className="text-red-700 dark:text-red-300">오류: </span>
               {redactPathText(run.error, censorUsernameInLogs)}
             </div>
           )}
           {run.stderrExcerpt && run.stderrExcerpt.trim() && (
             <div>
-              <div className="text-xs text-red-700 dark:text-red-300 mb-1">stderr excerpt</div>
+              <div className="text-xs text-red-700 dark:text-red-300 mb-1">stderr 발췌</div>
               <pre className="bg-red-50 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap text-red-800 dark:text-red-100">
                 {redactPathText(run.stderrExcerpt, censorUsernameInLogs)}
               </pre>
@@ -3853,7 +3862,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {run.resultJson && (
             <div>
-              <div className="text-xs text-red-700 dark:text-red-300 mb-1">adapter result JSON</div>
+              <div className="text-xs text-red-700 dark:text-red-300 mb-1">어댑터 결과 JSON</div>
               <pre className="bg-red-50 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap text-red-800 dark:text-red-100">
                 {JSON.stringify(redactPathValue(run.resultJson, censorUsernameInLogs), null, 2)}
               </pre>
@@ -3861,7 +3870,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           )}
           {run.stdoutExcerpt && run.stdoutExcerpt.trim() && !run.resultJson && (
             <div>
-              <div className="text-xs text-red-700 dark:text-red-300 mb-1">stdout excerpt</div>
+              <div className="text-xs text-red-700 dark:text-red-300 mb-1">stdout 발췌</div>
               <pre className="bg-red-50 dark:bg-neutral-950 rounded-md p-2 text-xs overflow-x-auto whitespace-pre-wrap text-red-800 dark:text-red-100">
                 {redactPathText(run.stdoutExcerpt, censorUsernameInLogs)}
               </pre>
@@ -3872,7 +3881,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 
       {events.length > 0 && (
         <div>
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Events ({events.length})</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">이벤트 ({events.length})</div>
           <div className="bg-neutral-100 dark:bg-neutral-950 rounded-lg p-3 font-mono text-xs space-y-0.5">
             {events.map((evt) => {
               const color = evt.color
@@ -3908,6 +3917,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
 /* ---- Keys Tab ---- */
 
 function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [newKeyName, setNewKeyName] = useState("");
   const [newToken, setNewToken] = useState<string | null>(null);
@@ -3952,7 +3962,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
       {newToken && (
         <div className="border border-yellow-300 dark:border-yellow-600/40 bg-yellow-50 dark:bg-yellow-500/5 rounded-lg p-4 space-y-2">
           <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-            API key created — copy it now, it will not be shown again.
+            API 키가 생성되었습니다 — 지금 복사하세요. 다시 표시되지 않습니다.
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 bg-neutral-100 dark:bg-neutral-950 rounded px-3 py-1.5 text-xs font-mono text-green-700 dark:text-green-300 truncate">
@@ -3962,7 +3972,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
               variant="ghost"
               size="icon-sm"
               onClick={() => setTokenVisible((v) => !v)}
-              title={tokenVisible ? "Hide" : "Show"}
+              title={tokenVisible ? "숨기기" : "표시"}
             >
               {tokenVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </Button>
@@ -3970,11 +3980,11 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
               variant="ghost"
               size="icon-sm"
               onClick={copyToken}
-              title="Copy"
+              title={t("common.copy")}
             >
               <Copy className="h-3.5 w-3.5" />
             </Button>
-            {copied && <span className="text-xs text-green-400">Copied!</span>}
+            {copied && <span className="text-xs text-green-400">{t("common.copied")}!</span>}
           </div>
           <Button
             variant="ghost"
@@ -3982,7 +3992,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
             className="text-muted-foreground text-xs"
             onClick={() => setNewToken(null)}
           >
-            Dismiss
+            닫기
           </Button>
         </div>
       )}
@@ -3991,10 +4001,10 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
       <div className="border border-border rounded-lg p-4 space-y-3">
         <h3 className="text-xs font-medium text-muted-foreground flex items-center gap-2">
           <Key className="h-3.5 w-3.5" />
-          Create API Key
+          API 키 생성
         </h3>
         <p className="text-xs text-muted-foreground">
-          API keys allow this agent to authenticate calls to the Paperclip server.
+          API 키를 사용하면 이 에이전트가 Paperclip 서버 호출을 인증할 수 있습니다.
         </p>
         <div className="flex items-center gap-2">
           <Input
@@ -4012,22 +4022,22 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
             disabled={createKey.isPending}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Create
+            {t("common.create")}
           </Button>
         </div>
       </div>
 
       {/* Active keys */}
-      {isLoading && <p className="text-sm text-muted-foreground">Loading keys...</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">키 불러오는 중...</p>}
 
       {!isLoading && activeKeys.length === 0 && !newToken && (
-        <p className="text-sm text-muted-foreground">No active API keys.</p>
+        <p className="text-sm text-muted-foreground">활성 API 키가 없습니다.</p>
       )}
 
       {activeKeys.length > 0 && (
         <div>
           <h3 className="text-xs font-medium text-muted-foreground mb-2">
-            Active Keys
+            활성 키
           </h3>
           <div className="border border-border rounded-lg divide-y divide-border">
             {activeKeys.map((key: AgentKey) => (
@@ -4035,7 +4045,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
                 <div>
                   <span className="text-sm font-medium">{key.name}</span>
                   <span className="text-xs text-muted-foreground ml-3">
-                    Created {formatDate(key.createdAt)}
+                    생성됨 {formatDate(key.createdAt)}
                   </span>
                 </div>
                 <Button
@@ -4045,7 +4055,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
                   onClick={() => revokeKey.mutate(key.id)}
                   disabled={revokeKey.isPending}
                 >
-                  Revoke
+                  취소
                 </Button>
               </div>
             ))}
@@ -4057,7 +4067,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
       {revokedKeys.length > 0 && (
         <div>
           <h3 className="text-xs font-medium text-muted-foreground mb-2">
-            Revoked Keys
+            취소된 키
           </h3>
           <div className="border border-border rounded-lg divide-y divide-border opacity-50">
             {revokedKeys.map((key: AgentKey) => (
@@ -4065,7 +4075,7 @@ function KeysTab({ agentId, companyId }: { agentId: string; companyId?: string }
                 <div>
                   <span className="text-sm line-through">{key.name}</span>
                   <span className="text-xs text-muted-foreground ml-3">
-                    Revoked {key.revokedAt ? formatDate(key.revokedAt) : ""}
+                    취소됨 {key.revokedAt ? formatDate(key.revokedAt) : ""}
                   </span>
                 </div>
               </div>

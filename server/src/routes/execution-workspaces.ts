@@ -11,6 +11,7 @@ import {
   stopRuntimeServicesForExecutionWorkspace,
 } from "../services/workspace-runtime.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { t } from "../i18n/index.js";
 
 const TERMINAL_ISSUE_STATUSES = new Set(["done", "cancelled"]);
 
@@ -36,7 +37,7 @@ export function executionWorkspaceRoutes(db: Db) {
     const id = req.params.id as string;
     const workspace = await svc.getById(id);
     if (!workspace) {
-      res.status(404).json({ error: "Execution workspace not found" });
+      res.status(404).json({ error: t("error.executionWorkspaceNotFound") });
       return;
     }
     assertCompanyAccess(req, workspace.companyId);
@@ -47,7 +48,7 @@ export function executionWorkspaceRoutes(db: Db) {
     const id = req.params.id as string;
     const existing = await svc.getById(id);
     if (!existing) {
-      res.status(404).json({ error: "Execution workspace not found" });
+      res.status(404).json({ error: t("error.executionWorkspaceNotFound") });
       return;
     }
     assertCompanyAccess(req, existing.companyId);
@@ -83,7 +84,7 @@ export function executionWorkspaceRoutes(db: Db) {
         cleanupReason: null,
       });
       if (!archivedWorkspace) {
-        res.status(404).json({ error: "Execution workspace not found" });
+        res.status(404).json({ error: t("error.executionWorkspaceNotFound") });
         return;
       }
       workspace = archivedWorkspace;
@@ -154,7 +155,7 @@ export function executionWorkspaceRoutes(db: Db) {
     } else {
       const updatedWorkspace = await svc.update(id, patch);
       if (!updatedWorkspace) {
-        res.status(404).json({ error: "Execution workspace not found" });
+        res.status(404).json({ error: t("error.executionWorkspaceNotFound") });
         return;
       }
       workspace = updatedWorkspace;

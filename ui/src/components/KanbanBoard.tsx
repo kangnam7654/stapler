@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@/lib/router";
+import { useTranslation } from "react-i18next";
 import {
   DndContext,
   DragOverlay,
@@ -21,6 +22,7 @@ import { StatusIcon } from "./StatusIcon";
 import { PriorityIcon } from "./PriorityIcon";
 import { Identity } from "./Identity";
 import type { Issue } from "@paperclipai/shared";
+import i18n from "@/i18n";
 
 const boardStatuses = [
   "backlog",
@@ -33,7 +35,7 @@ const boardStatuses = [
 ];
 
 function statusLabel(status: string): string {
-  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return i18n.t(`status.${status}`, { defaultValue: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) });
 }
 
 interface Agent {

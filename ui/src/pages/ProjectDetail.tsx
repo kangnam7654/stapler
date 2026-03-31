@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation, Navigate } from "@/lib/router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PROJECT_COLORS, isUuidLike, type BudgetPolicySummary } from "@paperclipai/shared";
@@ -58,6 +59,7 @@ function OverviewContent({
   onUpdate: (data: Record<string, unknown>) => void;
   imageUploadHandler?: (file: File) => Promise<string>;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <InlineEditor
@@ -65,21 +67,21 @@ function OverviewContent({
         onSave={(description) => onUpdate({ description })}
         as="p"
         className="text-sm text-muted-foreground"
-        placeholder="Add a description..."
+        placeholder={t("projects.addDescription")}
         multiline
         imageUploadHandler={imageUploadHandler}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>
-          <span className="text-muted-foreground">Status</span>
+          <span className="text-muted-foreground">{t("common.status")}</span>
           <div className="mt-1">
             <StatusBadge status={project.status} />
           </div>
         </div>
         {project.targetDate && (
           <div>
-            <span className="text-muted-foreground">Target Date</span>
+            <span className="text-muted-foreground">{t("projects.targetDate")}</span>
             <p>{project.targetDate}</p>
           </div>
         )}
@@ -97,6 +99,7 @@ function ColorPicker({
   currentColor: string;
   onSelect: (color: string) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -117,7 +120,7 @@ function ColorPicker({
         onClick={() => setOpen(!open)}
         className="shrink-0 h-5 w-5 rounded-md cursor-pointer hover:ring-2 hover:ring-foreground/20 transition-[box-shadow]"
         style={{ backgroundColor: currentColor }}
-        aria-label="Change project color"
+        aria-label={t("projects.changeColor")}
       />
       {open && (
         <div className="absolute top-full left-0 mt-2 p-2 bg-popover border border-border rounded-lg shadow-lg z-50 w-max">
@@ -203,6 +206,7 @@ function ProjectIssuesList({ projectId, companyId }: { projectId: string; compan
 /* ── Main project page ── */
 
 export function ProjectDetail() {
+  const { t } = useTranslation();
   const { companyPrefix, projectId, filter } = useParams<{
     companyPrefix?: string;
     projectId: string;
@@ -288,7 +292,7 @@ export function ProjectDetail() {
       ),
     onSuccess: (updatedProject, archived) => {
       invalidateProject();
-      const name = updatedProject?.name ?? project?.name ?? "Project";
+      const name = updatedProject?.name ?? project?.name ?? t("common.project");
       if (archived) {
         pushToast({ title: `"${name}" has been archived`, tone: "success" });
         navigate("/dashboard");
@@ -321,10 +325,10 @@ export function ProjectDetail() {
 
   useEffect(() => {
     setBreadcrumbs([
-      { label: "Projects", href: "/projects" },
-      { label: project?.name ?? routeProjectRef ?? "Project" },
+      { label: t("nav.projects"), href: "/projects" },
+      { label: project?.name ?? routeProjectRef ?? t("common.project") },
     ]);
-  }, [setBreadcrumbs, project, routeProjectRef]);
+  }, [setBreadcrumbs, project, routeProjectRef, t]);
 
   useEffect(() => {
     if (!project) return;
@@ -519,7 +523,7 @@ export function ProjectDetail() {
           {project.pauseReason === "budget" ? (
             <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-red-200">
               <span className="h-2 w-2 rounded-full bg-red-400" />
-              Paused by budget hard stop
+              {t("projects.pausedByBudget")}
             </div>
           ) : null}
         </div>
@@ -559,10 +563,10 @@ export function ProjectDetail() {
       <Tabs value={activeTab ?? "list"} onValueChange={(value) => handleTabChange(value as ProjectTab)}>
         <PageTabBar
           items={[
-            { value: "list", label: "Issues" },
-            { value: "overview", label: "Overview" },
-            { value: "configuration", label: "Configuration" },
-            { value: "budget", label: "Budget" },
+            { value: "list", label: t("nav.issues") },
+            { value: "overview", label: t("projects.overview") },
+            { value: "configuration", label: t("projects.configuration") },
+            { value: "budget", label: t("projects.budget") },
             ...pluginTabItems.map((item) => ({
               value: item.value,
               label: item.label,

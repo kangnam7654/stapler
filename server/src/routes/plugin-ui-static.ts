@@ -34,6 +34,7 @@ import crypto from "node:crypto";
 import type { Db } from "@paperclipai/db";
 import { pluginRegistryService } from "../services/plugin-registry.js";
 import { logger } from "../middleware/logger.js";
+import { t } from "../i18n/index.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -237,7 +238,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
       : rawParam as string | undefined;
 
     if (!rawFilePath || rawFilePath.length === 0) {
-      res.status(400).json({ error: "File path is required" });
+      res.status(400).json({ error: t("error.filePathRequired") });
       return;
     }
 
@@ -259,7 +260,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
     }
 
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -273,7 +274,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
 
     const manifest = plugin.manifestJson;
     if (!manifest?.entrypoints?.ui) {
-      res.status(404).json({ error: "Plugin does not declare a UI bundle" });
+      res.status(404).json({ error: t("error.pluginNoUiBundle") });
       return;
     }
 
@@ -307,7 +308,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
           try {
             decodedPath = decodeURIComponent(rawFilePath);
           } catch {
-            res.status(400).json({ error: "Invalid file path" });
+            res.status(400).json({ error: t("error.invalidFilePath") });
             return;
           }
           if (
@@ -315,7 +316,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
             decodedPath.startsWith("//") ||
             decodedPath.startsWith("\\\\")
           ) {
-            res.status(400).json({ error: "Invalid file path" });
+            res.status(400).json({ error: t("error.invalidFilePath") });
             return;
           }
 
@@ -324,7 +325,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
 
           // SSRF protection: only allow http/https and localhost targets for dev proxy
           if (targetUrl.protocol !== "http:" && targetUrl.protocol !== "https:") {
-            res.status(400).json({ error: "devUiUrl must use http or https protocol" });
+            res.status(400).json({ error: t("error.devUiUrlMustUseHttp") });
             return;
           }
 
@@ -342,7 +343,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
               { pluginId: plugin.id, devUiUrl, host: devHost },
               "plugin-ui-static: devUiUrl must target localhost, rejecting proxy",
             );
-            res.status(400).json({ error: "devUiUrl must target localhost" });
+            res.status(400).json({ error: t("error.devUiUrlMustTargetLocalhost") });
             return;
           }
 
@@ -403,7 +404,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
         { pluginId: plugin.id, pluginKey: plugin.pluginKey, packageName: plugin.packageName },
         "plugin-ui-static: UI directory not found on disk",
       );
-      res.status(404).json({ error: "Plugin UI directory not found" });
+      res.status(404).json({ error: t("error.pluginUiDirNotFound") });
       return;
     }
 
@@ -415,7 +416,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
     try {
       fileStat = fs.statSync(resolvedFilePath);
     } catch {
-      res.status(404).json({ error: "File not found" });
+      res.status(404).json({ error: t("error.fileNotFound") });
       return;
     }
 
@@ -427,18 +428,18 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
       realFilePath = fs.realpathSync(resolvedFilePath);
       realUiDir = fs.realpathSync(uiDir);
     } catch {
-      res.status(404).json({ error: "File not found" });
+      res.status(404).json({ error: t("error.fileNotFound") });
       return;
     }
 
     const relative = path.relative(realUiDir, realFilePath);
     if (relative.startsWith("..") || path.isAbsolute(relative)) {
-      res.status(403).json({ error: "Access denied" });
+      res.status(403).json({ error: t("error.accessDenied") });
       return;
     }
 
     if (!fileStat.isFile()) {
-      res.status(404).json({ error: "File not found" });
+      res.status(404).json({ error: t("error.fileNotFound") });
       return;
     }
 
@@ -486,7 +487,7 @@ export function pluginUiStaticRoutes(db: Db, options: PluginUiStaticRouteOptions
         );
         // Only send error if headers haven't been sent yet
         if (!res.headersSent) {
-          res.status(500).json({ error: "Failed to serve file" });
+          res.status(500).json({ error: t("error.failedToServeFile") });
         }
       }
     });

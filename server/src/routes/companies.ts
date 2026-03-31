@@ -9,6 +9,7 @@ import {
   updateCompanySchema,
 } from "@paperclipai/shared";
 import { forbidden } from "../errors.js";
+import { t } from "../i18n/index.js";
 import { validate } from "../middleware/validate.js";
 import {
   accessService,
@@ -32,28 +33,28 @@ export function companyRoutes(db: Db, storage?: StorageService) {
   async function assertCanUpdateBranding(req: Request, companyId: string) {
     assertCompanyAccess(req, companyId);
     if (req.actor.type === "board") return;
-    if (!req.actor.agentId) throw forbidden("Agent authentication required");
+    if (!req.actor.agentId) throw forbidden(t("error.agentAuthRequired"));
 
     const actorAgent = await agents.getById(req.actor.agentId);
     if (!actorAgent || actorAgent.companyId !== companyId) {
-      throw forbidden("Agent key cannot access another company");
+      throw forbidden(t("error.agentKeyCannotAccessCompany"));
     }
     if (actorAgent.role !== "ceo") {
-      throw forbidden("Only CEO agents can update company branding");
+      throw forbidden(t("error.onlyCeoCanUpdateBranding"));
     }
   }
 
   async function assertCanManagePortability(req: Request, companyId: string, capability: "imports" | "exports") {
     assertCompanyAccess(req, companyId);
     if (req.actor.type === "board") return;
-    if (!req.actor.agentId) throw forbidden("Agent authentication required");
+    if (!req.actor.agentId) throw forbidden(t("error.agentAuthRequired"));
 
     const actorAgent = await agents.getById(req.actor.agentId);
     if (!actorAgent || actorAgent.companyId !== companyId) {
-      throw forbidden("Agent key cannot access another company");
+      throw forbidden(t("error.agentKeyCannotAccessCompany"));
     }
     if (actorAgent.role !== "ceo") {
-      throw forbidden(`Only CEO agents can manage company ${capability}`);
+      throw forbidden(t("error.onlyCeoCanManageCapability", { capability }));
     }
   }
 
@@ -85,7 +86,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
   // Common malformed path when companyId is empty in "/api/companies/{companyId}/issues".
   router.get("/issues", (_req, res) => {
     res.status(400).json({
-      error: "Missing companyId in path. Use /api/companies/{companyId}/issues.",
+      error: t("error.missingCompanyIdInPath"),
     });
   });
 
@@ -98,7 +99,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     }
     const company = await svc.getById(companyId);
     if (!company) {
-      res.status(404).json({ error: "Company not found" });
+      res.status(404).json({ error: t("error.companyNotFound") });
       return;
     }
     res.json(company);
@@ -164,10 +165,10 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     const companyId = req.params.companyId as string;
     await assertCanManagePortability(req, companyId, "imports");
     if (req.body.target.mode === "existing_company" && req.body.target.companyId !== companyId) {
-      throw forbidden("Safe import route can only target the route company");
+      throw forbidden(t("error.safeImportOnlyTargetCompany"));
     }
     if (req.body.collisionStrategy === "replace") {
-      throw forbidden("Safe import route does not allow replace collision strategy");
+      throw forbidden(t("error.safeImportNoReplace"));
     }
     const preview = await portability.previewImport(req.body, {
       mode: "agent_safe",
@@ -180,10 +181,10 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     const companyId = req.params.companyId as string;
     await assertCanManagePortability(req, companyId, "imports");
     if (req.body.target.mode === "existing_company" && req.body.target.companyId !== companyId) {
-      throw forbidden("Safe import route can only target the route company");
+      throw forbidden(t("error.safeImportOnlyTargetCompany"));
     }
     if (req.body.collisionStrategy === "replace") {
-      throw forbidden("Safe import route does not allow replace collision strategy");
+      throw forbidden(t("error.safeImportNoReplace"));
     }
     const actor = getActorInfo(req);
     const result = await portability.importBundle(req.body, req.actor.type === "board" ? req.actor.userId : null, {
@@ -213,7 +214,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
   router.post("/", validate(createCompanySchema), async (req, res) => {
     assertBoard(req);
     if (!(req.actor.source === "local_implicit" || req.actor.isInstanceAdmin)) {
-      throw forbidden("Instance admin required");
+      throw forbidden(t("error.instanceAdminRequired"));
     }
     const company = await svc.create(req.body);
     await access.ensureMembership(company.id, "user", req.actor.userId ?? "local-board", "owner", "active");
@@ -253,10 +254,10 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       const agentSvc = agentService(db);
       const actorAgent = req.actor.agentId ? await agentSvc.getById(req.actor.agentId) : null;
       if (!actorAgent || actorAgent.role !== "ceo") {
-        throw forbidden("Only CEO agents or board users may update company settings");
+        throw forbidden(t("error.onlyCeoOrBoardCanUpdateSettings"));
       }
       if (actorAgent.companyId !== companyId) {
-        throw forbidden("Agent key cannot access another company");
+        throw forbidden(t("error.agentKeyCannotAccessCompany"));
       }
       body = updateCompanyBrandingSchema.parse(req.body);
     } else {
@@ -266,7 +267,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
 
     const company = await svc.update(companyId, body);
     if (!company) {
-      res.status(404).json({ error: "Company not found" });
+      res.status(404).json({ error: t("error.companyNotFound") });
       return;
     }
     await logActivity(db, {
@@ -288,7 +289,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     await assertCanUpdateBranding(req, companyId);
     const company = await svc.update(companyId, req.body);
     if (!company) {
-      res.status(404).json({ error: "Company not found" });
+      res.status(404).json({ error: t("error.companyNotFound") });
       return;
     }
     const actor = getActorInfo(req);
@@ -312,7 +313,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     assertCompanyAccess(req, companyId);
     const company = await svc.archive(companyId);
     if (!company) {
-      res.status(404).json({ error: "Company not found" });
+      res.status(404).json({ error: t("error.companyNotFound") });
       return;
     }
     await logActivity(db, {
@@ -332,7 +333,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     assertCompanyAccess(req, companyId);
     const company = await svc.remove(companyId);
     if (!company) {
-      res.status(404).json({ error: "Company not found" });
+      res.status(404).json({ error: t("error.companyNotFound") });
       return;
     }
     res.json({ ok: true });

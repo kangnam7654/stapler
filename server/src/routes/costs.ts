@@ -20,6 +20,7 @@ import {
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { fetchAllQuotaWindows } from "../services/quota-windows.js";
 import { badRequest } from "../errors.js";
+import { t } from "../i18n/index.js";
 
 export function costRoutes(db: Db) {
   const router = Router();
@@ -38,7 +39,7 @@ export function costRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
 
     if (req.actor.type === "agent" && req.actor.agentId !== req.body.agentId) {
-      res.status(403).json({ error: "Agent can only report its own costs" });
+      res.status(403).json({ error: t("error.agentCanOnlyReportOwnCosts") });
       return;
     }
 
@@ -97,8 +98,8 @@ export function costRoutes(db: Db) {
     const toRaw = query.to as string | undefined;
     const from = fromRaw ? new Date(fromRaw) : undefined;
     const to = toRaw ? new Date(toRaw) : undefined;
-    if (from && isNaN(from.getTime())) throw badRequest("invalid 'from' date");
-    if (to && isNaN(to.getTime())) throw badRequest("invalid 'to' date");
+    if (from && isNaN(from.getTime())) throw badRequest(t("error.invalidDateFrom"));
+    if (to && isNaN(to.getTime())) throw badRequest(t("error.invalidDateTo"));
     return (from || to) ? { from, to } : undefined;
   }
 
@@ -107,7 +108,7 @@ export function costRoutes(db: Db) {
     if (raw == null || raw === "") return 100;
     const limit = typeof raw === "number" ? raw : Number.parseInt(String(raw), 10);
     if (!Number.isFinite(limit) || limit <= 0 || limit > 500) {
-      throw badRequest("invalid 'limit' value");
+      throw badRequest(t("error.invalidLimitValue"));
     }
     return limit;
   }
@@ -200,7 +201,7 @@ export function costRoutes(db: Db) {
     // and any forged ids are rejected before we touch provider credentials
     const company = await companies.getById(companyId);
     if (!company) {
-      res.status(404).json({ error: "Company not found" });
+      res.status(404).json({ error: t("error.companyNotFound") });
       return;
     }
     const results = await fetchAllQuotaWindows();
@@ -253,7 +254,7 @@ export function costRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
     const company = await companies.update(companyId, { budgetMonthlyCents: req.body.budgetMonthlyCents });
     if (!company) {
-      res.status(404).json({ error: "Company not found" });
+      res.status(404).json({ error: t("error.companyNotFound") });
       return;
     }
 
@@ -285,7 +286,7 @@ export function costRoutes(db: Db) {
     const agentId = req.params.agentId as string;
     const agent = await agents.getById(agentId);
     if (!agent) {
-      res.status(404).json({ error: "Agent not found" });
+      res.status(404).json({ error: t("error.agentNotFound") });
       return;
     }
 
@@ -293,14 +294,14 @@ export function costRoutes(db: Db) {
 
     if (req.actor.type === "agent") {
       if (req.actor.agentId !== agentId) {
-        res.status(403).json({ error: "Agent can only change its own budget" });
+        res.status(403).json({ error: t("error.agentCanOnlyChangeOwnBudget") });
         return;
       }
     }
 
     const updated = await agents.update(agentId, { budgetMonthlyCents: req.body.budgetMonthlyCents });
     if (!updated) {
-      res.status(404).json({ error: "Agent not found" });
+      res.status(404).json({ error: t("error.agentNotFound") });
       return;
     }
 

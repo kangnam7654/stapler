@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "@/lib/router";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { approvalsApi } from "../api/approvals";
 import { accessApi } from "../api/access";
@@ -270,6 +271,7 @@ function ApprovalInboxRow({
   archiveDisabled?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const Icon = typeIcon[approval.type] ?? defaultTypeIcon;
   const label = approvalLabel(approval.type, approval.payload as Record<string, unknown> | null);
   const showResolutionButtons =
@@ -341,7 +343,7 @@ function ApprovalInboxRow({
               onClick={onApprove}
               disabled={isPending}
             >
-              Approve
+              {t("approvals.title")}
             </Button>
             <Button
               variant="destructive"
@@ -350,7 +352,7 @@ function ApprovalInboxRow({
               onClick={onReject}
               disabled={isPending}
             >
-              Reject
+              {t("status.rejected")}
             </Button>
           </div>
         ) : null}
@@ -363,7 +365,7 @@ function ApprovalInboxRow({
             onClick={onApprove}
             disabled={isPending}
           >
-            Approve
+            {t("approvals.title")}
           </Button>
           <Button
             variant="destructive"
@@ -372,7 +374,7 @@ function ApprovalInboxRow({
             onClick={onReject}
             disabled={isPending}
           >
-            Reject
+            {t("status.rejected")}
           </Button>
         </div>
       ) : null}
@@ -401,6 +403,7 @@ function JoinRequestInboxRow({
   archiveDisabled?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation();
   const label =
     joinRequest.requestType === "human"
       ? "Human join request"
@@ -466,7 +469,7 @@ function JoinRequestInboxRow({
             onClick={onApprove}
             disabled={isPending}
           >
-            Approve
+            {t("approvals.title")}
           </Button>
           <Button
             variant="destructive"
@@ -475,7 +478,7 @@ function JoinRequestInboxRow({
             onClick={onReject}
             disabled={isPending}
           >
-            Reject
+            {t("status.rejected")}
           </Button>
         </div>
       </div>
@@ -486,7 +489,7 @@ function JoinRequestInboxRow({
           onClick={onApprove}
           disabled={isPending}
         >
-          Approve
+          {t("approvals.title")}
         </Button>
         <Button
           variant="destructive"
@@ -495,7 +498,7 @@ function JoinRequestInboxRow({
           onClick={onReject}
           disabled={isPending}
         >
-          Reject
+          {t("status.rejected")}
         </Button>
       </div>
     </div>
@@ -503,6 +506,7 @@ function JoinRequestInboxRow({
 }
 
 export function Inbox() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const navigate = useNavigate();
@@ -522,7 +526,7 @@ export function Inbox() {
   const issueLinkState = useMemo(
     () =>
       createIssueDetailLocationState(
-        "Inbox",
+        t("nav.inbox"),
         `${location.pathname}${location.search}${location.hash}`,
       ),
     [location.pathname, location.search, location.hash],
@@ -535,7 +539,7 @@ export function Inbox() {
   });
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Inbox" }]);
+    setBreadcrumbs([{ label: t("nav.inbox") }]);
   }, [setBreadcrumbs]);
 
   useEffect(() => {
@@ -909,7 +913,7 @@ export function Inbox() {
   };
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={InboxIcon} message="Select a company to view inbox." />;
+    return <EmptyState icon={InboxIcon} message={t("inbox.selectCompany")} />;
   }
 
   const hasRunFailures = failedRuns.length > 0;
@@ -960,14 +964,14 @@ export function Inbox() {
               items={[
                 {
                   value: "mine",
-                  label: "Mine",
+                  label: t("inbox.mine"),
                 },
                 {
                   value: "recent",
                   label: "Recent",
                 },
                 { value: "unread", label: "Unread" },
-                { value: "all", label: "All" },
+                { value: "all", label: t("inbox.all") },
               ]}
             />
           </Tabs>
@@ -996,10 +1000,10 @@ export function Inbox() {
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="everything">All categories</SelectItem>
-                <SelectItem value="issues_i_touched">My recent issues</SelectItem>
+                <SelectItem value="everything">{t("common.all")}</SelectItem>
+                <SelectItem value="issues_i_touched">{t("common.issues")}</SelectItem>
                 <SelectItem value="join_requests">Join requests</SelectItem>
-                <SelectItem value="approvals">Approvals</SelectItem>
+                <SelectItem value="approvals">{t("approvals.title")}</SelectItem>
                 <SelectItem value="failed_runs">Failed runs</SelectItem>
                 <SelectItem value="alerts">Alerts</SelectItem>
               </SelectContent>
@@ -1014,9 +1018,9 @@ export function Inbox() {
                   <SelectValue placeholder="Approval status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All approval statuses</SelectItem>
-                  <SelectItem value="actionable">Needs action</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="all">{t("approvals.all")}</SelectItem>
+                  <SelectItem value="actionable">{t("approvals.pending")}</SelectItem>
+                  <SelectItem value="resolved">{t("status.approved")}</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -1036,12 +1040,12 @@ export function Inbox() {
           icon={InboxIcon}
           message={
             tab === "mine"
-              ? "Inbox zero."
+              ? t("inbox.title")
               : tab === "unread"
-              ? "No new inbox items."
+              ? t("empty.noItems")
               : tab === "recent"
-                ? "No recent inbox items."
-                : "No inbox items match these filters."
+                ? t("empty.noItems")
+                : t("common.noResults")
           }
         />
       )}
@@ -1232,7 +1236,7 @@ export function Inbox() {
           {showSeparatorBefore("alerts") && <Separator />}
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Alerts
+              {t("dashboard.errors")}
             </h3>
             <div className="divide-y divide-border border border-border">
               {showAggregateAgentError && (

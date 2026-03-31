@@ -2,6 +2,7 @@ import { Router, type Request } from "express";
 import type { Db } from "@paperclipai/db";
 import { AGENT_ICON_NAMES } from "@paperclipai/shared";
 import { forbidden } from "../errors.js";
+import { t } from "../i18n/index.js";
 import { listServerAdapters } from "../adapters/index.js";
 import { agentService } from "../services/agents.js";
 
@@ -17,11 +18,11 @@ export function llmRoutes(db: Db) {
   async function assertCanRead(req: Request) {
     if (req.actor.type === "board") return;
     if (req.actor.type !== "agent" || !req.actor.agentId) {
-      throw forbidden("Board or permitted agent authentication required");
+      throw forbidden(t("error.boardOrAgentAuthRequired"));
     }
     const actorAgent = await agentsSvc.getById(req.actor.agentId);
     if (!actorAgent || !hasCreatePermission(actorAgent)) {
-      throw forbidden("Missing permission to read agent configuration reflection");
+      throw forbidden(t("error.missingPermissionToReadAgentConfig"));
     }
   }
 

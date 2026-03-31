@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
@@ -46,6 +47,7 @@ const projectStatuses = [
 ];
 
 export function NewProjectDialog() {
+  const { t } = useTranslation();
   const { newProjectOpen, closeNewProject } = useDialog();
   const { selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
@@ -153,11 +155,11 @@ export function NewProjectDialog() {
     const repoUrl = workspaceRepoUrl.trim();
 
     if (localPath && !isAbsolutePath(localPath)) {
-      setWorkspaceError("Local folder must be a full absolute path.");
+      setWorkspaceError(t("projects.localFolderMustBeAbsolute"));
       return;
     }
     if (repoUrl && !isGitHubRepoUrl(repoUrl)) {
-      setWorkspaceError("Repo must use a valid GitHub repo URL.");
+      setWorkspaceError(t("projects.repoMustBeValid"));
       return;
     }
 
@@ -227,7 +229,7 @@ export function NewProjectDialog() {
               </span>
             )}
             <span className="text-muted-foreground/60">&rsaquo;</span>
-            <span>New project</span>
+            <span>{t("nav.newProject")}</span>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -253,7 +255,7 @@ export function NewProjectDialog() {
         <div className="px-4 pt-4 pb-2 shrink-0">
           <input
             className="w-full text-lg font-semibold bg-transparent outline-none placeholder:text-muted-foreground/50"
-            placeholder="Project name"
+            placeholder={t("projects.projectName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -272,7 +274,7 @@ export function NewProjectDialog() {
             ref={descriptionEditorRef}
             value={description}
             onChange={setDescription}
-            placeholder="Add description..."
+            placeholder={t("projects.addDescription")}
             bordered={false}
             mentions={mentionOptions}
             contentClassName={cn("text-sm text-muted-foreground", expanded ? "min-h-[220px]" : "min-h-[120px]")}
@@ -286,7 +288,7 @@ export function NewProjectDialog() {
         <div className="px-4 pt-3 pb-3 space-y-3 border-t border-border">
           <div>
             <div className="mb-1 flex items-center gap-1.5">
-              <label className="block text-xs text-muted-foreground">Repo URL</label>
+              <label className="block text-xs text-muted-foreground">{t("projects.githubRepo")}</label>
               <span className="text-xs text-muted-foreground/50">optional</span>
               <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
@@ -307,7 +309,7 @@ export function NewProjectDialog() {
 
           <div>
             <div className="mb-1 flex items-center gap-1.5">
-              <label className="block text-xs text-muted-foreground">Local folder</label>
+              <label className="block text-xs text-muted-foreground">{t("projects.localFolder")}</label>
               <span className="text-xs text-muted-foreground/50">optional</span>
               <Tooltip delayDuration={300}>
                 <TooltipTrigger asChild>
@@ -353,7 +355,7 @@ export function NewProjectDialog() {
                   )}
                   onClick={() => { setStatus(s.value); setStatusOpen(false); }}
                 >
-                  {s.label}
+                  {t(`status.${s.value}`)}
                 </button>
               ))}
             </PopoverContent>
@@ -384,7 +386,7 @@ export function NewProjectDialog() {
                 disabled={selectedGoals.length > 0 && availableGoals.length === 0}
               >
                 {selectedGoals.length > 0 ? <Plus className="h-3 w-3 text-muted-foreground" /> : <Target className="h-3 w-3 text-muted-foreground" />}
-                {selectedGoals.length > 0 ? "+ Goal" : "Goal"}
+                {selectedGoals.length > 0 ? `+ ${t("goals.newGoal")}` : t("goals.newGoal")}
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-56 p-1" align="start">
@@ -393,7 +395,7 @@ export function NewProjectDialog() {
                   className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-accent/50 text-muted-foreground"
                   onClick={() => setGoalOpen(false)}
                 >
-                  No goal
+                  {t("goals.noParent")}
                 </button>
               )}
               {availableGoals.map((g) => (
@@ -410,7 +412,7 @@ export function NewProjectDialog() {
               ))}
               {selectedGoals.length > 0 && availableGoals.length === 0 && (
                 <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                  All goals already selected.
+                  {t("goals.noSubGoals")}
                 </div>
               )}
             </PopoverContent>
@@ -424,7 +426,7 @@ export function NewProjectDialog() {
               className="bg-transparent outline-none text-xs w-24"
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
-              placeholder="Target date"
+              placeholder={t("projects.targetDate")}
             />
           </div>
         </div>
@@ -432,7 +434,7 @@ export function NewProjectDialog() {
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
           {createProject.isError ? (
-            <p className="text-xs text-destructive">Failed to create project.</p>
+            <p className="text-xs text-destructive">{t("issues.failedToCreate")}</p>
           ) : (
             <span />
           )}
@@ -441,7 +443,7 @@ export function NewProjectDialog() {
             disabled={!name.trim() || createProject.isPending}
             onClick={handleSubmit}
           >
-            {createProject.isPending ? "Creating…" : "Create project"}
+            {createProject.isPending ? t("common.creating") : t("projects.createProject")}
           </Button>
         </div>
       </DialogContent>

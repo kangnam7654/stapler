@@ -4,6 +4,7 @@ import type { Db } from "@paperclipai/db";
 import { validate } from "../middleware/validate.js";
 import { activityService } from "../services/activity.js";
 import { assertBoard, assertCompanyAccess } from "./authz.js";
+import { t } from "../i18n/index.js";
 import { issueService } from "../services/index.js";
 import { sanitizeRecord } from "../redaction.js";
 
@@ -58,7 +59,7 @@ export function activityRoutes(db: Db) {
     const rawId = req.params.id as string;
     const issue = await resolveIssueByRef(rawId);
     if (!issue) {
-      res.status(404).json({ error: "Issue not found" });
+      res.status(404).json({ error: t("error.issueNotFound") });
       return;
     }
     assertCompanyAccess(req, issue.companyId);
@@ -70,7 +71,7 @@ export function activityRoutes(db: Db) {
     const rawId = req.params.id as string;
     const issue = await resolveIssueByRef(rawId);
     if (!issue) {
-      res.status(404).json({ error: "Issue not found" });
+      res.status(404).json({ error: t("error.issueNotFound") });
       return;
     }
     assertCompanyAccess(req, issue.companyId);

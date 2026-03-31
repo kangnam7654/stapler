@@ -10,6 +10,7 @@ import { validate } from "../middleware/validate.js";
 import { accessService, agentService, companySkillService, logActivity } from "../services/index.js";
 import { forbidden } from "../errors.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { t } from "../i18n/index.js";
 
 export function companySkillRoutes(db: Db) {
   const router = Router();
@@ -29,18 +30,18 @@ export function companySkillRoutes(db: Db) {
       if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return;
       const allowed = await access.canUser(companyId, req.actor.userId, "agents:create");
       if (!allowed) {
-        throw forbidden("Missing permission: agents:create");
+        throw forbidden(t("error.missingPermission", { permission: "agents:create" }));
       }
       return;
     }
 
     if (!req.actor.agentId) {
-      throw forbidden("Agent authentication required");
+      throw forbidden(t("error.agentAuthRequired"));
     }
 
     const actorAgent = await agents.getById(req.actor.agentId);
     if (!actorAgent || actorAgent.companyId !== companyId) {
-      throw forbidden("Agent key cannot access another company");
+      throw forbidden(t("error.agentKeyCannotAccessCompany"));
     }
 
     const allowedByGrant = await access.hasPermission(companyId, "agent", actorAgent.id, "agents:create");
@@ -48,7 +49,7 @@ export function companySkillRoutes(db: Db) {
       return;
     }
 
-    throw forbidden("Missing permission: can create agents");
+    throw forbidden(t("error.missingPermission", { permission: "can create agents" }));
   }
 
   router.get("/companies/:companyId/skills", async (req, res) => {
@@ -64,7 +65,7 @@ export function companySkillRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
     const result = await svc.detail(companyId, skillId);
     if (!result) {
-      res.status(404).json({ error: "Skill not found" });
+      res.status(404).json({ error: t("error.skillNotFound") });
       return;
     }
     res.json(result);
@@ -76,7 +77,7 @@ export function companySkillRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
     const result = await svc.updateStatus(companyId, skillId);
     if (!result) {
-      res.status(404).json({ error: "Skill not found" });
+      res.status(404).json({ error: t("error.skillNotFound") });
       return;
     }
     res.json(result);
@@ -89,7 +90,7 @@ export function companySkillRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
     const result = await svc.readFile(companyId, skillId, relativePath);
     if (!result) {
-      res.status(404).json({ error: "Skill not found" });
+      res.status(404).json({ error: t("error.skillNotFound") });
       return;
     }
     res.json(result);
@@ -227,7 +228,7 @@ export function companySkillRoutes(db: Db) {
     await assertCanMutateCompanySkills(req, companyId);
     const result = await svc.deleteSkill(companyId, skillId);
     if (!result) {
-      res.status(404).json({ error: "Skill not found" });
+      res.status(404).json({ error: t("error.skillNotFound") });
       return;
     }
 
@@ -256,7 +257,7 @@ export function companySkillRoutes(db: Db) {
     await assertCanMutateCompanySkills(req, companyId);
     const result = await svc.installUpdate(companyId, skillId);
     if (!result) {
-      res.status(404).json({ error: "Skill not found" });
+      res.status(404).json({ error: t("error.skillNotFound") });
       return;
     }
 

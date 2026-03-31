@@ -15,61 +15,75 @@ import {
 import { Button } from "@/components/ui/button";
 import { HelpCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
-import { AGENT_ROLE_LABELS } from "@paperclipai/shared";
+import i18n from "@/i18n";
+
+const t = i18n.t.bind(i18n);
 
 /* ---- Help text for (?) tooltips ---- */
 export const help: Record<string, string> = {
-  name: "Display name for this agent.",
-  title: "Job title shown in the org chart.",
-  role: "Organizational role. Determines position and capabilities.",
-  reportsTo: "The agent this one reports to in the org hierarchy.",
-  capabilities: "Describes what this agent can do. Shown in the org chart and used for task routing.",
-  adapterType: "How this agent runs: local CLI (Claude/Codex/OpenCode), OpenClaw Gateway, spawned process, or generic HTTP webhook.",
-  cwd: "Deprecated legacy working directory fallback for local adapters. Existing agents may still carry this value, but new configurations should use project workspaces instead.",
-  promptTemplate: "Sent on every heartbeat. Keep this small and dynamic. Use it for current-task framing, not large static instructions. Supports {{ agent.id }}, {{ agent.name }}, {{ agent.role }} and other template variables.",
-  model: "Override the default model used by the adapter.",
-  thinkingEffort: "Control model reasoning depth. Supported values vary by adapter/model.",
-  chrome: "Enable Claude's Chrome integration by passing --chrome.",
-  dangerouslySkipPermissions: "Run unattended by auto-approving adapter permission prompts when supported.",
-  dangerouslyBypassSandbox: "Run Codex without sandbox restrictions. Required for filesystem/network access.",
-  search: "Enable Codex web search capability during runs.",
-  workspaceStrategy: "How Paperclip should realize an execution workspace for this agent. Keep project_primary for normal cwd execution, or use git_worktree for issue-scoped isolated checkouts.",
-  workspaceBaseRef: "Base git ref used when creating a worktree branch. Leave blank to use the resolved workspace ref or HEAD.",
-  workspaceBranchTemplate: "Template for naming derived branches. Supports {{issue.identifier}}, {{issue.title}}, {{agent.name}}, {{project.id}}, {{workspace.repoRef}}, and {{slug}}.",
-  worktreeParentDir: "Directory where derived worktrees should be created. Absolute, ~-prefixed, and repo-relative paths are supported.",
-  runtimeServicesJson: "Optional workspace runtime service definitions. Use this for shared app servers, workers, or other long-lived companion processes attached to the workspace.",
-  maxTurnsPerRun: "Maximum number of agentic turns (tool calls) per heartbeat run.",
-  command: "The command to execute (e.g. node, python).",
-  localCommand: "Override the path to the CLI command you want the adapter to call (e.g. /usr/local/bin/claude, codex, opencode).",
-  args: "Command-line arguments, comma-separated.",
-  extraArgs: "Extra CLI arguments for local adapters, comma-separated.",
-  envVars: "Environment variables injected into the adapter process. Use plain values or secret references.",
-  bootstrapPrompt: "Only sent when Paperclip starts a fresh session. Use this for stable setup guidance that should not be repeated on every heartbeat.",
-  payloadTemplateJson: "Optional JSON merged into remote adapter request payloads before Paperclip adds its standard wake and workspace fields.",
-  webhookUrl: "The URL that receives POST requests when the agent is invoked.",
-  heartbeatInterval: "Run this agent automatically on a timer. Useful for periodic tasks like checking for new work.",
-  intervalSec: "Seconds between automatic heartbeat invocations.",
-  timeoutSec: "Maximum seconds a run can take before being terminated. 0 means no timeout.",
-  graceSec: "Seconds to wait after sending interrupt before force-killing the process.",
-  wakeOnDemand: "Allow this agent to be woken by assignments, API calls, UI actions, or automated systems.",
-  cooldownSec: "Minimum seconds between consecutive heartbeat runs.",
-  maxConcurrentRuns: "Maximum number of heartbeat runs that can execute simultaneously for this agent.",
-  budgetMonthlyCents: "Monthly spending limit in cents. 0 means no limit.",
+  name: t("help.name"),
+  title: t("help.title"),
+  role: t("help.role"),
+  reportsTo: t("help.reportsTo"),
+  capabilities: t("help.capabilities"),
+  adapterType: t("help.adapterType"),
+  cwd: t("help.cwd"),
+  promptTemplate: t("help.promptTemplate"),
+  model: t("help.model"),
+  thinkingEffort: t("help.thinkingEffort"),
+  chrome: t("help.chrome"),
+  dangerouslySkipPermissions: t("help.dangerouslySkipPermissions"),
+  dangerouslyBypassSandbox: t("help.dangerouslyBypassSandbox"),
+  search: t("help.search"),
+  workspaceStrategy: t("help.workspaceStrategy"),
+  workspaceBaseRef: t("help.workspaceBaseRef"),
+  workspaceBranchTemplate: t("help.workspaceBranchTemplate"),
+  worktreeParentDir: t("help.worktreeParentDir"),
+  runtimeServicesJson: t("help.runtimeServicesJson"),
+  maxTurnsPerRun: t("help.maxTurnsPerRun"),
+  command: t("help.command"),
+  localCommand: t("help.localCommand"),
+  args: t("help.args"),
+  extraArgs: t("help.extraArgs"),
+  envVars: t("help.envVars"),
+  bootstrapPrompt: t("help.bootstrapPrompt"),
+  payloadTemplateJson: t("help.payloadTemplateJson"),
+  webhookUrl: t("help.webhookUrl"),
+  heartbeatInterval: t("help.heartbeatInterval"),
+  intervalSec: t("help.intervalSec"),
+  timeoutSec: t("help.timeoutSec"),
+  graceSec: t("help.graceSec"),
+  wakeOnDemand: t("help.wakeOnDemand"),
+  cooldownSec: t("help.cooldownSec"),
+  maxConcurrentRuns: t("help.maxConcurrentRuns"),
+  budgetMonthlyCents: t("help.budgetMonthlyCents"),
 };
 
 export const adapterLabels: Record<string, string> = {
-  claude_local: "Claude (local)",
-  codex_local: "Codex (local)",
-  gemini_local: "Gemini CLI (local)",
-  opencode_local: "OpenCode (local)",
-  openclaw_gateway: "OpenClaw Gateway",
-  cursor: "Cursor (local)",
-  hermes_local: "Hermes Agent",
-  process: "Process",
-  http: "HTTP",
+  claude_local: t("adapter.claude_local"),
+  codex_local: t("adapter.codex_local"),
+  gemini_local: t("adapter.gemini_local"),
+  opencode_local: t("adapter.opencode_local"),
+  openclaw_gateway: t("adapter.openclaw_gateway"),
+  cursor: t("adapter.cursor"),
+  hermes_local: t("adapter.hermes_local"),
+  process: t("adapter.process"),
+  http: t("adapter.http"),
 };
 
-export const roleLabels = AGENT_ROLE_LABELS as Record<string, string>;
+export const roleLabels: Record<string, string> = {
+  ceo: t("role.ceo"),
+  cto: t("role.cto"),
+  cmo: t("role.cmo"),
+  cfo: t("role.cfo"),
+  engineer: t("role.engineer"),
+  designer: t("role.designer"),
+  pm: t("role.pm"),
+  qa: t("role.qa"),
+  devops: t("role.devops"),
+  researcher: t("role.researcher"),
+  general: t("role.general"),
+};
 
 /* ---- Primitive components ---- */
 
@@ -404,48 +418,48 @@ export function ChoosePathButton() {
         className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent/50 transition-colors shrink-0"
         onClick={() => setOpen(true)}
       >
-        Choose
+        선택
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Specify path manually</DialogTitle>
+            <DialogTitle>경로 직접 지정</DialogTitle>
             <DialogDescription>
-              Browser security blocks apps from reading full local paths via a file picker.
-              Copy the absolute path and paste it into the input.
+              브라우저 보안으로 인해 파일 선택기로 전체 로컬 경로를 읽을 수 없습니다.
+              절대 경로를 복사하여 입력란에 붙여넣으세요.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 text-sm">
             <section className="space-y-1.5">
               <p className="font-medium">macOS (Finder)</p>
               <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
-                <li>Find the folder in Finder.</li>
-                <li>Hold <kbd>Option</kbd> and right-click the folder.</li>
-                <li>Click "Copy &lt;folder name&gt; as Pathname".</li>
-                <li>Paste the result into the path input.</li>
+                <li>Finder에서 폴더를 찾으세요.</li>
+                <li><kbd>Option</kbd>을 누른 채 폴더를 우클릭하세요.</li>
+                <li>"&lt;폴더 이름&gt;의 경로 이름 복사"를 클릭하세요.</li>
+                <li>결과를 경로 입력란에 붙여넣으세요.</li>
               </ol>
               <p className="rounded-md bg-muted px-2 py-1 font-mono text-xs">
                 /Users/yourname/Documents/project
               </p>
             </section>
             <section className="space-y-1.5">
-              <p className="font-medium">Windows (File Explorer)</p>
+              <p className="font-medium">Windows (파일 탐색기)</p>
               <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
-                <li>Find the folder in File Explorer.</li>
-                <li>Hold <kbd>Shift</kbd> and right-click the folder.</li>
-                <li>Click "Copy as path".</li>
-                <li>Paste the result into the path input.</li>
+                <li>파일 탐색기에서 폴더를 찾으세요.</li>
+                <li><kbd>Shift</kbd>를 누른 채 폴더를 우클릭하세요.</li>
+                <li>"경로로 복사"를 클릭하세요.</li>
+                <li>결과를 경로 입력란에 붙여넣으세요.</li>
               </ol>
               <p className="rounded-md bg-muted px-2 py-1 font-mono text-xs">
                 C:\Users\yourname\Documents\project
               </p>
             </section>
             <section className="space-y-1.5">
-              <p className="font-medium">Terminal fallback (macOS/Linux)</p>
+              <p className="font-medium">터미널 (macOS/Linux)</p>
               <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
-                <li>Run <code>cd /path/to/folder</code>.</li>
-                <li>Run <code>pwd</code>.</li>
-                <li>Copy the output and paste it into the path input.</li>
+                <li><code>cd /path/to/folder</code>를 실행하세요.</li>
+                <li><code>pwd</code>를 실행하세요.</li>
+                <li>출력을 복사하여 경로 입력란에 붙여넣으세요.</li>
               </ol>
             </section>
           </div>

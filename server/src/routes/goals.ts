@@ -4,6 +4,7 @@ import { createGoalSchema, updateGoalSchema } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
 import { goalService, logActivity } from "../services/index.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { t } from "../i18n/index.js";
 
 export function goalRoutes(db: Db) {
   const router = Router();
@@ -20,7 +21,7 @@ export function goalRoutes(db: Db) {
     const id = req.params.id as string;
     const goal = await svc.getById(id);
     if (!goal) {
-      res.status(404).json({ error: "Goal not found" });
+      res.status(404).json({ error: t("error.goalNotFound") });
       return;
     }
     assertCompanyAccess(req, goal.companyId);
@@ -49,13 +50,13 @@ export function goalRoutes(db: Db) {
     const id = req.params.id as string;
     const existing = await svc.getById(id);
     if (!existing) {
-      res.status(404).json({ error: "Goal not found" });
+      res.status(404).json({ error: t("error.goalNotFound") });
       return;
     }
     assertCompanyAccess(req, existing.companyId);
     const goal = await svc.update(id, req.body);
     if (!goal) {
-      res.status(404).json({ error: "Goal not found" });
+      res.status(404).json({ error: t("error.goalNotFound") });
       return;
     }
 
@@ -78,13 +79,13 @@ export function goalRoutes(db: Db) {
     const id = req.params.id as string;
     const existing = await svc.getById(id);
     if (!existing) {
-      res.status(404).json({ error: "Goal not found" });
+      res.status(404).json({ error: t("error.goalNotFound") });
       return;
     }
     assertCompanyAccess(req, existing.companyId);
     const goal = await svc.remove(id);
     if (!goal) {
-      res.status(404).json({ error: "Goal not found" });
+      res.status(404).json({ error: t("error.goalNotFound") });
       return;
     }
 

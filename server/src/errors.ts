@@ -1,3 +1,5 @@
+import { t } from "./i18n/index.js";
+
 export class HttpError extends Error {
   status: number;
   details?: unknown;
@@ -13,15 +15,15 @@ export function badRequest(message: string, details?: unknown) {
   return new HttpError(400, message, details);
 }
 
-export function unauthorized(message = "Unauthorized") {
+export function unauthorized(message = t("error.unauthorized")) {
   return new HttpError(401, message);
 }
 
-export function forbidden(message = "Forbidden") {
+export function forbidden(message = t("error.forbidden")) {
   return new HttpError(403, message);
 }
 
-export function notFound(message = "Not found") {
+export function notFound(message = t("error.notFound")) {
   return new HttpError(404, message);
 }
 

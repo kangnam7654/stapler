@@ -17,6 +17,7 @@ import {
   secretService,
 } from "../services/index.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
+import { t } from "../i18n/index.js";
 import { redactEventPayload } from "../redaction.js";
 
 function redactApprovalPayload<T extends { payload: Record<string, unknown> }>(approval: T): T {
@@ -46,7 +47,7 @@ export function approvalRoutes(db: Db) {
     const id = req.params.id as string;
     const approval = await svc.getById(id);
     if (!approval) {
-      res.status(404).json({ error: "Approval not found" });
+      res.status(404).json({ error: t("error.approvalNotFound") });
       return;
     }
     assertCompanyAccess(req, approval.companyId);
@@ -110,7 +111,7 @@ export function approvalRoutes(db: Db) {
     const id = req.params.id as string;
     const approval = await svc.getById(id);
     if (!approval) {
-      res.status(404).json({ error: "Approval not found" });
+      res.status(404).json({ error: t("error.approvalNotFound") });
       return;
     }
     assertCompanyAccess(req, approval.companyId);
@@ -267,13 +268,13 @@ export function approvalRoutes(db: Db) {
     const id = req.params.id as string;
     const existing = await svc.getById(id);
     if (!existing) {
-      res.status(404).json({ error: "Approval not found" });
+      res.status(404).json({ error: t("error.approvalNotFound") });
       return;
     }
     assertCompanyAccess(req, existing.companyId);
 
     if (req.actor.type === "agent" && req.actor.agentId !== existing.requestedByAgentId) {
-      res.status(403).json({ error: "Only requesting agent can resubmit this approval" });
+      res.status(403).json({ error: t("error.onlyRequestingAgentCanResubmit") });
       return;
     }
 
@@ -305,7 +306,7 @@ export function approvalRoutes(db: Db) {
     const id = req.params.id as string;
     const approval = await svc.getById(id);
     if (!approval) {
-      res.status(404).json({ error: "Approval not found" });
+      res.status(404).json({ error: t("error.approvalNotFound") });
       return;
     }
     assertCompanyAccess(req, approval.companyId);
@@ -317,7 +318,7 @@ export function approvalRoutes(db: Db) {
     const id = req.params.id as string;
     const approval = await svc.getById(id);
     if (!approval) {
-      res.status(404).json({ error: "Approval not found" });
+      res.status(404).json({ error: t("error.approvalNotFound") });
       return;
     }
     assertCompanyAccess(req, approval.companyId);

@@ -48,6 +48,7 @@ import type { PluginToolDispatcher } from "../services/plugin-tool-dispatcher.js
 import type { ToolRunContext } from "@paperclipai/plugin-sdk";
 import { JsonRpcCallError, PLUGIN_RPC_ERROR_CODES } from "@paperclipai/plugin-sdk";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
+import { t } from "../i18n/index.js";
 import { validateInstanceConfig } from "../services/plugin-config-validator.js";
 
 /** UI slot declaration extracted from plugin manifest */
@@ -486,7 +487,7 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!toolDeps) {
-      res.status(501).json({ error: "Plugin tool dispatch is not enabled" });
+      res.status(501).json({ error: t("error.pluginToolDispatchNotEnabled") });
       return;
     }
 
@@ -520,13 +521,13 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!toolDeps) {
-      res.status(501).json({ error: "Plugin tool dispatch is not enabled" });
+      res.status(501).json({ error: t("error.pluginToolDispatchNotEnabled") });
       return;
     }
 
     const body = (req.body as PluginToolExecuteRequest | undefined);
     if (!body) {
-      res.status(400).json({ error: "Request body is required" });
+      res.status(400).json({ error: t("error.requestBodyRequired") });
       return;
     }
 
@@ -534,18 +535,18 @@ export function pluginRoutes(
 
     // Validate required fields
     if (!tool || typeof tool !== "string") {
-      res.status(400).json({ error: '"tool" is required and must be a string' });
+      res.status(400).json({ error: t("error.toolRequired") });
       return;
     }
 
     if (!runContext || typeof runContext !== "object") {
-      res.status(400).json({ error: '"runContext" is required and must be an object' });
+      res.status(400).json({ error: t("error.runContextRequired") });
       return;
     }
 
     if (!runContext.agentId || !runContext.runId || !runContext.companyId || !runContext.projectId) {
       res.status(400).json({
-        error: '"runContext" must include agentId, runId, companyId, and projectId',
+        error: t("error.runContextMustInclude"),
       });
       return;
     }
@@ -555,7 +556,7 @@ export function pluginRoutes(
     // Verify the tool exists
     const registeredTool = toolDeps.toolDispatcher.getTool(tool);
     if (!registeredTool) {
-      res.status(404).json({ error: `Tool "${tool}" not found` });
+      res.status(404).json({ error: t("error.toolNotFound", { tool }) });
       return;
     }
 
@@ -606,30 +607,30 @@ export function pluginRoutes(
 
     // Input validation
     if (!packageName || typeof packageName !== "string") {
-      res.status(400).json({ error: "packageName is required and must be a string" });
+      res.status(400).json({ error: t("error.packageNameRequired") });
       return;
     }
 
     if (version !== undefined && typeof version !== "string") {
-      res.status(400).json({ error: "version must be a string if provided" });
+      res.status(400).json({ error: t("error.versionMustBeString") });
       return;
     }
 
     if (isLocalPath !== undefined && typeof isLocalPath !== "boolean") {
-      res.status(400).json({ error: "isLocalPath must be a boolean if provided" });
+      res.status(400).json({ error: t("error.isLocalPathMustBeBool") });
       return;
     }
 
     // Validate package name format
     const trimmedPackage = packageName.trim();
     if (trimmedPackage.length === 0) {
-      res.status(400).json({ error: "packageName cannot be empty" });
+      res.status(400).json({ error: t("error.packageNameEmpty") });
       return;
     }
 
     // Basic security check for package name (prevent injection)
     if (!isLocalPath && /[<>:"|?*]/.test(trimmedPackage)) {
-      res.status(400).json({ error: "packageName contains invalid characters" });
+      res.status(400).json({ error: t("error.packageNameInvalidChars") });
       return;
     }
 
@@ -641,7 +642,7 @@ export function pluginRoutes(
       const discovered = await loader.installPlugin(installOptions);
 
       if (!discovered.manifest) {
-        res.status(500).json({ error: "Plugin installed but manifest is missing" });
+        res.status(500).json({ error: t("error.pluginInstalledButManifestMissing") });
         return;
       }
 
@@ -661,7 +662,7 @@ export function pluginRoutes(
         res.json(updated);
       } else {
         // This shouldn't happen since installPlugin already registers in the DB
-        res.status(500).json({ error: "Plugin installed but not found in registry" });
+        res.status(500).json({ error: t("error.pluginInstalledButNotInRegistry") });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -796,7 +797,7 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!bridgeDeps) {
-      res.status(501).json({ error: "Plugin bridge is not enabled" });
+      res.status(501).json({ error: t("error.pluginBridgeNotEnabled") });
       return;
     }
 
@@ -805,7 +806,7 @@ export function pluginRoutes(
     // Resolve plugin
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -879,7 +880,7 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!bridgeDeps) {
-      res.status(501).json({ error: "Plugin bridge is not enabled" });
+      res.status(501).json({ error: t("error.pluginBridgeNotEnabled") });
       return;
     }
 
@@ -888,7 +889,7 @@ export function pluginRoutes(
     // Resolve plugin
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -963,7 +964,7 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!bridgeDeps) {
-      res.status(501).json({ error: "Plugin bridge is not enabled" });
+      res.status(501).json({ error: t("error.pluginBridgeNotEnabled") });
       return;
     }
 
@@ -972,7 +973,7 @@ export function pluginRoutes(
     // Resolve plugin
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1042,7 +1043,7 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!bridgeDeps) {
-      res.status(501).json({ error: "Plugin bridge is not enabled" });
+      res.status(501).json({ error: t("error.pluginBridgeNotEnabled") });
       return;
     }
 
@@ -1051,7 +1052,7 @@ export function pluginRoutes(
     // Resolve plugin
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1123,7 +1124,7 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!bridgeDeps?.streamBus) {
-      res.status(501).json({ error: "Plugin stream bridge is not enabled" });
+      res.status(501).json({ error: t("error.pluginStreamBridgeNotEnabled") });
       return;
     }
 
@@ -1137,7 +1138,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1202,7 +1203,7 @@ export function pluginRoutes(
     const { pluginId } = req.params;
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1234,7 +1235,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1269,7 +1270,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1309,7 +1310,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1348,7 +1349,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1416,7 +1417,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1468,7 +1469,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1515,7 +1516,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1545,7 +1546,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1648,7 +1649,7 @@ export function pluginRoutes(
     assertBoard(req);
 
     if (!bridgeDeps) {
-      res.status(501).json({ error: "Plugin bridge is not enabled" });
+      res.status(501).json({ error: t("error.pluginBridgeNotEnabled") });
       return;
     }
 
@@ -1656,7 +1657,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1744,14 +1745,14 @@ export function pluginRoutes(
   router.get("/plugins/:pluginId/jobs", async (req, res) => {
     assertBoard(req);
     if (!jobDeps) {
-      res.status(501).json({ error: "Job scheduling is not enabled" });
+      res.status(501).json({ error: t("error.jobSchedulingNotEnabled") });
       return;
     }
 
     const { pluginId } = req.params;
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1790,26 +1791,26 @@ export function pluginRoutes(
   router.get("/plugins/:pluginId/jobs/:jobId/runs", async (req, res) => {
     assertBoard(req);
     if (!jobDeps) {
-      res.status(501).json({ error: "Job scheduling is not enabled" });
+      res.status(501).json({ error: t("error.jobSchedulingNotEnabled") });
       return;
     }
 
     const { pluginId, jobId } = req.params;
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
     const job = await jobDeps.jobStore.getJobByIdForPlugin(plugin.id, jobId);
     if (!job) {
-      res.status(404).json({ error: "Job not found" });
+      res.status(404).json({ error: t("error.jobNotFound") });
       return;
     }
 
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 25;
     if (isNaN(limit) || limit < 1 || limit > 500) {
-      res.status(400).json({ error: "limit must be a number between 1 and 500" });
+      res.status(400).json({ error: t("error.limitMustBe1To500") });
       return;
     }
 
@@ -1838,20 +1839,20 @@ export function pluginRoutes(
   router.post("/plugins/:pluginId/jobs/:jobId/trigger", async (req, res) => {
     assertBoard(req);
     if (!jobDeps) {
-      res.status(501).json({ error: "Job scheduling is not enabled" });
+      res.status(501).json({ error: t("error.jobSchedulingNotEnabled") });
       return;
     }
 
     const { pluginId, jobId } = req.params;
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
     const job = await jobDeps.jobStore.getJobByIdForPlugin(plugin.id, jobId);
     if (!job) {
-      res.status(404).json({ error: "Job not found" });
+      res.status(404).json({ error: t("error.jobNotFound") });
       return;
     }
 
@@ -1894,7 +1895,7 @@ export function pluginRoutes(
    */
   router.post("/plugins/:pluginId/webhooks/:endpointKey", async (req, res) => {
     if (!webhookDeps) {
-      res.status(501).json({ error: "Webhook ingestion is not enabled" });
+      res.status(501).json({ error: t("error.webhookIngestionNotEnabled") });
       return;
     }
 
@@ -1903,7 +1904,7 @@ export function pluginRoutes(
     // Step 1: Resolve the plugin
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 
@@ -1918,7 +1919,7 @@ export function pluginRoutes(
     // Step 3: Validate the plugin has webhooks.receive capability
     const manifest = plugin.manifestJson;
     if (!manifest) {
-      res.status(400).json({ error: "Plugin manifest is missing" });
+      res.status(400).json({ error: t("error.pluginManifestMissing") });
       return;
     }
 
@@ -2047,7 +2048,7 @@ export function pluginRoutes(
 
     const plugin = await resolvePlugin(registry, pluginId);
     if (!plugin) {
-      res.status(404).json({ error: "Plugin not found" });
+      res.status(404).json({ error: t("error.pluginNotFound") });
       return;
     }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import type {
   BudgetPolicySummary,
   CostByAgentModel,
@@ -147,6 +148,7 @@ function FinanceSummaryCard({
 }
 
 export function Costs() {
+  const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
@@ -168,7 +170,7 @@ export function Costs() {
   } = useDateRange();
 
   useEffect(() => {
-    setBreadcrumbs([{ label: "Costs" }]);
+    setBreadcrumbs([{ label: t("nav.costs") }]);
   }, [setBreadcrumbs]);
 
   const [today, setToday] = useState(() => new Date().toDateString());
@@ -464,7 +466,7 @@ export function Costs() {
         value: "all",
         label: (
           <span className="flex items-center gap-1.5">
-            <span>All providers</span>
+            <span>{t("costs.providers")}</span>
             {providerKeys.length > 0 ? (
               <>
                 <span className="font-mono text-xs text-muted-foreground">{formatTokens(allTokens)}</span>
@@ -496,7 +498,7 @@ export function Costs() {
         value: "all",
         label: (
           <span className="flex items-center gap-1.5">
-            <span>All billers</span>
+            <span>{t("costs.billers")}</span>
             {billerKeys.length > 0 ? (
               <>
                 <span className="font-mono text-xs text-muted-foreground">{formatTokens(allTokens)}</span>
@@ -529,7 +531,7 @@ export function Costs() {
   }), [budgetPolicies]);
 
   if (!selectedCompanyId) {
-    return <EmptyState icon={DollarSign} message="Select a company to view costs." />;
+    return <EmptyState icon={DollarSign} message={t("costs.selectCompany")} />;
   }
 
   const showCustomPrompt = preset === "custom" && !customReady;
@@ -541,7 +543,7 @@ export function Costs() {
       <div className="space-y-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-                <h1 className="text-3xl font-semibold tracking-tight">Costs</h1>
+                <h1 className="text-3xl font-semibold tracking-tight">{t("costs.title")}</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                   Inference spend, platform fees, credits, and live quota windows.
                 </p>
@@ -619,11 +621,11 @@ export function Costs() {
 
       <Tabs value={mainTab} onValueChange={(value) => setMainTab(value as typeof mainTab)}>
         <TabsList variant="line" className="justify-start">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="budgets">Budgets</TabsTrigger>
-          <TabsTrigger value="providers">Providers</TabsTrigger>
-          <TabsTrigger value="billers">Billers</TabsTrigger>
-          <TabsTrigger value="finance">Finance</TabsTrigger>
+          <TabsTrigger value="overview">{t("costs.overview")}</TabsTrigger>
+          <TabsTrigger value="budgets">{t("costs.budgets")}</TabsTrigger>
+          <TabsTrigger value="providers">{t("costs.providers")}</TabsTrigger>
+          <TabsTrigger value="billers">{t("costs.billers")}</TabsTrigger>
+          <TabsTrigger value="finance">{t("costs.finance")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -671,7 +673,7 @@ export function Costs() {
                         <div className="mt-1 text-sm text-muted-foreground">
                           {spendData?.summary.budgetCents && spendData.summary.budgetCents > 0
                             ? `Budget ${formatCents(spendData.summary.budgetCents)}`
-                            : "Unlimited budget"}
+                            : t("companies.unlimitedBudget")}
                         </div>
                       </div>
                       <div className="border border-border px-4 py-3 text-right">
@@ -721,7 +723,7 @@ export function Costs() {
                   </CardHeader>
                   <CardContent className="space-y-2 px-5 pb-5 pt-2">
                     {(spendData?.byAgent.length ?? 0) === 0 ? (
-                      <p className="text-sm text-muted-foreground">No cost events yet.</p>
+                      <p className="text-sm text-muted-foreground">{t("empty.noItems")}</p>
                     ) : (
                       spendData?.byAgent.map((row) => {
                         const modelRows = agentModelRows.get(row.agentId) ?? [];
@@ -809,7 +811,7 @@ export function Costs() {
                     </CardHeader>
                     <CardContent className="space-y-2 px-5 pb-5 pt-2">
                       {(spendData?.byProject.length ?? 0) === 0 ? (
-                        <p className="text-sm text-muted-foreground">No project-attributed run costs yet.</p>
+                        <p className="text-sm text-muted-foreground">{t("empty.noItems")}</p>
                       ) : (
                         spendData?.byProject.map((row, index) => (
                           <div
@@ -847,25 +849,25 @@ export function Costs() {
                 </CardHeader>
                 <CardContent className="grid gap-3 px-5 pb-5 pt-0 md:grid-cols-4">
                   <MetricTile
-                    label="Active incidents"
+                    label={t("dashboard.activeBudgetIncident")}
                     value={String(activeBudgetIncidents.length)}
                     subtitle="Open soft or hard threshold crossings"
                     icon={ReceiptText}
                   />
                   <MetricTile
-                    label="Pending approvals"
+                    label={t("dashboard.pendingBudgetApprovals")}
                     value={String(budgetData?.pendingApprovalCount ?? 0)}
                     subtitle="Budget override approvals awaiting board action"
                     icon={ArrowUpRight}
                   />
                   <MetricTile
-                    label="Paused agents"
+                    label={t("dashboard.agentsPaused")}
                     value={String(budgetData?.pausedAgentCount ?? 0)}
                     subtitle="Agent heartbeats blocked by budget"
                     icon={Coins}
                   />
                   <MetricTile
-                    label="Paused projects"
+                    label={t("dashboard.projectsPaused")}
                     value={String(budgetData?.pausedProjectCount ?? 0)}
                     subtitle="Project execution blocked by budget"
                     icon={DollarSign}
@@ -876,7 +878,7 @@ export function Costs() {
               {activeBudgetIncidents.length > 0 ? (
                 <div className="space-y-3">
                   <div>
-                    <h2 className="text-lg font-semibold">Active incidents</h2>
+                    <h2 className="text-lg font-semibold">{t("dashboard.activeBudgetIncident")}</h2>
                     <p className="text-sm text-muted-foreground">
                       Resolve hard stops here by raising the budget or explicitly keeping the scope paused.
                     </p>
@@ -939,7 +941,7 @@ export function Costs() {
                 {budgetPolicies.length === 0 ? (
                   <Card>
                     <CardContent className="px-5 py-8 text-sm text-muted-foreground">
-                      No budget policies yet. Set agent and project budgets from their detail pages, or use the existing company monthly budget control.
+                      {t("empty.noItems")}
                     </CardContent>
                   </Card>
                 ) : null}
@@ -958,7 +960,7 @@ export function Costs() {
 
                 <TabsContent value="all" className="mt-4">
                   {providers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No cost events in this period.</p>
+                    <p className="text-sm text-muted-foreground">{t("empty.noItems")}</p>
                   ) : (
                     <div className="grid gap-4 md:grid-cols-2">
                       {providers.map((provider) => (
@@ -1013,7 +1015,7 @@ export function Costs() {
 
                 <TabsContent value="all" className="mt-4">
                   {billers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No billable events in this period.</p>
+                    <p className="text-sm text-muted-foreground">{t("empty.noItems")}</p>
                   ) : (
                     <div className="grid gap-4 md:grid-cols-2">
                       {billers.map((biller) => {
@@ -1082,7 +1084,7 @@ export function Costs() {
                     </CardHeader>
                     <CardContent className="grid gap-4 px-5 pb-5 pt-2 md:grid-cols-2">
                       {(financeData?.byBiller.length ?? 0) === 0 ? (
-                        <p className="text-sm text-muted-foreground">No finance events yet.</p>
+                        <p className="text-sm text-muted-foreground">{t("empty.noItems")}</p>
                       ) : (
                         financeData?.byBiller.map((row) => <FinanceBillerCard key={row.biller} row={row} />)
                       )}

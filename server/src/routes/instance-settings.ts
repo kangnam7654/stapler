@@ -5,15 +5,16 @@ import { forbidden } from "../errors.js";
 import { validate } from "../middleware/validate.js";
 import { instanceSettingsService, logActivity } from "../services/index.js";
 import { getActorInfo } from "./authz.js";
+import { t } from "../i18n/index.js";
 
 function assertCanManageInstanceSettings(req: Request) {
   if (req.actor.type !== "board") {
-    throw forbidden("Board access required");
+    throw forbidden(t("error.boardAccessRequired"));
   }
   if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) {
     return;
   }
-  throw forbidden("Instance admin access required");
+  throw forbidden(t("error.instanceAdminRequired"));
 }
 
 export function instanceSettingsRoutes(db: Db) {
