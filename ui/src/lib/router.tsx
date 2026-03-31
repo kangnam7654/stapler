@@ -55,22 +55,33 @@ export const NavLink = React.forwardRef<HTMLAnchorElement, React.ComponentProps<
 );
 
 export function Navigate({ to, ...props }: React.ComponentProps<typeof RouterDom.Navigate>) {
-  const companyPrefix = useActiveCompanyPrefix();
-  return <RouterDom.Navigate to={resolveTo(to, companyPrefix)} {...props} />;
+  // Pass through directly — Navigate is used for one-shot redirects where the
+  // caller already provides the correct path (including company prefix).
+  // Applying useActiveCompanyPrefix() here caused infinite re-render loops
+  // when the resolved prefix differed from the URL prefix on each render.
+  return <RouterDom.Navigate to={to} {...props} />;
 }
 
 export function useNavigate(): ReturnType<typeof RouterDom.useNavigate> {
   const navigate = RouterDom.useNavigate();
   const companyPrefix = useActiveCompanyPrefix();
 
+  // Use refs to keep the callback identity stable across re-renders.
+  // This prevents infinite loops when navigate is used in useEffect dependency arrays,
+  // since companyPrefix changes trigger a new callback which re-fires effects.
+  const navigateRef = React.useRef(navigate);
+  navigateRef.current = navigate;
+  const prefixRef = React.useRef(companyPrefix);
+  prefixRef.current = companyPrefix;
+
   return React.useCallback(
     ((to: To | number, options?: NavigateOptions) => {
       if (typeof to === "number") {
-        navigate(to);
+        navigateRef.current(to);
         return;
       }
-      navigate(resolveTo(to, companyPrefix), options);
+      navigateRef.current(resolveTo(to, prefixRef.current), options);
     }) as ReturnType<typeof RouterDom.useNavigate>,
-    [navigate, companyPrefix],
+    [],
   );
 }

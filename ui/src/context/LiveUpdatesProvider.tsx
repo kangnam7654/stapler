@@ -672,6 +672,8 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
   const currentUserId = session?.user?.id ?? session?.session?.userId ?? null;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
 
   useEffect(() => {
     pathnameRef.current = location.pathname;
@@ -722,7 +724,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
         try {
           const parsed = JSON.parse(raw) as LiveEvent;
           handleLiveEvent(queryClient, selectedCompanyId, pathnameRef.current, parsed, pushToast, gateRef.current, {
-            userId: currentUserId,
+            userId: currentUserIdRef.current,
             agentId: null,
           });
         } catch {
@@ -753,7 +755,7 @@ export function LiveUpdatesProvider({ children }: { children: ReactNode }) {
         socket.close(1000, "provider_unmount");
       }
     };
-  }, [queryClient, selectedCompanyId, pushToast, currentUserId]);
+  }, [queryClient, selectedCompanyId, pushToast]);
 
   return <>{children}</>;
 }

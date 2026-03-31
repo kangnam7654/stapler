@@ -1,0 +1,20 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 7dd9172a7228d70a25f708d0fd577cfc69ea15a8..cc2a9dccf95aedd2f9a3f3d1c1d40dff772c3f51 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -2,7 +2,14 @@
+ import * as React from "react";
+ function setRef(ref, value) {
+   if (typeof ref === "function") {
+-    return ref(value);
++    const result = ref(value);
++    // Return cleanup functions properly for React 19 ref cleanup support.
++    // Only return if the result is genuinely a cleanup function (not a
++    // React dispatch/setState return which would cause infinite loops).
++    if (typeof result === "function") {
++      return result;
++    }
++    return void 0;
+   } else if (ref !== null && ref !== void 0) {
+     ref.current = value;
+   }

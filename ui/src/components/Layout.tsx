@@ -109,8 +109,11 @@ export function Layout() {
     }
 
     if (companyPrefix !== matchedCompany.issuePrefix) {
+      // Hard redirect to break React render cycle and avoid infinite setState loop.
+      // Using window.location instead of navigate() prevents the re-render cascade
+      // that occurs when the URL prefix doesn't match the canonical company prefix.
       const suffix = location.pathname.replace(/^\/[^/]+/, "");
-      navigate(`/${matchedCompany.issuePrefix}${suffix}${location.search}`, { replace: true });
+      window.location.replace(`/${matchedCompany.issuePrefix}${suffix}${location.search}`);
       return;
     }
 
@@ -130,7 +133,6 @@ export function Layout() {
     matchedCompany,
     location.pathname,
     location.search,
-    navigate,
     selectionSource,
     selectedCompanyId,
     setSelectedCompanyId,

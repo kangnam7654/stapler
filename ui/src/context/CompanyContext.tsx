@@ -75,9 +75,12 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }, [companies, selectedCompanyId, sidebarCompanies]);
 
   const setSelectedCompanyId = useCallback((companyId: string, options?: CompanySelectionOptions) => {
-    setSelectedCompanyIdState(companyId);
+    setSelectedCompanyIdState((prev) => {
+      if (prev === companyId) return prev; // No-op: avoid unnecessary re-renders
+      localStorage.setItem(STORAGE_KEY, companyId);
+      return companyId;
+    });
     setSelectionSource(options?.source ?? "manual");
-    localStorage.setItem(STORAGE_KEY, companyId);
   }, []);
 
   const reloadCompanies = useCallback(async () => {
