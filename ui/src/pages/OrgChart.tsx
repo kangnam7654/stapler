@@ -1,10 +1,22 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "@/lib/router";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { agentsApi, type OrgNode } from "../api/agents";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { useToast } from "../context/ToastContext";
 import { queryKeys } from "../lib/queryKeys";
 import { agentUrl } from "../lib/utils";
 import { Button } from "@/components/ui/button";
@@ -139,13 +151,117 @@ const statusDotColor: Record<string, string> = {
 };
 const defaultDotColor = "#a3a3a3";
 
+// ── Cycle detection helper ──────────────────────────────────────────────
+
+function isDescendant(parentId: string, childId: string, nodes: LayoutNode[]): boolean {
+  function walk(node: LayoutNode): boolean {
+    if (node.id === childId) return true;
+    return node.children.some(walk);
+  }
+  const parent = findNode(parentId, nodes);
+  return parent ? parent.children.some(walk) : false;
+}
+
+function findNode(id: string, nodes: LayoutNode[]): LayoutNode | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    const found = findNode(id, n.children);
+    if (found) return found;
+  }
+  return null;
+}
+
+// ── Draggable + Droppable card ─────────────────────────────────────────
+
+function OrgCardDraggable({
+  node,
+  agent,
+  dotColor,
+  onNavigate,
+  isOverTarget,
+}: {
+  node: LayoutNode;
+  agent: Agent | undefined;
+  dotColor: string;
+  onNavigate: (id: string) => void;
+  isOverTarget: boolean;
+}) {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: node.id });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: node.id });
+
+  const highlight = isOver || isOverTarget;
+
+  return (
+    <div
+      ref={(el) => { setDragRef(el); setDropRef(el); }}
+      {...listeners}
+      {...attributes}
+      data-org-card
+      className={`absolute bg-card border rounded-lg shadow-sm transition-all duration-150 cursor-grab select-none ${
+        isDragging ? "opacity-40 scale-95" : "hover:shadow-md hover:border-foreground/20"
+      } ${highlight ? "ring-2 ring-cyan-500 border-cyan-500" : "border-border"}`}
+      style={{
+        left: node.x,
+        top: node.y,
+        width: CARD_W,
+        minHeight: CARD_H,
+      }}
+      onClick={() => { if (!isDragging) onNavigate(node.id); }}
+    >
+      <div className="flex items-center px-4 py-3 gap-3">
+        <div className="relative shrink-0">
+          <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+            <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
+          </div>
+          <span
+            className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
+            style={{ backgroundColor: dotColor }}
+          />
+        </div>
+        <div className="flex flex-col items-start min-w-0 flex-1">
+          <span className="text-sm font-semibold text-foreground leading-tight">
+            {node.name}
+          </span>
+          <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+            {agent?.title ?? roleLabel(node.role)}
+          </span>
+          {agent && (
+            <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight mt-1">
+              {adapterLabels[agent.adapterType] ?? agent.adapterType}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ──────────────────────────────────────────────────────
 
 export function OrgChart() {
   const { t } = useTranslation();
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const { pushToast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
+
+  const updateReportsTo = useMutation({
+    mutationFn: ({ agentId, reportsTo }: { agentId: string; reportsTo: string | null }) =>
+      agentsApi.update(agentId, { reportsTo }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.org(selectedCompanyId!) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId!) });
+    },
+    onError: () => {
+      pushToast({ tone: "error", title: "보고체계 변경 실패" });
+    },
+  });
 
   const { data: orgTree, isLoading } = useQuery({
     queryKey: queryKeys.org(selectedCompanyId!),
@@ -382,61 +498,93 @@ export function OrgChart() {
         </g>
       </svg>
 
-      {/* Card layer */}
-      <div
-        className="absolute inset-0"
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: "0 0",
+      {/* Card layer with DnD */}
+      <DndContext
+        sensors={sensors}
+        onDragStart={(event: DragStartEvent) => {
+          setActiveDragId(String(event.active.id));
         }}
+        onDragEnd={(event: DragEndEvent) => {
+          setActiveDragId(null);
+          const { active, over } = event;
+          if (!active || !over) {
+            // Dropped on empty area → move to root
+            if (active) {
+              updateReportsTo.mutate({ agentId: String(active.id), reportsTo: null });
+            }
+            return;
+          }
+          const draggedId = String(active.id);
+          const targetId = String(over.id);
+          if (draggedId === targetId) return;
+          // Prevent cycles
+          if (isDescendant(draggedId, targetId, layout)) return;
+          updateReportsTo.mutate({ agentId: draggedId, reportsTo: targetId });
+        }}
+        onDragCancel={() => setActiveDragId(null)}
       >
-        {allNodes.map((node) => {
-          const agent = agentMap.get(node.id);
-          const dotColor = statusDotColor[node.status] ?? defaultDotColor;
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: "0 0",
+          }}
+        >
+          {allNodes.map((node) => {
+            const agent = agentMap.get(node.id);
+            const dotColor = statusDotColor[node.status] ?? defaultDotColor;
 
-          return (
-            <div
-              key={node.id}
-              data-org-card
-              className="absolute bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-foreground/20 transition-[box-shadow,border-color] duration-150 cursor-pointer select-none"
-              style={{
-                left: node.x,
-                top: node.y,
-                width: CARD_W,
-                minHeight: CARD_H,
-              }}
-              onClick={() => navigate(agent ? agentUrl(agent) : `/agents/${node.id}`)}
-            >
-              <div className="flex items-center px-4 py-3 gap-3">
-                {/* Agent icon + status dot */}
-                <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-                    <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
+            return (
+              <OrgCardDraggable
+                key={node.id}
+                node={node}
+                agent={agent}
+                dotColor={dotColor}
+                onNavigate={(id) => {
+                  const a = agentMap.get(id);
+                  navigate(a ? agentUrl(a) : `/agents/${id}`);
+                }}
+                isOverTarget={false}
+              />
+            );
+          })}
+        </div>
+
+        <DragOverlay>
+          {activeDragId ? (() => {
+            const node = findNode(activeDragId, layout);
+            if (!node) return null;
+            const agent = agentMap.get(node.id);
+            const dotColor = statusDotColor[node.status] ?? defaultDotColor;
+            return (
+              <div
+                className="bg-card border border-cyan-500 rounded-lg shadow-lg opacity-90"
+                style={{ width: CARD_W, minHeight: CARD_H }}
+              >
+                <div className="flex items-center px-4 py-3 gap-3">
+                  <div className="relative shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+                      <AgentIcon icon={agent?.icon} className="h-4.5 w-4.5 text-foreground/70" />
+                    </div>
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
+                      style={{ backgroundColor: dotColor }}
+                    />
                   </div>
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card"
-                    style={{ backgroundColor: dotColor }}
-                  />
-                </div>
-                {/* Name + role + adapter type */}
-                <div className="flex flex-col items-start min-w-0 flex-1">
-                  <span className="text-sm font-semibold text-foreground leading-tight">
-                    {node.name}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                    {agent?.title ?? roleLabel(node.role)}
-                  </span>
-                  {agent && (
-                    <span className="text-[10px] text-muted-foreground/60 font-mono leading-tight mt-1">
-                      {adapterLabels[agent.adapterType] ?? agent.adapterType}
+                  <div className="flex flex-col items-start min-w-0 flex-1">
+                    <span className="text-sm font-semibold text-foreground leading-tight">
+                      {node.name}
                     </span>
-                  )}
+                    <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                      {agent?.title ?? roleLabel(node.role)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })() : null}
+        </DragOverlay>
+      </DndContext>
     </div>
     </div>
   );
