@@ -183,17 +183,21 @@ function OrgCardDraggable({
   dotColor,
   onNavigate,
   isOver,
+  zoom,
 }: {
   node: LayoutNode;
   agent: Agent | undefined;
   dotColor: string;
   onNavigate: (id: string) => void;
   isOver: boolean;
+  zoom: number;
 }) {
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({ id: node.id });
 
+  // Divide by zoom because the card is inside a scale(zoom) container.
+  // Without this, a 100px mouse move only moves the card 100*zoom px visually.
   const dragStyle = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 999 }
+    ? { transform: `translate(${transform.x / zoom}px, ${transform.y / zoom}px)`, zIndex: 999 }
     : {};
 
   return (
@@ -546,6 +550,7 @@ export function OrgChart() {
                       navigate(a ? agentUrl(a) : `/agents/${id}`);
                     }}
                     isOver={isOver}
+                    zoom={zoom}
                   />
                 )}
               </OrgCardDropZone>
