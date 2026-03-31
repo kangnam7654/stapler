@@ -173,33 +173,35 @@ function findNode(id: string, nodes: LayoutNode[]): LayoutNode | null {
 
 // ── Draggable + Droppable card ─────────────────────────────────────────
 
+function OrgCardDropZone({ id, children }: { id: string; children: (isOver: boolean) => React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return <div ref={setNodeRef}>{children(isOver)}</div>;
+}
+
 function OrgCardDraggable({
   node,
   agent,
   dotColor,
   onNavigate,
-  isOverTarget,
+  isOver,
 }: {
   node: LayoutNode;
   agent: Agent | undefined;
   dotColor: string;
   onNavigate: (id: string) => void;
-  isOverTarget: boolean;
+  isOver: boolean;
 }) {
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: node.id });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: node.id });
-
-  const highlight = isOver || isOverTarget;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: node.id });
 
   return (
     <div
-      ref={(el) => { setDragRef(el); setDropRef(el); }}
+      ref={setNodeRef}
       {...listeners}
       {...attributes}
       data-org-card
-      className={`absolute bg-card border rounded-lg shadow-sm transition-all duration-150 cursor-grab select-none ${
-        isDragging ? "opacity-40 scale-95" : "hover:shadow-md hover:border-foreground/20"
-      } ${highlight ? "ring-2 ring-cyan-500 border-cyan-500" : "border-border"}`}
+      className={`absolute bg-card border rounded-lg shadow-sm transition-all duration-150 select-none ${
+        isDragging ? "opacity-40 scale-95 cursor-grabbing" : "cursor-grab hover:shadow-md hover:border-foreground/20"
+      } ${isOver ? "ring-2 ring-cyan-500 border-cyan-500" : "border-border"}`}
       style={{
         left: node.x,
         top: node.y,
@@ -499,56 +501,58 @@ export function OrgChart() {
       </svg>
 
       {/* Card layer with DnD */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={(event: DragStartEvent) => {
-          setActiveDragId(String(event.active.id));
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: "0 0",
         }}
-        onDragEnd={(event: DragEndEvent) => {
-          setActiveDragId(null);
-          const { active, over } = event;
-          if (!active || !over) {
-            // Dropped on empty area → move to root
-            if (active) {
-              updateReportsTo.mutate({ agentId: String(active.id), reportsTo: null });
-            }
-            return;
-          }
-          const draggedId = String(active.id);
-          const targetId = String(over.id);
-          if (draggedId === targetId) return;
-          // Prevent cycles
-          if (isDescendant(draggedId, targetId, layout)) return;
-          updateReportsTo.mutate({ agentId: draggedId, reportsTo: targetId });
-        }}
-        onDragCancel={() => setActiveDragId(null)}
       >
-        <div
-          className="absolute inset-0"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: "0 0",
+        <DndContext
+          sensors={sensors}
+          onDragStart={(event: DragStartEvent) => {
+            setActiveDragId(String(event.active.id));
           }}
+          onDragEnd={(event: DragEndEvent) => {
+            setActiveDragId(null);
+            const { active, over } = event;
+            if (!active || !over) {
+              // Dropped on empty area → move to root
+              if (active) {
+                updateReportsTo.mutate({ agentId: String(active.id), reportsTo: null });
+              }
+              return;
+            }
+            const draggedId = String(active.id);
+            const targetId = String(over.id);
+            if (draggedId === targetId) return;
+            // Prevent cycles
+            if (isDescendant(draggedId, targetId, layout)) return;
+            updateReportsTo.mutate({ agentId: draggedId, reportsTo: targetId });
+          }}
+          onDragCancel={() => setActiveDragId(null)}
         >
           {allNodes.map((node) => {
             const agent = agentMap.get(node.id);
             const dotColor = statusDotColor[node.status] ?? defaultDotColor;
 
             return (
-              <OrgCardDraggable
-                key={node.id}
-                node={node}
-                agent={agent}
-                dotColor={dotColor}
-                onNavigate={(id) => {
-                  const a = agentMap.get(id);
-                  navigate(a ? agentUrl(a) : `/agents/${id}`);
-                }}
-                isOverTarget={false}
-              />
+              <OrgCardDropZone key={node.id} id={node.id}>
+                {(isOver) => (
+                  <OrgCardDraggable
+                    node={node}
+                    agent={agent}
+                    dotColor={dotColor}
+                    onNavigate={(id) => {
+                      const a = agentMap.get(id);
+                      navigate(a ? agentUrl(a) : `/agents/${id}`);
+                    }}
+                    isOver={isOver}
+                  />
+                )}
+              </OrgCardDropZone>
             );
           })}
-        </div>
 
         <DragOverlay>
           {activeDragId ? (() => {
@@ -585,6 +589,7 @@ export function OrgChart() {
           })() : null}
         </DragOverlay>
       </DndContext>
+      </div>
     </div>
     </div>
   );
