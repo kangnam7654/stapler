@@ -55,11 +55,13 @@ export const NavLink = React.forwardRef<HTMLAnchorElement, React.ComponentProps<
 );
 
 export function Navigate({ to, ...props }: React.ComponentProps<typeof RouterDom.Navigate>) {
-  // Pass through directly — Navigate is used for one-shot redirects where the
-  // caller already provides the correct path (including company prefix).
-  // Applying useActiveCompanyPrefix() here caused infinite re-render loops
-  // when the resolved prefix differed from the URL prefix on each render.
-  return <RouterDom.Navigate to={to} {...props} />;
+  // Use ref to stabilize prefix resolution — avoids infinite re-render loops
+  // when company context changes trigger Navigate to re-resolve with a different prefix.
+  const companyPrefix = useActiveCompanyPrefix();
+  const prefixRef = React.useRef(companyPrefix);
+  prefixRef.current = companyPrefix;
+  const resolved = React.useMemo(() => resolveTo(to, prefixRef.current), [to]);
+  return <RouterDom.Navigate to={resolved} {...props} />;
 }
 
 export function useNavigate(): ReturnType<typeof RouterDom.useNavigate> {
