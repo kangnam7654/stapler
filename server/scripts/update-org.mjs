@@ -1,0 +1,13 @@
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const pg = require("../../node_modules/.pnpm/pg@8.18.0/node_modules/pg");
+const c = new pg.Client({ host: "127.0.0.1", port: 54329, database: "paperclip", user: "paperclip", password: "paperclip" });
+await c.connect();
+const CEO = "8c17c2a2-f23e-4199-885c-11372dc1d4a5";
+const CHRO = "d17878f9-fa71-4a55-a591-c88addddd6b4";
+await c.query("UPDATE agents SET reports_to = $1 WHERE id = $2", [CEO, "58c65f5f-7e07-43b4-bc28-33c2c00ef3c0"]);
+await c.query("UPDATE agents SET reports_to = $1 WHERE id = $2", [CEO, CHRO]);
+await c.query("UPDATE agents SET reports_to = $1 WHERE id = $2", [CHRO, "34bd1419-fdc2-4b59-a1f7-973468d8835e"]);
+const res = await c.query("SELECT name, reports_to FROM agents WHERE company_id = '02a1a198-e156-45ba-9702-1d28fd00f697'");
+console.log(JSON.stringify(res.rows, null, 2));
+await c.end();
