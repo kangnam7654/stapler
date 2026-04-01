@@ -19,6 +19,7 @@ import {
   companyService,
   logActivity,
 } from "../services/index.js";
+import { ensureCompanyDocs } from "../services/company-docs.js";
 import type { StorageService } from "../storage/types.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 
@@ -218,6 +219,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     }
     const company = await svc.create(req.body);
     await access.ensureMembership(company.id, "user", req.actor.userId ?? "local-board", "owner", "active");
+    void ensureCompanyDocs(company.id).catch(() => {});
     await logActivity(db, {
       companyId: company.id,
       actorType: "user",

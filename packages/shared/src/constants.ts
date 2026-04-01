@@ -36,6 +36,7 @@ export type AgentAdapterType = (typeof AGENT_ADAPTER_TYPES)[number];
 
 export const AGENT_ROLES = [
   "ceo",
+  "chro",
   "cto",
   "cmo",
   "cfo",
@@ -51,6 +52,7 @@ export type AgentRole = (typeof AGENT_ROLES)[number];
 
 export const AGENT_ROLE_LABELS: Record<AgentRole, string> = {
   ceo: "CEO",
+  chro: "CHRO",
   cto: "CTO",
   cmo: "CMO",
   cfo: "CFO",
@@ -317,8 +319,15 @@ export const LIVE_EVENT_TYPES = [
   "plugin.ui.updated",
   "plugin.worker.crashed",
   "plugin.worker.restarted",
+  "agent.message.received",
 ] as const;
 export type LiveEventType = (typeof LIVE_EVENT_TYPES)[number];
+
+export const AGENT_MESSAGE_TYPES = ["direct", "delegation", "request", "report"] as const;
+export type AgentMessageType = (typeof AGENT_MESSAGE_TYPES)[number];
+
+export const AGENT_MESSAGE_STATUSES = ["sent", "read", "archived"] as const;
+export type AgentMessageStatus = (typeof AGENT_MESSAGE_STATUSES)[number];
 
 export const PRINCIPAL_TYPES = ["user", "agent"] as const;
 export type PrincipalType = (typeof PRINCIPAL_TYPES)[number];

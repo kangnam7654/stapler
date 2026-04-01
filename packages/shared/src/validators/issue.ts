@@ -52,6 +52,7 @@ export const createIssueSchema = z.object({
   ]).optional().nullable(),
   executionWorkspaceSettings: issueExecutionWorkspaceSettingsSchema.optional().nullable(),
   labelIds: z.array(z.string().uuid()).optional(),
+  sourceMessageId: z.string().uuid().optional().nullable(),
 });
 
 export type CreateIssue = z.infer<typeof createIssueSchema>;

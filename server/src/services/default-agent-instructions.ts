@@ -3,9 +3,12 @@ import fs from "node:fs/promises";
 const DEFAULT_AGENT_BUNDLE_FILES = {
   default: ["AGENTS.md"],
   ceo: ["AGENTS.md", "HEARTBEAT.md", "SOUL.md", "TOOLS.md"],
+  "c-level": ["AGENTS.md"],
 } as const;
 
 type DefaultAgentBundleRole = keyof typeof DEFAULT_AGENT_BUNDLE_FILES;
+
+const C_LEVEL_ROLES = new Set(["chro", "cto", "cmo", "cfo"]);
 
 function resolveDefaultAgentBundleUrl(role: DefaultAgentBundleRole, fileName: string) {
   return new URL(`../onboarding-assets/${role}/${fileName}`, import.meta.url);
@@ -23,5 +26,7 @@ export async function loadDefaultAgentInstructionsBundle(role: DefaultAgentBundl
 }
 
 export function resolveDefaultAgentInstructionsBundleRole(role: string): DefaultAgentBundleRole {
-  return role === "ceo" ? "ceo" : "default";
+  if (role === "ceo") return "ceo";
+  if (C_LEVEL_ROLES.has(role)) return "c-level";
+  return "default";
 }

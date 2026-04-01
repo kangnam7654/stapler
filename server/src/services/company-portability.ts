@@ -62,7 +62,7 @@ import { routineService } from "./routines.js";
 /** Build OrgNode tree from manifest agent list (slug + reportsToSlug). */
 function buildOrgTreeFromManifest(agents: CompanyPortabilityManifest["agents"]): OrgNode[] {
   const ROLE_LABELS: Record<string, string> = {
-    ceo: "Chief Executive", cto: "Technology", cmo: "Marketing",
+    ceo: "Chief Executive", chro: "Human Resources", cto: "Technology", cmo: "Marketing",
     cfo: "Finance", coo: "Operations", vp: "VP", manager: "Manager",
     engineer: "Engineer", agent: "Agent",
   };

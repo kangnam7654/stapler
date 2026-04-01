@@ -1441,7 +1441,7 @@ export function resolveJoinRequestAgentManagerId(
   candidates: JoinRequestManagerCandidate[]
 ): string | null {
   const ceoCandidates = candidates.filter(
-    (candidate) => candidate.role === "ceo"
+    (candidate) => candidate.role === "ceo" || candidate.role === "chro"
   );
   if (ceoCandidates.length === 0) return null;
   const rootCeo = ceoCandidates.find(

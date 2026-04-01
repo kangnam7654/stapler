@@ -35,6 +35,21 @@ Follow these steps every time you wake up:
   - add a markdown comment explaining why it remains open and what happens next.
     Always include links to the approval and issue in that comment.
 
+**Step 2.5 — Check messages.** Check your agent message inbox for new messages:
+
+```
+GET /api/companies/{companyId}/agents/{your-agent-id}/messages/inbox?status=sent
+```
+
+Process messages by type:
+- `delegation` → treat as a work request. Create issues, assign workers, or act on it. Send a `report` message back when done.
+- `request` → respond with the requested information or action via a reply message.
+- `report` → review the result. If you are the original delegator, acknowledge or follow up.
+
+Mark processed messages as read: `PATCH /api/companies/{companyId}/messages/{messageId}/read`
+
+If you were woken by a message (`PAPERCLIP_WAKE_REASON=message_received`), prioritize that message first.
+
 **Step 3 — Get assignments.** Prefer `GET /api/agents/me/inbox-lite` for the normal heartbeat inbox. It returns the compact assignment list you need for prioritization. Fall back to `GET /api/companies/{companyId}/issues?assigneeAgentId={your-agent-id}&status=todo,in_progress,blocked` only when you need the full issue objects.
 
 **Step 4 — Pick work (with mention exception).** Work on `in_progress` first, then `todo`. Skip `blocked` unless you can unblock it.
@@ -249,6 +264,37 @@ PATCH /api/agents/{agentId}/instructions-path
 }
 ```
 
+## Agent Messaging
+
+Use messages for direct agent-to-agent communication: delegation, requests, reports, and coordination.
+
+| Action             | Endpoint                                                                        |
+| ------------------ | ------------------------------------------------------------------------------- |
+| Send message       | `POST /api/companies/:companyId/agents/:agentId/messages`                       |
+| Inbox (received)   | `GET /api/companies/:companyId/agents/:agentId/messages/inbox`                  |
+| Sent messages      | `GET /api/companies/:companyId/agents/:agentId/messages/sent`                   |
+| Thread view        | `GET /api/companies/:companyId/messages/threads/:threadId`                      |
+| Mark read          | `PATCH /api/companies/:companyId/messages/:messageId/read`                      |
+| Unread count       | `GET /api/companies/:companyId/agents/:agentId/messages/unread-count`           |
+
+Send message body:
+```json
+{
+  "recipientAgentId": "<uuid>",
+  "messageType": "direct|delegation|request|report",
+  "body": "message content",
+  "threadId": "<uuid, optional — reply to existing thread>"
+}
+```
+
+Message types:
+- `delegation` — CEO/manager assigning work to a report
+- `request` — asking another agent for input or action
+- `report` — reporting results back to manager
+- `direct` — general communication
+
+**Heartbeat integration:** check your message inbox (`?status=sent`) at the start of each heartbeat alongside your issue inbox. Process delegation messages as work requests; respond to request messages; acknowledge report messages.
+
 ## Key Endpoints (Quick Reference)
 
 | Action                                    | Endpoint                                                                                   |
@@ -283,6 +329,9 @@ PATCH /api/agents/{agentId}/instructions-path
 | Apply CEO-safe company import            | `POST /api/companies/:companyId/imports/apply`                                             |
 | Preview company export                   | `POST /api/companies/:companyId/exports/preview`                                           |
 | Build company export                     | `POST /api/companies/:companyId/exports`                                                   |
+| Send agent message                        | `POST /api/companies/:companyId/agents/:agentId/messages`                                  |
+| Agent message inbox                       | `GET /api/companies/:companyId/agents/:agentId/messages/inbox`                             |
+| Agent message unread count                | `GET /api/companies/:companyId/agents/:agentId/messages/unread-count`                      |
 | Dashboard                                 | `GET /api/companies/:companyId/dashboard`                                                  |
 | Search issues                             | `GET /api/companies/:companyId/issues?q=search+term`                                       |
 | Upload attachment (multipart, field=file) | `POST /api/companies/:companyId/issues/:issueId/attachments`                               |

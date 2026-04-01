@@ -11,6 +11,7 @@ import {
   Boxes,
   Repeat,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -113,6 +114,7 @@ export function Sidebar() {
           <SidebarNavItem to="/org" label={t("nav.org")} icon={Network} />
           <SidebarNavItem to="/skills" label={t("nav.skills")} icon={Boxes} />
           <SidebarNavItem to="/costs" label={t("nav.costs")} icon={DollarSign} />
+          <SidebarNavItem to="/messages" label="Messages" icon={MessageSquare} />
           <SidebarNavItem to="/activity" label={t("nav.activity")} icon={History} />
           <SidebarNavItem to="/company/settings" label={t("nav.settings")} icon={Settings} />
         </SidebarSection>

@@ -279,3 +279,8 @@ export {
   type SetPluginState,
   type ListPluginState,
 } from "./plugin.js";
+
+export {
+  sendAgentMessageSchema,
+  type SendAgentMessage,
+} from "./agent-message.js";

@@ -114,7 +114,7 @@ export function agentRoutes(db: Db) {
       : [];
     const hasExplicitTaskAssignGrant = grants.some((grant) => grant.permissionKey === "tasks:assign");
 
-    if (agent.role === "ceo") {
+    if (agent.role === "ceo" || agent.role === "chro") {
       return {
         canAssignTasks: true,
         taskAssignSource: "ceo_role" as const,
@@ -231,7 +231,7 @@ export function agentRoutes(db: Db) {
     }
 
     if (actorAgent.id === targetAgent.id) return;
-    if (actorAgent.role === "ceo") return;
+    if (actorAgent.role === "ceo" || actorAgent.role === "chro") return;
     const allowedByGrant = await access.hasPermission(
       targetAgent.companyId,
       "agent",
@@ -1429,7 +1429,7 @@ export function agentRoutes(db: Db) {
     }
 
     const effectiveCanAssignTasks =
-      agent.role === "ceo" || Boolean(agent.permissions?.canCreateAgents) || req.body.canAssignTasks;
+      agent.role === "ceo" || agent.role === "chro" || Boolean(agent.permissions?.canCreateAgents) || req.body.canAssignTasks;
     await access.ensureMembership(agent.companyId, "agent", agent.id, "member", "active");
     await access.setPrincipalPermission(
       agent.companyId,

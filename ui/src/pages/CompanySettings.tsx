@@ -199,6 +199,27 @@ export function CompanySettings() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: ({
+      companyId,
+      nextCompanyId
+    }: {
+      companyId: string;
+      nextCompanyId: string | null;
+    }) => companiesApi.remove(companyId).then(() => ({ nextCompanyId })),
+    onSuccess: async ({ nextCompanyId }) => {
+      if (nextCompanyId) {
+        setSelectedCompanyId(nextCompanyId);
+      }
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.companies.all
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.companies.stats
+      });
+    }
+  });
+
   useEffect(() => {
     setBreadcrumbs([
       { label: selectedCompany?.name ?? t("common.name"), href: "/dashboard" },
@@ -537,6 +558,41 @@ export function CompanySettings() {
                 {archiveMutation.error instanceof Error
                   ? archiveMutation.error.message
                   : t("settings.archiveCompany")}
+              </span>
+            )}
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (!selectedCompanyId) return;
+                const confirmed = window.confirm(
+                  `"${selectedCompany.name}" 회사를 완전히 삭제합니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?`
+                );
+                if (!confirmed) return;
+                const doubleConfirmed = window.confirm(
+                  `정말로 삭제하시겠습니까? 모든 에이전트, 이슈, 프로젝트 데이터가 영구적으로 삭제됩니다.`
+                );
+                if (!doubleConfirmed) return;
+                const nextCompanyId =
+                  companies.find(
+                    (company) =>
+                      company.id !== selectedCompanyId &&
+                      company.status !== "archived"
+                  )?.id ?? null;
+                deleteMutation.mutate({
+                  companyId: selectedCompanyId,
+                  nextCompanyId
+                });
+              }}
+            >
+              {deleteMutation.isPending ? "삭제 중..." : "회사 완전 삭제"}
+            </Button>
+            {deleteMutation.isError && (
+              <span className="text-xs text-destructive">
+                {deleteMutation.error instanceof Error
+                  ? deleteMutation.error.message
+                  : "삭제 실패"}
               </span>
             )}
           </div>

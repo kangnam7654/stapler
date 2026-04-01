@@ -129,6 +129,12 @@ export const queryKeys = {
   skills: {
     available: ["skills", "available"] as const,
   },
+  agentMessages: {
+    inbox: (companyId: string, agentId: string) => ["agent-messages", "inbox", companyId, agentId] as const,
+    sent: (companyId: string, agentId: string) => ["agent-messages", "sent", companyId, agentId] as const,
+    thread: (companyId: string, threadId: string) => ["agent-messages", "thread", companyId, threadId] as const,
+    unreadCount: (companyId: string, agentId: string) => ["agent-messages", "unread", companyId, agentId] as const,
+  },
   plugins: {
     all: ["plugins"] as const,
     examples: ["plugins", "examples"] as const,

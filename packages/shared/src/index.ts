@@ -42,6 +42,8 @@ export {
   WAKEUP_TRIGGER_DETAILS,
   WAKEUP_REQUEST_STATUSES,
   LIVE_EVENT_TYPES,
+  AGENT_MESSAGE_TYPES,
+  AGENT_MESSAGE_STATUSES,
   PRINCIPAL_TYPES,
   MEMBERSHIP_STATUSES,
   INSTANCE_USER_ROLES,
@@ -108,6 +110,8 @@ export {
   type WakeupTriggerDetail,
   type WakeupRequestStatus,
   type LiveEventType,
+  type AgentMessageType,
+  type AgentMessageStatus,
   type PrincipalType,
   type MembershipStatus,
   type InstanceUserRole,
@@ -534,6 +538,8 @@ export {
   type PluginStateScopeKey,
   type SetPluginState,
   type ListPluginState,
+  sendAgentMessageSchema,
+  type SendAgentMessage,
 } from "./validators/index.js";
 
 export { API_PREFIX, API } from "./api.js";

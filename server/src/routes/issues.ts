@@ -86,13 +86,13 @@ export function issueRoutes(db: Db, storage: StorageService) {
       res.status(403).json({ error: t("error.forbidden") });
       return false;
     }
-    if (actorAgent.role === "ceo" || Boolean(actorAgent.permissions?.canCreateAgents)) return true;
+    if (actorAgent.role === "ceo" || actorAgent.role === "chro" || Boolean(actorAgent.permissions?.canCreateAgents)) return true;
     res.status(403).json({ error: t("error.missingPermissionToLinkApprovals") });
     return false;
   }
 
   function canCreateAgentsLegacy(agent: { permissions: Record<string, unknown> | null | undefined; role: string }) {
-    if (agent.role === "ceo") return true;
+    if (agent.role === "ceo" || agent.role === "chro") return true;
     if (!agent.permissions || typeof agent.permissions !== "object") return false;
     return Boolean((agent.permissions as Record<string, unknown>).canCreateAgents);
   }

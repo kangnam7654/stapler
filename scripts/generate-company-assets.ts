@@ -97,6 +97,7 @@ function parseFrontmatter(content: string): { data: Record<string, unknown>; bod
 
 const SLUG_TO_ROLE: Record<string, string> = {
   ceo: "ceo",
+  chro: "chro",
   cto: "cto",
   cmo: "cmo",
   cfo: "cfo",
@@ -110,6 +111,7 @@ function inferRole(slug: string, title: string | null): string {
   // Check title for C-suite
   const t = (title || "").toLowerCase();
   if (t.includes("chief executive")) return "ceo";
+  if (t.includes("chief human") || t.includes("인사")) return "chro";
   if (t.includes("chief technology")) return "cto";
   if (t.includes("chief marketing")) return "cmo";
   if (t.includes("chief financial")) return "cfo";

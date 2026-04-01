@@ -25,6 +25,7 @@ import {
   invites,
   principalPermissionGrants,
   companyMemberships,
+  agentMessages,
 } from "@paperclipai/db";
 import { notFound, unprocessable } from "../errors.js";
 
@@ -253,15 +254,19 @@ export function companyService(db: Db) {
 
     remove: (id: string) =>
       db.transaction(async (tx) => {
+        // Break circular FKs: heartbeat_runs ↔ agent_wakeup_requests
+        await tx.update(heartbeatRuns).set({ wakeupRequestId: null }).where(eq(heartbeatRuns.companyId, id));
+        await tx.update(agentWakeupRequests).set({ runId: null }).where(eq(agentWakeupRequests.companyId, id));
         // Delete from child tables in dependency order
+        await tx.delete(agentMessages).where(eq(agentMessages.companyId, id));
         await tx.delete(heartbeatRunEvents).where(eq(heartbeatRunEvents.companyId, id));
         await tx.delete(agentTaskSessions).where(eq(agentTaskSessions.companyId, id));
+        await tx.delete(costEvents).where(eq(costEvents.companyId, id));
         await tx.delete(heartbeatRuns).where(eq(heartbeatRuns.companyId, id));
         await tx.delete(agentWakeupRequests).where(eq(agentWakeupRequests.companyId, id));
         await tx.delete(agentApiKeys).where(eq(agentApiKeys.companyId, id));
         await tx.delete(agentRuntimeState).where(eq(agentRuntimeState.companyId, id));
         await tx.delete(issueComments).where(eq(issueComments.companyId, id));
-        await tx.delete(costEvents).where(eq(costEvents.companyId, id));
         await tx.delete(financeEvents).where(eq(financeEvents.companyId, id));
         await tx.delete(approvalComments).where(eq(approvalComments.companyId, id));
         await tx.delete(approvals).where(eq(approvals.companyId, id));
