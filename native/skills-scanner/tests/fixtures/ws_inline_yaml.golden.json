@@ -1,0 +1,10 @@
+{
+  "sourceKind": "local_path",
+  "sources": [
+    {
+      "kind": "github-dir",
+      "path": "skills/paperclip",
+      "repo": "paperclipai/paperclip"
+    }
+  ]
+}

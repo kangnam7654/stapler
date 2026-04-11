@@ -1,0 +1,18 @@
+[
+  {
+    "inventory_mode": "project_root",
+    "skill_dir_suffix": ""
+  },
+  {
+    "inventory_mode": "full",
+    "skill_dir_suffix": ".agents/skills/release"
+  },
+  {
+    "inventory_mode": "full",
+    "skill_dir_suffix": "skills/.system/paperclip"
+  },
+  {
+    "inventory_mode": "full",
+    "skill_dir_suffix": "skills/find-skills"
+  }
+]

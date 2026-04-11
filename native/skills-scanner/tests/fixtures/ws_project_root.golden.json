@@ -1,0 +1,18 @@
+[
+  {
+    "path": "SKILL.md",
+    "kind": "skill"
+  },
+  {
+    "path": "assets/logo.svg",
+    "kind": "asset"
+  },
+  {
+    "path": "references/checklist.md",
+    "kind": "reference"
+  },
+  {
+    "path": "scripts/run.sh",
+    "kind": "script"
+  }
+]
