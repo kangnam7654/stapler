@@ -556,6 +556,9 @@ importers:
         specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
+      '@paperclipai/adapter-openai-compat-local':
+        specifier: workspace:*
+        version: link:../packages/adapters/openai-compat-local
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
