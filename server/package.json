@@ -78,6 +78,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@paperclipai/adapter-lm-studio-local": "workspace:*",
+    "@paperclipai/adapter-ollama-local": "workspace:*",
     "@paperclipai/adapter-openai-compat-local": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/express-serve-static-core": "^5.0.0",

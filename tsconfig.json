@@ -9,6 +9,8 @@
     { "path": "./packages/adapters/codex-local" },
     { "path": "./packages/adapters/cursor-local" },
     { "path": "./packages/adapters/openclaw-gateway" },
+    { "path": "./packages/adapters/lm-studio-local" },
+    { "path": "./packages/adapters/ollama-local" },
     { "path": "./packages/adapters/openai-compat-local" },
     { "path": "./packages/adapters/opencode-local" },
     { "path": "./packages/adapters/pi-local" },

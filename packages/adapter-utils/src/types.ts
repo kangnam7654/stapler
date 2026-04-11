@@ -38,6 +38,7 @@ export type AdapterBillingType =
   | "subscription_overage"
   | "credits"
   | "fixed"
+  | "local"
   | "unknown";
 
 export interface AdapterRuntimeServiceReport {

@@ -50,3 +50,9 @@ tests/release-smoke/test-results/
 tests/release-smoke/playwright-report/
 .superset/
 .claude/worktrees/
+
+# Rust/Tauri build output
+desktop/target/
+
+# Bundled node binary (downloaded at build time, too large for git)
+desktop/resources/node/node
