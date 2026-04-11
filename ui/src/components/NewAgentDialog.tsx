@@ -15,8 +15,10 @@ import {
   ArrowLeft,
   Bot,
   Code,
+  Cpu,
   Gem,
   MousePointer2,
+  Server,
   Sparkles,
   Terminal,
 } from "lucide-react";
@@ -32,7 +34,9 @@ type AdvancedAdapterType =
   | "pi_local"
   | "cursor"
   | "openclaw_gateway"
-  | "hermes_local";
+  | "hermes_local"
+  | "ollama_local"
+  | "lm_studio_local";
 
 const ADVANCED_ADAPTER_OPTIONS: Array<{
   value: AdvancedAdapterType;
@@ -84,6 +88,18 @@ const ADVANCED_ADAPTER_OPTIONS: Array<{
     label: "Cursor",
     icon: MousePointer2,
     desc: "Local Cursor agent",
+  },
+  {
+    value: "ollama_local",
+    label: "Ollama",
+    icon: Cpu,
+    desc: "Local Ollama model (zero cost, tool-call capable model required)",
+  },
+  {
+    value: "lm_studio_local",
+    label: "LM Studio",
+    icon: Server,
+    desc: "Local LM Studio model (zero cost, tool-call capable model required)",
   },
   {
     value: "openclaw_gateway",

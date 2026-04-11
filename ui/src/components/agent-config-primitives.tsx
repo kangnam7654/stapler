@@ -67,6 +67,8 @@ export const adapterLabels: Record<string, string> = {
   openclaw_gateway: t("adapter.openclaw_gateway"),
   cursor: t("adapter.cursor"),
   hermes_local: t("adapter.hermes_local"),
+  ollama_local: t("adapter.ollama_local"),
+  lm_studio_local: t("adapter.lm_studio_local"),
   process: t("adapter.process"),
   http: t("adapter.http"),
 };

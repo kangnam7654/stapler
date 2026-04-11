@@ -2789,7 +2789,7 @@ git commit -m "feat(adapters): add lm-studio-local full agentic adapter"
 - Modify: `server/src/adapters/registry.ts`
 - Modify: `server/package.json` (already done in prior tasks)
 
-- [ ] **Step 1: Add imports to registry.ts**
+- [x] **Step 1: Add imports to registry.ts**
 
 At the top of `server/src/adapters/registry.ts`, after the existing adapter imports, add:
 
@@ -2814,7 +2814,7 @@ import {
 } from "@paperclipai/adapter-lm-studio-local";
 ```
 
-- [ ] **Step 2: Add adapter module definitions**
+- [x] **Step 2: Add adapter module definitions**
 
 Before the `adaptersByType` Map (around line 190), add:
 
@@ -2840,7 +2840,7 @@ const lmStudioLocalAdapter: ServerAdapterModule = {
 };
 ```
 
-- [ ] **Step 3: Add to the `adaptersByType` Map array**
+- [x] **Step 3: Add to the `adaptersByType` Map array**
 
 Find the array inside `new Map<string, ServerAdapterModule>([...])` and add the two new adapters before `processAdapter`:
 
@@ -2852,22 +2852,19 @@ Find the array inside `new Map<string, ServerAdapterModule>([...])` and add the 
     processAdapter,
 ```
 
-- [ ] **Step 4: Typecheck**
+- [x] **Step 4: Typecheck**
 
 Run: `pnpm --filter @paperclipai/paperclip-server typecheck`
-Expected: No errors.
+Expected: No errors. **Note:** real filter name is `@paperclipai/server`, not `@paperclipai/paperclip-server`.
 
-- [ ] **Step 5: Run all adapter tests**
+- [x] **Step 5: Run all adapter tests**
 
 Run: `pnpm --filter @paperclipai/paperclip-server test:run -- adapter`
-Expected: All existing tests still pass, new ollama/lm-studio tests pass.
+Expected: All existing tests still pass, new ollama/lm-studio tests pass. **Note:** server has no `test:run` script; use `pnpm exec vitest run --reporter=basic src/__tests__/ollama-local-adapter.test.ts src/__tests__/lm-studio-local-adapter.test.ts` from `server/`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
-```bash
-git add server/src/adapters/registry.ts
-git commit -m "feat(server): register ollama-local and lm-studio-local adapters"
-```
+Bundled into the combined `feat(server): register ollama-local and lm-studio-local adapters` commit that also extends `AGENT_ADAPTER_TYPES` in `packages/shared/src/constants.ts` (see Corrections Applied below).
 
 ---
 
@@ -2881,7 +2878,7 @@ git commit -m "feat(server): register ollama-local and lm-studio-local adapters"
 - Create: `ui/src/adapters/lm-studio-local/index.ts`
 - Create: `ui/src/adapters/lm-studio-local/config-fields.tsx`
 
-- [ ] **Step 1: Add ollama-local and lm-studio-local as UI deps**
+- [x] **Step 1: Add ollama-local and lm-studio-local as UI deps**
 
 Edit `ui/package.json` devDependencies:
 ```json
@@ -2889,7 +2886,7 @@ Edit `ui/package.json` devDependencies:
     "@paperclipai/adapter-lm-studio-local": "workspace:*",
 ```
 
-- [ ] **Step 2: Write `ui/src/adapters/ollama-local/index.ts`**
+- [x] **Step 2: Write `ui/src/adapters/ollama-local/index.ts`**
 
 Read the existing gemini-local UI adapter for the shape (it uses the `UIAdapterModule` type). Then write:
 
@@ -2908,7 +2905,7 @@ export const ollamaLocalUIAdapter: UIAdapterModule = {
 };
 ```
 
-- [ ] **Step 3: Write `ui/src/adapters/ollama-local/config-fields.tsx`**
+- [x] **Step 3: Write `ui/src/adapters/ollama-local/config-fields.tsx`** — **Implementation deviation:** the sample code in this step is wrong. `ConfigFieldsProps` does not exist; the real type is `AdapterConfigFieldsProps` with `{ isCreate, values, set, config, eff, mark, models, hideInstructionsFile }`. Actual implementation mirrors `ui/src/adapters/gemini-local/config-fields.tsx` using `Field` + `DraftInput` primitives and binds to `values.url` / `values.model` (what `buildOllamaLocalConfig` reads).
 
 First read `ui/src/adapters/gemini-local/config-fields.tsx` to match the existing field component patterns, then write a minimal equivalent:
 
@@ -2967,7 +2964,7 @@ export function OllamaLocalConfigFields(props: ConfigFieldsProps) {
 
 **Note:** If `ConfigFieldsProps` has a different signature than `{ values, onChange }`, look at `gemini-local/config-fields.tsx` and match its exact props shape. Adjust accordingly before building.
 
-- [ ] **Step 4: Write `ui/src/adapters/lm-studio-local/index.ts`**
+- [x] **Step 4: Write `ui/src/adapters/lm-studio-local/index.ts`**
 
 ```ts
 // ui/src/adapters/lm-studio-local/index.ts
@@ -2984,21 +2981,16 @@ export const lmStudioLocalUIAdapter: UIAdapterModule = {
 };
 ```
 
-- [ ] **Step 5: Write `ui/src/adapters/lm-studio-local/config-fields.tsx`**
+- [x] **Step 5: Write `ui/src/adapters/lm-studio-local/config-fields.tsx`**
 
 Same structure as the ollama one but with `http://localhost:1234` as the placeholder and `local-model` as the model placeholder. Copy the ollama-local file and change those two strings.
 
-- [ ] **Step 6: Install and typecheck UI**
+- [x] **Step 6: Install and typecheck UI**
 
-Run: `pnpm install && pnpm --filter @paperclipai/paperclip-ui typecheck`
-Expected: No errors (adjust config-fields props shape if needed).
+Run: `pnpm install && pnpm --filter @paperclipai/ui typecheck`
+Expected: No errors. **Note:** filter name is `@paperclipai/ui`, not `@paperclipai/paperclip-ui`.
 
-- [ ] **Step 7: Commit**
-
-```bash
-git add ui/src/adapters/ollama-local ui/src/adapters/lm-studio-local ui/package.json pnpm-lock.yaml
-git commit -m "feat(ui): add ollama-local and lm-studio-local UI adapter modules"
-```
+- [x] **Step 7: Commit** — Bundled into the single `feat(ui): wire up ollama-local and lm-studio-local adapter UI` commit together with Tasks 18 and 19 (see Corrections Applied below).
 
 ---
 
@@ -3007,7 +2999,7 @@ git commit -m "feat(ui): add ollama-local and lm-studio-local UI adapter modules
 **Files:**
 - Modify: `ui/src/adapters/registry.ts`
 
-- [ ] **Step 1: Add imports and register**
+- [x] **Step 1: Add imports and register**
 
 First read the existing registry file to see its pattern, then add the new imports at the top and the new adapters to the export array.
 
@@ -3019,17 +3011,12 @@ import { lmStudioLocalUIAdapter } from "./lm-studio-local";
 
 Then add `ollamaLocalUIAdapter` and `lmStudioLocalUIAdapter` to whichever array is exported (likely `uiAdapters` or similar — check the existing file for the exact variable name).
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
-Run: `pnpm --filter @paperclipai/paperclip-ui typecheck`
+Run: `pnpm --filter @paperclipai/ui typecheck`
 Expected: No errors.
 
-- [ ] **Step 3: Commit**
-
-```bash
-git add ui/src/adapters/registry.ts
-git commit -m "feat(ui): register ollama-local and lm-studio-local in adapter registry"
-```
+- [x] **Step 3: Commit** — Bundled into single UI commit (see Corrections Applied).
 
 ---
 
@@ -3038,7 +3025,7 @@ git commit -m "feat(ui): register ollama-local and lm-studio-local in adapter re
 **Files:**
 - Modify: `ui/src/components/NewAgentDialog.tsx`
 
-- [ ] **Step 1: Extend `AdvancedAdapterType` union**
+- [x] **Step 1: Extend `AdvancedAdapterType` union**
 
 Find the type union starting around line 27-35 and add the two new types:
 
@@ -3056,7 +3043,7 @@ type AdvancedAdapterType =
   | "lm_studio_local";
 ```
 
-- [ ] **Step 2: Add options to `ADVANCED_ADAPTER_OPTIONS`**
+- [x] **Step 2: Add options to `ADVANCED_ADAPTER_OPTIONS`** — Used `Cpu` for Ollama and `Server` for LM Studio from `lucide-react`.
 
 After the existing options array entries, before `openclaw_gateway` or wherever appropriate, add:
 
@@ -3077,9 +3064,7 @@ After the existing options array entries, before `openclaw_gateway` or wherever 
 
 If there's no suitable icon already imported in the file, import `Cpu` from `lucide-react` at the top of the file and use that.
 
-- [ ] **Step 3: Update `AgentProperties.tsx` label mapping**
-
-Read `ui/src/components/AgentProperties.tsx`, find the `gemini_local` label mapping, and add parallel entries:
+- [x] **Step 3: Update `AgentProperties.tsx` label mapping** — **Scope expanded:** the codebase actually has **5 separate `adapterLabels` maps** (not 1). All were updated: `AgentProperties.tsx`, `agent-config-primitives.tsx` (i18n-backed), `InviteLanding.tsx`, `OrgChart.tsx`, `Agents.tsx`. Also extended 2 allowlists (`ENABLED_ADAPTER_TYPES` in `AgentConfigForm.tsx:1025`, `ENABLED_INVITE_ADAPTERS` in `InviteLanding.tsx:28`) without which the dropdown would mark both adapters as "coming soon". Also added `adapter.ollama_local` / `adapter.lm_studio_local` + `adapter.desc.*` entries to `ui/src/i18n/ko.json`.
 
 ```ts
   gemini_local: "Gemini CLI (local)",
@@ -3087,17 +3072,12 @@ Read `ui/src/components/AgentProperties.tsx`, find the `gemini_local` label mapp
   lm_studio_local: "LM Studio (local)",
 ```
 
-- [ ] **Step 4: Typecheck UI**
+- [x] **Step 4: Typecheck UI**
 
-Run: `pnpm --filter @paperclipai/paperclip-ui typecheck`
+Run: `pnpm --filter @paperclipai/ui typecheck`
 Expected: No errors.
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add ui/src/components/NewAgentDialog.tsx ui/src/components/AgentProperties.tsx
-git commit -m "feat(ui): add Ollama and LM Studio options to agent creation UI"
-```
+- [x] **Step 5: Commit** — Bundled into single UI commit (see Corrections Applied).
 
 ---
 
@@ -3107,54 +3087,29 @@ git commit -m "feat(ui): add Ollama and LM Studio options to agent creation UI"
 
 **Files:** (none modified)
 
-- [ ] **Step 1: Clean and reinstall**
+- [x] **Step 1: Clean and reinstall** — `pnpm install` clean.
 
-Run: `pnpm install`
-Expected: Clean install.
+- [x] **Step 2: Typecheck entire monorepo** — `pnpm -r typecheck` clean across all 24 workspace projects.
 
-- [ ] **Step 2: Typecheck entire monorepo**
+- [x] **Step 3: Run full test suite** — `pnpm test:run` passes 720/730. 10 pre-existing failures (confirmed via `git stash` + rerun) are all Korean i18n mismatches in `costs-service`, `openclaw-invite-prompt-route`, `company-branding-route`, `company-portability-routes`, `companies-route-path-guard`, `agent-skills-routes` — completely unrelated to adapters. Zero regressions from this change. All 16 new adapter tests (`ollama-local-adapter.test.ts`: 5, `lm-studio-local-adapter.test.ts`: 4, `openai-compat-*.test.ts`: 7) pass.
 
-Run: `pnpm -r typecheck`
-Expected: No errors anywhere.
+- [x] **Step 4: Build entire monorepo** — `pnpm build` clean.
 
-- [ ] **Step 3: Run full test suite**
-
-Run: `pnpm test:run`
-Expected: All tests pass. Note counts of new tests added (should include all Milestones 2–7 tests).
-
-- [ ] **Step 4: Build entire monorepo**
-
-Run: `pnpm build`
-Expected: Clean build across all packages.
-
-- [ ] **Step 5: Verify adapter is reachable via API**
-
-Start dev server:
+- [x] **Step 5: Verify adapter is reachable via API** — Actual endpoints used (the sample `/api/adapter-types` does not exist):
 ```bash
-pnpm dev &
-sleep 5
-curl http://localhost:3100/api/health
+curl "http://localhost:3100/api/companies/$CID/adapters/ollama_local/models"
+# → [{"id":"qwen3.5:4b",...},{"id":"gemma3:4b",...},{"id":"qwen3:4b",...},{"id":"qwen3-vl:2b",...}]
+# (dynamic listModels() discovered 4 models from the local Ollama server)
+
+curl -X POST "http://localhost:3100/api/companies/$CID/adapters/ollama_local/test-environment" -d '{"config":{}}'
+# → {"status":"pass","checks":[{"code":"ollama_reachable","message":"Ollama reachable at http://localhost:11434; 4 model(s) installed."}]}
+
+curl -X POST "http://localhost:3100/api/companies/$CID/adapters/lm_studio_local/test-environment" -d '{"config":{}}'
+# → {"status":"fail","checks":[{"code":"lm_studio_unreachable","message":"LM Studio server not running at http://localhost:1234: fetch failed"}]}
 ```
+The `fail` result for LM Studio is important — it proves the `listRemoteModels` error-propagation fix works end-to-end (before the fix, the unreachable case was silently swallowed and incorrectly reported as `warn` / "no models installed").
 
-Check adapter types list (if such endpoint exists — check `server/src/routes/` for adapters route):
-```bash
-curl http://localhost:3100/api/adapter-types 2>/dev/null || \
-curl http://localhost:3100/api/adapters 2>/dev/null || \
-echo "no adapter list endpoint — skip"
-```
-
-Expected: `ollama_local` and `lm_studio_local` appear in response.
-
-Stop dev server: `kill %1`
-
-- [ ] **Step 6: Commit verification note (if anything had to be tweaked during this task)**
-
-If the verification found any issue and you had to fix it, commit with:
-```bash
-git commit -m "fix(adapters): <describe the tweak>"
-```
-
-If verification passes cleanly with no fixes, skip this step.
+- [x] **Step 6: Commit verification note** — Pre-existing package-level blockers were uncovered during verification and fixed; these landed in the `fix(adapters)` commit rather than a separate verification-note commit (see Corrections Applied below).
 
 ---
 
@@ -3247,3 +3202,83 @@ If any sub-step fails:
 **Type consistency:** `AgentLoopOptions`, `AgentLoopResult`, `ChatMessage`, `ToolExecutor`, `ToolContext` defined once in Task 2, referenced consistently everywhere.
 
 **Frequent commits:** Each task ends with a single `git commit`, one commit per logical unit.
+
+---
+
+## Corrections Applied During Execution (2026-04-12)
+
+Milestones 8–10 were executed on 2026-04-12 after the packages from Milestones 1–7 had
+already landed. Several deviations from the original plan were necessary and are documented
+here so future readers understand the final shape of the code differs from the plan text
+above.
+
+### 1. Pre-existing package-level typecheck blockers (fixed in `fix(adapters)` commit)
+
+Uncovered while running the first full `pnpm -r typecheck` on the packages that M1–M7 shipped:
+
+- **`parseOllamaStdoutLine` / `parseLmStudioStdoutLine` signature mismatch.** Both packages
+  exported `(line: string) => { text?: string; kind?: string } | null`, but `UIAdapterModule.parseStdoutLine`
+  (at `ui/src/adapters/types.ts:30`) requires the `StdoutLineParser` contract from
+  `@paperclipai/adapter-utils`: `(line: string, ts: string) => TranscriptEntry[]`. Rewrote both
+  exports to match and to emit `{ kind: "stdout", ts, text: line }` entries.
+- **`listRemoteModels` swallowed network errors.** The `catch { return []; }` around the fetch
+  call in `packages/adapters/openai-compat-local/src/client.ts:75` made it impossible for
+  `testEnvironment` to distinguish "server unreachable" from "server reachable but no models",
+  causing both `ollama_local` and `lm_studio_local` testEnvironment tests to fail (expected
+  `"fail"`, got `"warn"`). Removed the outer catch so network errors propagate, and wrapped
+  the `listModels()` entry points in both adapter packages' `server/index.ts` with their own
+  `try/catch { return [] }` to preserve the UI model-discovery behavior.
+
+### 2. `AdapterConfigFieldsProps` shape (fixed in `feat(ui)` commit)
+
+The original Task 17 Step 3 sample code used a fictional `ConfigFieldsProps` with
+`{ values, onChange }`. The actual type in `ui/src/adapters/types.ts:7–25` is
+`AdapterConfigFieldsProps` with `{ mode, isCreate, adapterType, values, set, config, eff, mark, models, hideInstructionsFile }`.
+Both new `OllamaLocalConfigFields` / `LmStudioLocalConfigFields` components were written to
+mirror `ui/src/adapters/gemini-local/config-fields.tsx` using `Field` + `DraftInput` primitives
+from `ui/src/components/agent-config-primitives.tsx`, and bind to the field names that
+`buildOllamaLocalConfig` / `buildLmStudioLocalConfig` actually read: `values.url` → `baseUrl`
+and `values.model` → `model`.
+
+### 3. Scope expansion: 5 `adapterLabels` maps, 2 allowlists (fixed in `feat(ui)` commit)
+
+Task 19 Step 3 mentioned updating only `AgentProperties.tsx`. The real scope:
+
+- **5 label maps:**
+  - `ui/src/components/AgentProperties.tsx:17` (hardcoded)
+  - `ui/src/components/agent-config-primitives.tsx:62` (i18n-backed via `t("adapter.*")`)
+  - `ui/src/pages/InviteLanding.tsx:15` (hardcoded)
+  - `ui/src/pages/OrgChart.tsx:121` (hardcoded, short labels)
+  - `ui/src/pages/Agents.tsx:24` (hardcoded, short labels)
+- **2 allowlist sets** (without these, both adapters are marked `"(Coming soon)"` in the dropdown
+  and the invite join flow rejects them):
+  - `ENABLED_ADAPTER_TYPES` at `ui/src/components/AgentConfigForm.tsx:1025`
+  - `ENABLED_INVITE_ADAPTERS` at `ui/src/pages/InviteLanding.tsx:28`
+- **i18n:** `ui/src/i18n/ko.json` gained `adapter.ollama_local`, `adapter.lm_studio_local`,
+  and matching `adapter.desc.*` entries.
+
+### 4. Shared constants extension (fixed in `feat(server)` commit)
+
+Task 16 did not include extending `packages/shared/src/constants.ts` `AGENT_ADAPTER_TYPES`.
+Without that, the zod validators at API boundaries would reject requests with
+`adapterType: "ollama_local"` / `"lm_studio_local"`. Both entries were added to the tuple.
+
+**Incidental fix:** `gemini_local` was also missing from `AGENT_ADAPTER_TYPES` (pre-existing
+inconsistency predating this work — `gemini_local` is referenced by every other layer of the
+codebase). Added in the same edit so the enum now reflects reality.
+
+### 5. Commit structure
+
+Original plan had 5 separate commits (one per M8/M9 task). Condensed to 3 logical commits:
+
+| Commit | Contents |
+|---|---|
+| `fix(adapters): align local adapters with UI contracts and propagate probe errors` | The two pre-existing blockers from correction 1 (parseStdoutLine signatures, listRemoteModels error propagation, listModels try/catch wrappers) |
+| `feat(server): register ollama-local and lm-studio-local adapters` | `server/src/adapters/registry.ts` + `packages/shared/src/constants.ts` (AGENT_ADAPTER_TYPES extension including the incidental `gemini_local` fix) |
+| `feat(ui): wire up Ollama and LM Studio adapters across dialog, properties, invite, i18n` | `ui/package.json` + `pnpm-lock.yaml` + new `ui/src/adapters/{ollama,lm-studio}-local/` dirs + `ui/src/adapters/registry.ts` + `NewAgentDialog.tsx` + all 5 label maps + 2 allowlists + `ko.json` |
+
+### 6. Task 21 (manual Ollama end-to-end smoke test)
+
+Deferred — requires a running `ollama serve` and `ollama pull llama3.1`. Automated verification
+gate (Task 20) confirms server-level routing and adapter execution paths work. Manual task
+remains unchecked above; it should be executed by the operator before the next release.

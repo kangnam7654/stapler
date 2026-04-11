@@ -166,6 +166,8 @@
     "cursor": "Cursor (로컬)",
     "hermes_local": "Hermes 에이전트",
     "pi_local": "Pi (로컬)",
+    "ollama_local": "Ollama (로컬)",
+    "lm_studio_local": "LM Studio (로컬)",
     "process": "프로세스",
     "http": "HTTP",
     "claudeCode": "Claude Code",
@@ -184,6 +186,8 @@
       "hermes_local": "로컬 멀티 프로바이더 에이전트",
       "pi_local": "로컬 Pi 에이전트",
       "cursor": "로컬 Cursor 에이전트",
+      "ollama_local": "로컬 Ollama 모델 (비용 0, tool-call 지원 모델 필요)",
+      "lm_studio_local": "로컬 LM Studio 모델 (비용 0, tool-call 지원 모델 필요)",
       "openclaw_gateway": "게이트웨이 프로토콜로 OpenClaw 호출"
     }
   },
