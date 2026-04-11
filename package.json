@@ -50,6 +50,9 @@
     "patchedDependencies": {
       "embedded-postgres@18.1.0-beta.16": "patches/embedded-postgres@18.1.0-beta.16.patch",
       "@radix-ui/react-compose-refs@1.1.2": "patches/@radix-ui__react-compose-refs@1.1.2.patch"
+    },
+    "overrides": {
+      "rollup": ">=4.59.0"
     }
   }
 }

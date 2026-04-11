@@ -68,7 +68,7 @@
     "hermes-paperclip-adapter": "^0.2.0",
     "i18next": "^26.0.2",
     "jsdom": "^28.1.0",
-    "multer": "^2.0.2",
+    "multer": "^2.1.1",
     "open": "^11.0.0",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
@@ -78,6 +78,9 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@paperclipai/adapter-lm-studio-local": "workspace:*",
+    "@paperclipai/adapter-ollama-local": "workspace:*",
+    "@paperclipai/adapter-openai-compat-local": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/express-serve-static-core": "^5.0.0",
     "@types/jsdom": "^28.0.0",

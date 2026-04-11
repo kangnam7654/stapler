@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nickelcore/tauri/v2/crates/tauri-cli/schema.json",
+  "productName": "Paperclip",
+  "version": "0.3.1",
+  "identifier": "ai.paperclip.desktop",
+  "build": {
+    "frontendDist": "./src/loading.html",
+    "devUrl": "http://localhost:3100",
+    "beforeDevCommand": "cd .. && pnpm dev"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Paperclip",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600
+      }
+    ],
+    "security": {}
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app"],
+    "icon": [
+      "icons/icon.icns",
+      "icons/icon.png"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    },
+    "resources": [
+      "resources/"
+    ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}
