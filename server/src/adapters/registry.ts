@@ -67,6 +67,24 @@ import {
   agentConfigurationDoc as piAgentConfigurationDoc,
 } from "@paperclipai/adapter-pi-local";
 import {
+  execute as ollamaExecute,
+  testEnvironment as ollamaTestEnvironment,
+  listModels as listOllamaModels,
+} from "@paperclipai/adapter-ollama-local/server";
+import {
+  agentConfigurationDoc as ollamaAgentConfigurationDoc,
+  models as ollamaModels,
+} from "@paperclipai/adapter-ollama-local";
+import {
+  execute as lmStudioExecute,
+  testEnvironment as lmStudioTestEnvironment,
+  listModels as listLmStudioModels,
+} from "@paperclipai/adapter-lm-studio-local/server";
+import {
+  agentConfigurationDoc as lmStudioAgentConfigurationDoc,
+  models as lmStudioModels,
+} from "@paperclipai/adapter-lm-studio-local";
+import {
   execute as hermesExecute,
   testEnvironment as hermesTestEnvironment,
   sessionCodec as hermesSessionCodec,
@@ -187,6 +205,26 @@ const hermesLocalAdapter: ServerAdapterModule = {
   detectModel: () => detectModelFromHermes(),
 };
 
+const ollamaLocalAdapter: ServerAdapterModule = {
+  type: "ollama_local",
+  execute: ollamaExecute,
+  testEnvironment: ollamaTestEnvironment,
+  models: ollamaModels,
+  listModels: listOllamaModels,
+  supportsLocalAgentJwt: true,
+  agentConfigurationDoc: ollamaAgentConfigurationDoc,
+};
+
+const lmStudioLocalAdapter: ServerAdapterModule = {
+  type: "lm_studio_local",
+  execute: lmStudioExecute,
+  testEnvironment: lmStudioTestEnvironment,
+  models: lmStudioModels,
+  listModels: listLmStudioModels,
+  supportsLocalAgentJwt: true,
+  agentConfigurationDoc: lmStudioAgentConfigurationDoc,
+};
+
 const adaptersByType = new Map<string, ServerAdapterModule>(
   [
     claudeLocalAdapter,
@@ -197,6 +235,8 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     geminiLocalAdapter,
     openclawGatewayAdapter,
     hermesLocalAdapter,
+    ollamaLocalAdapter,
+    lmStudioLocalAdapter,
     processAdapter,
     httpAdapter,
   ].map((a) => [a.type, a]),
