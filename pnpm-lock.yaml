@@ -99,6 +99,8 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  native/skills-scanner: {}
+
   packages/adapter-utils:
     devDependencies:
       '@types/node':
@@ -492,6 +494,9 @@ importers:
       '@paperclipai/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      '@paperclipai/skills-scanner-native':
+        specifier: workspace:*
+        version: link:../native/skills-scanner
       ajv:
         specifier: ^8.18.0
         version: 8.18.0
