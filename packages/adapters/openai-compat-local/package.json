@@ -1,0 +1,28 @@
+{
+  "name": "@paperclipai/adapter-openai-compat-local",
+  "version": "0.0.1",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./dist/index.js",
+    "./loop": "./dist/loop.js",
+    "./tools": "./dist/tools/index.js",
+    "./summarize": "./dist/summarize.js",
+    "./client": "./dist/client.js",
+    "./types": "./dist/types.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@paperclipai/adapter-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "typescript": "^5.7.3"
+  }
+}
