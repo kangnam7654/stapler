@@ -6,7 +6,7 @@
  * Consumers must handle the null case and fall back to the TS scanner.
  */
 
-export interface NativeSkillsScanner {
+declare const nativeBinding: {
   /**
    * Scan a workspace for skill directories and return a JSON string
    * of the Rust `WorkspaceScanResult` struct (snake_case fields).
@@ -22,7 +22,6 @@ export interface NativeSkillsScanner {
     companyId: string,
     workspaceCwd: string,
   ): Promise<string>
-}
+} | null
 
-declare const nativeBinding: NativeSkillsScanner | null
 export = nativeBinding
