@@ -33,6 +33,11 @@ import { notFound, unprocessable } from "../errors.js";
 import { agentService } from "./agents.js";
 import { projectService } from "./projects.js";
 import { secretService } from "./secrets.js";
+import {
+  isNativeSkillsScannerAvailable,
+  scanWorkspaceSkillsNative,
+  type NativeImportedSkill,
+} from "./native-skills-scanner.js";
 
 type CompanySkillRow = typeof companySkills.$inferSelect;
 
@@ -1883,8 +1888,121 @@ export function companySkillService(db: Db) {
       }
     }
 
+    // Downstream processing shared by both the native and TS scan
+    // paths. Returns true if the skill was accepted/updated, false
+    // otherwise (conflict or persistence failure). All error cases
+    // populate the enclosing `conflicts`/`skipped` arrays in place.
+    const processDiscoveredSkill = async (
+      nextSkill: ImportedSkill,
+      target: ProjectSkillScanTarget,
+      originPath: string,
+    ): Promise<void> => {
+      const normalizedSourceDir = normalizeSourceLocatorDirectory(nextSkill.sourceLocator);
+      const existingByKey = acceptedByKey.get(nextSkill.key) ?? null;
+      if (existingByKey) {
+        const existingSourceDir = normalizeSkillDirectory(existingByKey);
+        if (
+          existingByKey.sourceType !== "local_path"
+          || !existingSourceDir
+          || !normalizedSourceDir
+          || existingSourceDir !== normalizedSourceDir
+        ) {
+          conflicts.push({
+            slug: nextSkill.slug,
+            key: nextSkill.key,
+            projectId: target.projectId,
+            projectName: target.projectName,
+            workspaceId: target.workspaceId,
+            workspaceName: target.workspaceName,
+            path: originPath,
+            existingSkillId: existingByKey.id,
+            existingSkillKey: existingByKey.key,
+            existingSourceLocator: existingByKey.sourceLocator,
+            reason: `Skill key ${nextSkill.key} already points at ${existingByKey.sourceLocator ?? "another source"}.`,
+          });
+          return;
+        }
+
+        const persisted = (await upsertImportedSkills(companyId, [nextSkill]))[0];
+        if (!persisted) return;
+        updated.push(persisted);
+        upsertAcceptedSkill(persisted);
+        return;
+      }
+
+      const slugConflict = acceptedSkills.find((skill) => {
+        if (skill.slug !== nextSkill.slug) return false;
+        return normalizeSkillDirectory(skill) !== normalizedSourceDir;
+      });
+      if (slugConflict) {
+        conflicts.push({
+          slug: nextSkill.slug,
+          key: nextSkill.key,
+          projectId: target.projectId,
+          projectName: target.projectName,
+          workspaceId: target.workspaceId,
+          workspaceName: target.workspaceName,
+          path: originPath,
+          existingSkillId: slugConflict.id,
+          existingSkillKey: slugConflict.key,
+          existingSourceLocator: slugConflict.sourceLocator,
+          reason: `Slug ${nextSkill.slug} is already in use by ${slugConflict.sourceLocator ?? slugConflict.key}.`,
+        });
+        return;
+      }
+
+      const persisted = (await upsertImportedSkills(companyId, [nextSkill]))[0];
+      if (!persisted) return;
+      imported.push(persisted);
+      upsertAcceptedSkill(persisted);
+    };
+
     for (const target of scanTargets) {
       scannedProjectIds.add(target.projectId);
+
+      // Try the native Rust scanner first. On success, we get all
+      // ImportedSkills for this workspace in one shot. On failure (or
+      // when unavailable), fall back to the per-directory TS loop.
+      let nativeSkills: NativeImportedSkill[] | null = null;
+      if (isNativeSkillsScannerAvailable) {
+        try {
+          const result = await scanWorkspaceSkillsNative(companyId, target.workspaceCwd);
+          nativeSkills = result.skills;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          trackWarning(
+            `[native-skills-scanner] ${target.workspaceCwd}: ${message}; falling back to TS`,
+          );
+          nativeSkills = null;
+        }
+      }
+
+      if (nativeSkills !== null) {
+        for (const rawSkill of nativeSkills) {
+          discovered += 1;
+
+          // The Rust scanner always sets metadata.sourceKind = "local_path".
+          // Override with project-scan metadata to match the TS call-site
+          // semantics (lines below in the fallback path).
+          const nextSkill: ImportedSkill = {
+            ...rawSkill,
+            metadata: {
+              ...(rawSkill.metadata ?? {}),
+              sourceKind: "project_scan",
+              projectId: target.projectId,
+              projectName: target.projectName,
+              workspaceId: target.workspaceId,
+              workspaceName: target.workspaceName,
+              workspaceCwd: target.workspaceCwd,
+            },
+          };
+          const originPath = nextSkill.sourceLocator ?? target.workspaceCwd;
+          await processDiscoveredSkill(nextSkill, target, originPath);
+        }
+        continue;
+      }
+
+      // TS fallback path: original per-directory scan loop.
       const directories = await discoverProjectWorkspaceSkillDirectories(target);
 
       for (const directory of directories) {
@@ -1916,64 +2034,7 @@ export function companySkillService(db: Db) {
           continue;
         }
 
-        const normalizedSourceDir = normalizeSourceLocatorDirectory(nextSkill.sourceLocator);
-        const existingByKey = acceptedByKey.get(nextSkill.key) ?? null;
-        if (existingByKey) {
-          const existingSourceDir = normalizeSkillDirectory(existingByKey);
-          if (
-            existingByKey.sourceType !== "local_path"
-            || !existingSourceDir
-            || !normalizedSourceDir
-            || existingSourceDir !== normalizedSourceDir
-          ) {
-            conflicts.push({
-              slug: nextSkill.slug,
-              key: nextSkill.key,
-              projectId: target.projectId,
-              projectName: target.projectName,
-              workspaceId: target.workspaceId,
-              workspaceName: target.workspaceName,
-              path: directory.skillDir,
-              existingSkillId: existingByKey.id,
-              existingSkillKey: existingByKey.key,
-              existingSourceLocator: existingByKey.sourceLocator,
-              reason: `Skill key ${nextSkill.key} already points at ${existingByKey.sourceLocator ?? "another source"}.`,
-            });
-            continue;
-          }
-
-          const persisted = (await upsertImportedSkills(companyId, [nextSkill]))[0];
-          if (!persisted) continue;
-          updated.push(persisted);
-          upsertAcceptedSkill(persisted);
-          continue;
-        }
-
-        const slugConflict = acceptedSkills.find((skill) => {
-          if (skill.slug !== nextSkill.slug) return false;
-          return normalizeSkillDirectory(skill) !== normalizedSourceDir;
-        });
-        if (slugConflict) {
-          conflicts.push({
-            slug: nextSkill.slug,
-            key: nextSkill.key,
-            projectId: target.projectId,
-            projectName: target.projectName,
-            workspaceId: target.workspaceId,
-            workspaceName: target.workspaceName,
-            path: directory.skillDir,
-            existingSkillId: slugConflict.id,
-            existingSkillKey: slugConflict.key,
-            existingSourceLocator: slugConflict.sourceLocator,
-            reason: `Slug ${nextSkill.slug} is already in use by ${slugConflict.sourceLocator ?? slugConflict.key}.`,
-          });
-          continue;
-        }
-
-        const persisted = (await upsertImportedSkills(companyId, [nextSkill]))[0];
-        if (!persisted) continue;
-        imported.push(persisted);
-        upsertAcceptedSkill(persisted);
+        await processDiscoveredSkill(nextSkill, target, directory.skillDir);
       }
     }
 
