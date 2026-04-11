@@ -1,0 +1,23 @@
+## Workaround for napi-rs + `cargo test` on macOS.
+##
+## When we build non-cdylib targets (unit tests, integration tests,
+## `scan_bench` / `gen_golden` binaries) the final linker invocation
+## does NOT include `-undefined dynamic_lookup`, so it fails on napi
+## symbols (`_napi_resolve_deferred`, `_napi_throw`, ...) that Node
+## provides at runtime when loading the `.node` binary.
+##
+## Applying `dynamic_lookup` globally on macOS tells the linker to
+## leave undefined symbols alone — they'll be resolved at runtime.
+## Tests and bench binaries never actually call the napi wrapper, so
+## the "undefined" symbols stay undefined at runtime and that's fine.
+##
+## Linux/Windows don't hit this because their linkers allow undefined
+## symbols in a shared-object-aware way by default, and our only
+## `.node` target in Phase 2 is darwin-arm64. Linux support lands in
+## Phase 3.
+
+[target.'cfg(target_os = "macos")']
+rustflags = [
+    "-C", "link-arg=-undefined",
+    "-C", "link-arg=dynamic_lookup",
+]

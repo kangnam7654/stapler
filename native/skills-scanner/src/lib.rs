@@ -37,3 +37,4 @@ pub mod hash;
 pub mod scan;
 pub mod slug;
 pub mod types;
+pub mod napi_exports;
