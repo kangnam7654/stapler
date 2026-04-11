@@ -50,6 +50,12 @@ export interface ListModelsArgs {
   style: "openai" | "ollama";
 }
 
+/**
+ * Fetches available models from an OpenAI-compatible or Ollama-style server.
+ * Throws on network errors (ECONNREFUSED, timeout, DNS failure) so callers can
+ * distinguish "server unreachable" from "server reachable but no models".
+ * Returns `[]` only when the server responded with a non-ok status or an empty list.
+ */
 export async function listRemoteModels(args: ListModelsArgs): Promise<string[]> {
   const { baseUrl, timeoutMs, apiKey, style } = args;
   const path = style === "ollama" ? "/api/tags" : "/v1/models";
@@ -72,8 +78,6 @@ export async function listRemoteModels(args: ListModelsArgs): Promise<string[]> 
     }
     const data = (json as { data?: Array<{ id?: string }> }).data ?? [];
     return data.map((m) => m.id ?? "").filter((n) => n.length > 0);
-  } catch {
-    return [];
   } finally {
     clearTimeout(timer);
   }

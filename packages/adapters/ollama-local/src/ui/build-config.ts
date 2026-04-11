@@ -1,5 +1,5 @@
 // src/ui/build-config.ts
-import type { CreateConfigValues } from "@paperclipai/adapter-utils";
+import type { CreateConfigValues, TranscriptEntry } from "@paperclipai/adapter-utils";
 import { DEFAULT_OLLAMA_BASE_URL, DEFAULT_OLLAMA_MODEL } from "../index.js";
 
 function asString(value: unknown, fallback: string): string {
@@ -42,7 +42,7 @@ export function buildOllamaLocalConfig(values: CreateConfigValues): Record<strin
   return config;
 }
 
-export function parseOllamaStdoutLine(line: string): { text?: string; kind?: string } | null {
-  if (!line || line.length === 0) return null;
-  return { text: line, kind: "log" };
+export function parseOllamaStdoutLine(line: string, ts: string): TranscriptEntry[] {
+  if (!line || line.length === 0) return [];
+  return [{ kind: "stdout", ts, text: line }];
 }

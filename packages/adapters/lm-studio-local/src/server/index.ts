@@ -11,12 +11,16 @@ import { DEFAULT_LM_STUDIO_BASE_URL } from "../index.js";
 export { execute } from "./execute.js";
 
 export async function listModels(): Promise<AdapterModel[]> {
-  const names = await listRemoteModels({
-    baseUrl: DEFAULT_LM_STUDIO_BASE_URL,
-    timeoutMs: 3000,
-    style: "openai",
-  });
-  return names.map((name) => ({ id: name, label: name }));
+  try {
+    const names = await listRemoteModels({
+      baseUrl: DEFAULT_LM_STUDIO_BASE_URL,
+      timeoutMs: 3000,
+      style: "openai",
+    });
+    return names.map((name) => ({ id: name, label: name }));
+  } catch {
+    return [];
+  }
 }
 
 export async function testEnvironment(

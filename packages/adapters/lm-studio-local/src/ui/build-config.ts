@@ -1,5 +1,5 @@
 // src/ui/build-config.ts
-import type { CreateConfigValues } from "@paperclipai/adapter-utils";
+import type { CreateConfigValues, TranscriptEntry } from "@paperclipai/adapter-utils";
 import { DEFAULT_LM_STUDIO_BASE_URL, DEFAULT_LM_STUDIO_MODEL } from "../index.js";
 
 function asString(value: unknown, fallback: string): string {
@@ -42,7 +42,7 @@ export function buildLmStudioLocalConfig(values: CreateConfigValues): Record<str
   return config;
 }
 
-export function parseLmStudioStdoutLine(line: string): { text?: string; kind?: string } | null {
-  if (!line || line.length === 0) return null;
-  return { text: line, kind: "log" };
+export function parseLmStudioStdoutLine(line: string, ts: string): TranscriptEntry[] {
+  if (!line || line.length === 0) return [];
+  return [{ kind: "stdout", ts, text: line }];
 }
