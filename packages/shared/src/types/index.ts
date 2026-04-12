@@ -192,3 +192,8 @@ export type {
   PluginJobRunRecord,
   PluginWebhookDeliveryRecord,
 } from "./plugin.js";
+export type {
+  AdapterDetectionItem,
+  AdapterDetectionResult,
+  OnboardingProgress,
+} from "./onboarding.js";
