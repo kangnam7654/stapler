@@ -316,6 +316,9 @@ export type {
   PluginWebhookDeliveryRecord,
   QuotaWindow,
   ProviderQuotaResult,
+  AdapterDetectionItem,
+  AdapterDetectionResult,
+  OnboardingProgress,
 } from "./types/index.js";
 
 export {
