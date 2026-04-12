@@ -46,6 +46,7 @@ import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import { t } from "../i18n/index.js";
 import { assertBoard, assertCompanyAccess, assertInstanceAdmin, getActorInfo } from "./authz.js";
 import { findServerAdapter, listAdapterModels, detectAdapterModel } from "../adapters/index.js";
+import { detectInstalledAdapters } from "../services/adapter-detection.js";
 import { redactEventPayload } from "../redaction.js";
 import { redactCurrentUserValue } from "../log-redaction.js";
 import { renderOrgChartSvg, renderOrgChartPng, type OrgNode, type OrgChartStyle, ORG_CHART_STYLES } from "./org-chart-svg.js";
@@ -661,6 +662,15 @@ export function agentRoutes(db: Db) {
       next();
     } catch (err) {
       next(err);
+    }
+  });
+
+  router.get("/adapters/detect", async (_req, res) => {
+    try {
+      const result = await detectInstalledAdapters();
+      res.json(result);
+    } catch {
+      res.json({ detected: [], recommended: null });
     }
   });
 
