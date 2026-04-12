@@ -3,11 +3,13 @@ import { test, expect } from "@playwright/test";
 /**
  * E2E: Onboarding wizard flow (skip_llm mode).
  *
- * Walks through the 4-step OnboardingWizard:
- *   Step 1 — Name your company
- *   Step 2 — Create your first agent (adapter selection + config)
- *   Step 3 — Give it something to do (task creation)
- *   Step 4 — Ready to launch (summary + open issue)
+ * Walks through the 3-step OnboardingWizard:
+ *   Step 1 — Create company (회사 만들기)
+ *   Step 2 — Connect AI tool (AI 도구 연결하기)
+ *   Step 3 — First mission (첫 미션)
+ *
+ * After step 3 the wizard submits and redirects directly to the issue page.
+ * The Getting Started panel should be visible after redirect.
  *
  * By default this runs in skip_llm mode: we do NOT assert that an LLM
  * heartbeat fires. Set PAPERCLIP_E2E_SKIP_LLM=false to enable LLM-dependent
@@ -24,7 +26,8 @@ test.describe("Onboarding wizard", () => {
   test("completes full wizard flow", async ({ page }) => {
     await page.goto("/");
 
-    const wizardHeading = page.locator("h3", { hasText: "Name your company" });
+    // Step 1: Create company (회사 만들기)
+    const wizardHeading = page.locator("h3", { hasText: /회사 만들기|Create.*company/i });
     const newCompanyBtn = page.getByRole("button", { name: "New Company" });
 
     await expect(
@@ -40,11 +43,12 @@ test.describe("Onboarding wizard", () => {
     const companyNameInput = page.locator('input[placeholder="Acme Corp"]');
     await companyNameInput.fill(COMPANY_NAME);
 
-    const nextButton = page.getByRole("button", { name: "Next" });
+    const nextButton = page.getByRole("button", { name: /다음|Next/i });
     await nextButton.click();
 
+    // Step 2: Connect AI tool (AI 도구 연결하기)
     await expect(
-      page.locator("h3", { hasText: "Create your first agent" })
+      page.locator("h3", { hasText: /AI 도구 연결|Connect.*AI/i })
     ).toBeVisible({ timeout: 10_000 });
 
     const agentNameInput = page.locator('input[placeholder="CEO"]');
@@ -54,13 +58,14 @@ test.describe("Onboarding wizard", () => {
       page.locator("button", { hasText: "Claude Code" }).locator("..")
     ).toBeVisible();
 
-    await page.getByRole("button", { name: "More Agent Adapter Types" }).click();
+    await page.getByRole("button", { name: /더 많은 어댑터|More Agent Adapter/i }).click();
     await expect(page.getByRole("button", { name: "Process" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Next" }).click();
+    await page.getByRole("button", { name: /다음|Next/i }).click();
 
+    // Step 3: First mission (첫 미션)
     await expect(
-      page.locator("h3", { hasText: "Give it something to do" })
+      page.locator("h3", { hasText: /첫 미션|first mission|Give it something/i })
     ).toBeVisible({ timeout: 10_000 });
 
     const taskTitleInput = page.locator(
@@ -69,19 +74,16 @@ test.describe("Onboarding wizard", () => {
     await taskTitleInput.clear();
     await taskTitleInput.fill(TASK_TITLE);
 
-    await page.getByRole("button", { name: "Next" }).click();
+    // Final button: "생성하고 시작하기" (createAndStart)
+    await page.getByRole("button", { name: /생성하고 시작하기|Create.*Start/i }).click();
 
-    await expect(
-      page.locator("h3", { hasText: "Ready to launch" })
-    ).toBeVisible({ timeout: 10_000 });
-
-    await expect(page.locator("text=" + COMPANY_NAME)).toBeVisible();
-    await expect(page.locator("text=" + AGENT_NAME)).toBeVisible();
-    await expect(page.locator("text=" + TASK_TITLE)).toBeVisible();
-
-    await page.getByRole("button", { name: "Create & Open Issue" }).click();
-
+    // Should redirect directly to issue page (no step 4)
     await expect(page).toHaveURL(/\/issues\//, { timeout: 10_000 });
+
+    // Getting Started panel should be visible after redirect
+    await expect(
+      page.locator("text=/Getting Started|시작하기/i").first()
+    ).toBeVisible({ timeout: 5_000 });
 
     const baseUrl = page.url().split("/").slice(0, 3).join("/");
 
