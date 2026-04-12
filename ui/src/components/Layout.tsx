@@ -7,6 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { InstanceSidebar } from "./InstanceSidebar";
 import { BreadcrumbBar } from "./BreadcrumbBar";
 import { PropertiesPanel } from "./PropertiesPanel";
+import { GettingStartedPanel } from "./GettingStartedPanel";
 import { CommandPalette } from "./CommandPalette";
 import { NewIssueDialog } from "./NewIssueDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
@@ -428,6 +429,12 @@ export function Layout() {
               )}
             </main>
             <PropertiesPanel />
+            {matchedCompany && !isMobile && (
+              <GettingStartedPanel
+                companyId={matchedCompany.id}
+                companyPrefix={matchedCompany.issuePrefix}
+              />
+            )}
           </div>
         </div>
       </div>
