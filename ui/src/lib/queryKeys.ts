@@ -135,6 +135,9 @@ export const queryKeys = {
     thread: (companyId: string, threadId: string) => ["agent-messages", "thread", companyId, threadId] as const,
     unreadCount: (companyId: string, agentId: string) => ["agent-messages", "unread", companyId, agentId] as const,
   },
+  simulation: {
+    state: (companyId: string) => ["simulation", companyId] as const,
+  },
   plugins: {
     all: ["plugins"] as const,
     examples: ["plugins", "examples"] as const,
