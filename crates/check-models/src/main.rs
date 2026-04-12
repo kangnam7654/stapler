@@ -1,4 +1,5 @@
 mod detect;
+mod probe;
 mod types;
 
 use std::{env, fs, path::PathBuf};
@@ -20,8 +21,8 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|i| args.get(i + 1).cloned());
 
     let mut total = 0u32;
-    let passed = 0u32;
-    let failed = 0u32;
+    let mut passed = 0u32;
+    let mut failed = 0u32;
     let mut skipped = 0u32;
 
     for adapter in &adapters {
@@ -74,8 +75,22 @@ async fn main() -> anyhow::Result<()> {
 
         for model in &adapter.models {
             total += 1;
-            // probe will be implemented in Task 5
-            println!("  {} {}", "TODO".dimmed(), model.id);
+            let (cmd_or_url, style) = match &adapter.probe {
+                AdapterProbe::Cli { command, style } => (command.as_str(), style.as_str()),
+                AdapterProbe::Http { url, style } => (url.as_str(), style.as_str()),
+                AdapterProbe::Skip { .. } => unreachable!(),
+            };
+
+            let result = probe::probe_model(style, cmd_or_url, &model.id).await;
+
+            if result.success {
+                passed += 1;
+                println!("  {} {}", "PASS".green().bold(), model.id);
+            } else {
+                failed += 1;
+                let detail = result.detail.unwrap_or_default();
+                println!("  {} {} — {}", "FAIL".red().bold(), model.id, detail.dimmed());
+            }
         }
     }
 
@@ -87,6 +102,10 @@ async fn main() -> anyhow::Result<()> {
         format!("{} failed", failed).red(),
         format!("{} skipped", skipped).yellow(),
     );
+
+    if failed > 0 {
+        std::process::exit(1);
+    }
 
     Ok(())
 }
