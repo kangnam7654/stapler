@@ -219,7 +219,9 @@ export function OnboardingWizard() {
     adapterType === "hermes_local" ||
     adapterType === "opencode_local" ||
     adapterType === "pi_local" ||
-    adapterType === "cursor";
+    adapterType === "cursor" ||
+    adapterType === "ollama_local" ||
+    adapterType === "lm_studio_local";
   const effectiveAdapterCommand =
     command.trim() ||
     (adapterType === "codex_local"
@@ -252,6 +254,13 @@ export function OnboardingWizard() {
     adapterType === "claude_local" &&
     adapterEnvResult?.status === "fail" &&
     hasAnthropicApiKeyOverrideCheck;
+  const hasModelProbeWarning =
+    adapterEnvResult?.checks.some(
+      (check) =>
+        check.level === "warn" &&
+        (check.code.endsWith("_probe_failed") ||
+          check.code.endsWith("_probe_timed_out"))
+    ) ?? false;
   const filteredModels = useMemo(() => {
     const query = modelSearch.trim().toLowerCase();
     return (adapterModels ?? []).filter((entry) => {
@@ -464,6 +473,7 @@ export function OnboardingWizard() {
       if (isLocalAdapter) {
         const result = adapterEnvResult ?? (await runAdapterEnvironmentTest());
         if (!result) return;
+        if (result.checks.some((c) => c.level === "error")) return;
       }
 
       const agent = await agentsApi.create(createdCompanyId, {
@@ -1061,6 +1071,17 @@ export function OnboardingWizard() {
                       {adapterEnvError && (
                         <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-[11px] text-destructive">
                           {adapterEnvError}
+                        </div>
+                      )}
+
+                      {hasModelProbeWarning && (
+                        <div className="flex items-start gap-2 rounded-md border border-amber-300/60 dark:border-amber-500/40 bg-amber-50/60 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 animate-in fade-in slide-in-from-bottom-1 duration-300">
+                          <span className="mt-0.5 shrink-0">&#x26A0;</span>
+                          <span>
+                            {t("onboarding.modelProbeWarning", {
+                              modelId: model || "unknown",
+                            })}
+                          </span>
                         </div>
                       )}
 
