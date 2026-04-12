@@ -20,6 +20,7 @@ import {
   logActivity,
 } from "../services/index.js";
 import { ensureCompanyDocs } from "../services/company-docs.js";
+import { getOnboardingProgress } from "../services/onboarding-progress.js";
 import type { StorageService } from "../storage/types.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 
@@ -89,6 +90,13 @@ export function companyRoutes(db: Db, storage?: StorageService) {
     res.status(400).json({
       error: t("error.missingCompanyIdInPath"),
     });
+  });
+
+  router.get("/:companyId/onboarding-progress", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const progress = await getOnboardingProgress(db, companyId);
+    res.json(progress);
   });
 
   router.get("/:companyId", async (req, res) => {
