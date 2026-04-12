@@ -19,6 +19,7 @@ async fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
     let filter = args.iter().position(|a| a == "--adapter")
         .and_then(|i| args.get(i + 1).cloned());
+    let verbose = args.iter().any(|a| a == "--verbose");
 
     let mut total = 0u32;
     let mut passed = 0u32;
@@ -89,7 +90,13 @@ async fn main() -> anyhow::Result<()> {
             } else {
                 failed += 1;
                 let detail = result.detail.unwrap_or_default();
-                println!("  {} {} — {}", "FAIL".red().bold(), model.id, detail.dimmed());
+                if verbose {
+                    println!("  {} {} —\n    {}", "FAIL".red().bold(), model.id, detail);
+                } else {
+                    let short = detail.lines().next().unwrap_or("");
+                    let truncated = if short.len() > 80 { &short[..80] } else { short };
+                    println!("  {} {} — {}", "FAIL".red().bold(), model.id, truncated.dimmed());
+                }
             }
         }
     }
