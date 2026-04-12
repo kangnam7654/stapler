@@ -1,0 +1,6 @@
+[build]
+# Use mold linker on Linux for faster linking (ignored on macOS)
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]

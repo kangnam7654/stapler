@@ -55,5 +55,8 @@ tests/release-smoke/playwright-report/
 # Rust/Tauri build output
 desktop/target/
 
+# Rust build output (workspace-level)
+/target/
+
 # Bundled node binary (downloaded at build time, too large for git)
 desktop/resources/node/node
