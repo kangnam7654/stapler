@@ -55,6 +55,8 @@ import {
   Check,
   Loader2,
   ChevronDown,
+  Cpu,
+  Server,
   X
 } from "lucide-react";
 import { HermesIcon } from "./HermesIcon";
@@ -68,6 +70,8 @@ type AdapterType =
   | "opencode_local"
   | "pi_local"
   | "cursor"
+  | "ollama_local"
+  | "lm_studio_local"
   | "http"
   | "openclaw_gateway";
 
@@ -849,6 +853,18 @@ export function OnboardingWizard() {
                             label: "Cursor",
                             icon: MousePointer2,
                             desc: t("adapter.desc.cursor")
+                          },
+                          {
+                            value: "ollama_local" as const,
+                            label: "Ollama",
+                            icon: Cpu,
+                            desc: t("adapter.desc.ollama_local")
+                          },
+                          {
+                            value: "lm_studio_local" as const,
+                            label: "LM Studio",
+                            icon: Server,
+                            desc: t("adapter.desc.lm_studio_local")
                           },
                           {
                             value: "hermes_local" as const,
