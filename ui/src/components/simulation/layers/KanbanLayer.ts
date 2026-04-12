@@ -1,7 +1,7 @@
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { SimulationLayer } from "./types";
 import type { KanbanState } from "../types";
-import type { IssueStatus, Issue } from "@paperclipai/shared";
+import type { IssueStatus } from "@paperclipai/shared";
 import { KANBAN_POS } from "./layout";
 
 const COLUMN_ORDER: IssueStatus[] = [
@@ -29,11 +29,15 @@ const COLUMN_LABELS: Record<string, string> = {
 };
 
 const MAX_VISIBLE_CARDS = 6;
+const DRAG_THRESHOLD_PX = 5;
 
 export class KanbanLayer implements SimulationLayer {
   public container: Container;
   private cardContainer: Container;
   private onIssueClick: ((issueId: string) => void) | null = null;
+  private onIssueDrop:
+    | ((issueId: string, newStatus: IssueStatus) => void)
+    | null = null;
 
   constructor() {
     this.container = new Container();
@@ -44,6 +48,12 @@ export class KanbanLayer implements SimulationLayer {
 
   public setOnIssueClick(callback: (issueId: string) => void): void {
     this.onIssueClick = callback;
+  }
+
+  public setOnIssueDrop(
+    callback: (issueId: string, newStatus: IssueStatus) => void,
+  ): void {
+    this.onIssueDrop = callback;
   }
 
   private drawBoard(): void {
@@ -104,6 +114,18 @@ export class KanbanLayer implements SimulationLayer {
     }
   }
 
+  /**
+   * Given a card's center x-coordinate, return which kanban status column
+   * it belongs to. Clamps to the first/last column outside the board.
+   */
+  private statusFromX(centerX: number): IssueStatus {
+    const colWidth = KANBAN_POS.w / COLUMN_ORDER.length;
+    const relative = centerX - KANBAN_POS.x;
+    const index = Math.floor(relative / colWidth);
+    const clamped = Math.max(0, Math.min(COLUMN_ORDER.length - 1, index));
+    return COLUMN_ORDER[clamped];
+  }
+
   public updateKanban(kanban: KanbanState): void {
     // Clear existing cards
     this.cardContainer.removeChildren();
@@ -133,13 +155,91 @@ export class KanbanLayer implements SimulationLayer {
         const cardY = cardStartY + j * (cardHeight + cardGap);
         const cardW = colWidth - cardMarginX * 2;
 
-        card.roundRect(cardX, cardY, cardW, cardHeight, 2);
+        // Draw relative to (0, 0) so we can move the card via card.x/y.
+        card.roundRect(0, 0, cardW, cardHeight, 2);
         card.fill({ color, alpha: opacity });
+        card.x = cardX;
+        card.y = cardY;
 
         card.eventMode = "static";
-        card.cursor = "pointer";
-        card.on("pointertap", () => {
-          this.onIssueClick?.(issue.id);
+        card.cursor = "grab";
+
+        // Per-card drag state
+        let dragging = false;
+        let moved = false;
+        let pointerStartGlobalX = 0;
+        let pointerStartGlobalY = 0;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        const originalX = cardX;
+        const originalY = cardY;
+
+        const snapBack = () => {
+          card.x = originalX;
+          card.y = originalY;
+          card.alpha = 1;
+          card.cursor = "grab";
+        };
+
+        card.on("pointerdown", (event: FederatedPointerEvent) => {
+          dragging = true;
+          moved = false;
+          pointerStartGlobalX = event.global.x;
+          pointerStartGlobalY = event.global.y;
+          dragOffsetX = event.global.x - card.x;
+          dragOffsetY = event.global.y - card.y;
+          card.alpha = 0.7;
+          card.cursor = "grabbing";
+        });
+
+        card.on("globalpointermove", (event: FederatedPointerEvent) => {
+          if (!dragging) return;
+          const dx = event.global.x - pointerStartGlobalX;
+          const dy = event.global.y - pointerStartGlobalY;
+          if (
+            !moved &&
+            Math.hypot(dx, dy) > DRAG_THRESHOLD_PX
+          ) {
+            moved = true;
+          }
+          if (moved) {
+            card.x = event.global.x - dragOffsetX;
+            card.y = event.global.y - dragOffsetY;
+          }
+        });
+
+        const onRelease = () => {
+          if (!dragging) return;
+          dragging = false;
+
+          if (!moved) {
+            // Treated as click — restore visuals and fire click.
+            card.alpha = 1;
+            card.cursor = "grab";
+            this.onIssueClick?.(issue.id);
+            return;
+          }
+
+          // Determine new status from card's center x.
+          const centerX = card.x + cardW / 2;
+          const newStatus = this.statusFromX(centerX);
+
+          if (newStatus !== status && this.onIssueDrop) {
+            // Fire callback; the updated state will re-render cards.
+            this.onIssueDrop(issue.id, newStatus);
+            // Optimistic visual reset (card will be destroyed on re-render).
+            card.alpha = 1;
+            card.cursor = "grab";
+          } else {
+            snapBack();
+          }
+        };
+
+        card.on("pointerup", onRelease);
+        card.on("pointerupoutside", () => {
+          if (!dragging) return;
+          dragging = false;
+          snapBack();
         });
 
         this.cardContainer.addChild(card);
