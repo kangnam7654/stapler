@@ -1,4 +1,7 @@
 import type { Goal } from "@paperclipai/shared";
+import { goalsApi } from "../api/goals";
+import { projectsApi } from "../api/projects";
+import { issuesApi } from "../api/issues";
 
 export const ONBOARDING_PROJECT_NAME = "Onboarding";
 
@@ -50,4 +53,38 @@ export function buildOnboardingIssuePayload(input: {
     ...(input.goalId ? { goalId: input.goalId } : {}),
     status: "todo" as const,
   };
+}
+
+export async function launchOnboarding(input: {
+  companyId: string;
+  agentId: string;
+  taskTitle: string;
+  taskDescription: string;
+  goalId?: string | null;
+}): Promise<{ projectId: string; issueRef: string }> {
+  let goalId = input.goalId ?? null;
+  if (!goalId) {
+    const goals = await goalsApi.list(input.companyId);
+    goalId = selectDefaultCompanyGoalId(goals);
+  }
+
+  const project = await projectsApi.create(
+    input.companyId,
+    buildOnboardingProjectPayload(goalId),
+  );
+  const projectId = project.id;
+
+  const issue = await issuesApi.create(
+    input.companyId,
+    buildOnboardingIssuePayload({
+      title: input.taskTitle,
+      description: input.taskDescription,
+      assigneeAgentId: input.agentId,
+      projectId,
+      goalId,
+    }),
+  );
+  const issueRef = issue.identifier ?? issue.id;
+
+  return { projectId, issueRef };
 }

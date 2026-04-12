@@ -1,15 +1,13 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdapterEnvironmentTestResult } from "@paperclipai/shared";
+import type { AdapterEnvironmentTestResult, AdapterDetectionResult } from "@paperclipai/shared";
 import { useLocation, useNavigate, useParams } from "@/lib/router";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
 import { companiesApi } from "../api/companies";
 import { goalsApi } from "../api/goals";
 import { agentsApi } from "../api/agents";
-import { issuesApi } from "../api/issues";
-import { projectsApi } from "../api/projects";
 import { queryKeys } from "../lib/queryKeys";
 import { Dialog, DialogPortal } from "@/components/ui/dialog";
 import {
@@ -26,11 +24,8 @@ import {
 import { getUIAdapter } from "../adapters";
 import { defaultCreateValues } from "./agent-config-defaults";
 import { parseOnboardingGoalInput } from "../lib/onboarding-goal";
-import {
-  buildOnboardingIssuePayload,
-  buildOnboardingProjectPayload,
-  selectDefaultCompanyGoalId
-} from "../lib/onboarding-launch";
+import { launchOnboarding } from "../lib/onboarding-launch";
+import { onboardingApi } from "../api/onboarding";
 import {
   DEFAULT_CODEX_LOCAL_BYPASS_APPROVALS_AND_SANDBOX,
   DEFAULT_CODEX_LOCAL_MODEL
@@ -61,7 +56,7 @@ import {
 } from "lucide-react";
 import { HermesIcon } from "./HermesIcon";
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 type AdapterType =
   | "claude_local"
   | "codex_local"
@@ -133,6 +128,12 @@ export function OnboardingWizard() {
     useState(false);
   const [unsetAnthropicLoading, setUnsetAnthropicLoading] = useState(false);
   const [showMoreAdapters, setShowMoreAdapters] = useState(false);
+
+  // Detection state
+  const [adapterDetection, setAdapterDetection] = useState<AdapterDetectionResult | null>(null);
+  const [detectionLoading, setDetectionLoading] = useState(false);
+  const [recommendationMode, setRecommendationMode] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Step 3
   const [taskTitle, setTaskTitle] = useState(
@@ -314,6 +315,10 @@ export function OnboardingWizard() {
     setAdapterEnvLoading(false);
     setForceUnsetAnthropicApiKey(false);
     setUnsetAnthropicLoading(false);
+    setAdapterDetection(null);
+    setDetectionLoading(false);
+    setRecommendationMode(false);
+    setAdvancedOpen(false);
     setTaskTitle("Hire your first engineer and create a hiring plan");
     setTaskDescription(DEFAULT_TASK_DESCRIPTION);
     setCreatedCompanyId(null);
@@ -395,6 +400,47 @@ export function OnboardingWizard() {
       setAdapterEnvLoading(false);
     }
   }
+
+  async function runDetection() {
+    setDetectionLoading(true);
+    try {
+      const result = await onboardingApi.detectAdapters();
+      setAdapterDetection(result);
+      if (result.detected.length === 0) {
+        setRecommendationMode(true);
+      } else {
+        setRecommendationMode(false);
+        // Auto-select the recommended adapter
+        if (result.recommended) {
+          setAdapterType(result.recommended.type as AdapterType);
+          if (result.recommended.defaultModel) {
+            setModel(result.recommended.defaultModel);
+          }
+          if (result.recommended.connectionInfo.command) {
+            setCommand(result.recommended.connectionInfo.command);
+          }
+          if (result.recommended.connectionInfo.args?.length) {
+            setArgs(result.recommended.connectionInfo.args.join(" "));
+          }
+          if (result.recommended.connectionInfo.baseUrl) {
+            setUrl(result.recommended.connectionInfo.baseUrl);
+          }
+        }
+      }
+    } catch {
+      // Detection failed — fall back to manual selection
+      setRecommendationMode(true);
+    } finally {
+      setDetectionLoading(false);
+    }
+  }
+
+  // Auto-detect adapters when step 2 mounts
+  useEffect(() => {
+    if (step !== 2 || adapterDetection || detectionLoading) return;
+    void runDetection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   async function handleStep1Next() {
     setLoading(true);
@@ -554,61 +600,31 @@ export function OnboardingWizard() {
 
   async function handleStep3Next() {
     if (!createdCompanyId || !createdAgentId) return;
-    setError(null);
-    setStep(4);
-  }
-
-  async function handleLaunch() {
-    if (!createdCompanyId || !createdAgentId) return;
     setLoading(true);
     setError(null);
     try {
-      let goalId = createdCompanyGoalId;
-      if (!goalId) {
-        const goals = await goalsApi.list(createdCompanyId);
-        goalId = selectDefaultCompanyGoalId(goals);
-        setCreatedCompanyGoalId(goalId);
-      }
-
-      let projectId = createdProjectId;
-      if (!projectId) {
-        const project = await projectsApi.create(
-          createdCompanyId,
-          buildOnboardingProjectPayload(goalId)
-        );
-        projectId = project.id;
-        setCreatedProjectId(projectId);
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.projects.list(createdCompanyId)
-        });
-      }
-
-      let issueRef = createdIssueRef;
-      if (!issueRef) {
-        const issue = await issuesApi.create(
-          createdCompanyId,
-          buildOnboardingIssuePayload({
-            title: taskTitle,
-            description: taskDescription,
-            assigneeAgentId: createdAgentId,
-            projectId,
-            goalId
-          })
-        );
-        issueRef = issue.identifier ?? issue.id;
-        setCreatedIssueRef(issueRef);
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.issues.list(createdCompanyId)
-        });
-      }
-
+      const result = await launchOnboarding({
+        companyId: createdCompanyId,
+        agentId: createdAgentId,
+        taskTitle,
+        taskDescription,
+        goalId: createdCompanyGoalId,
+      });
+      setCreatedProjectId(result.projectId);
+      setCreatedIssueRef(result.issueRef);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.projects.list(createdCompanyId)
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.issues.list(createdCompanyId)
+      });
       setSelectedCompanyId(createdCompanyId);
       reset();
       closeOnboarding();
       navigate(
         createdCompanyPrefix
-          ? `/${createdCompanyPrefix}/issues/${issueRef}`
-          : `/issues/${issueRef}`
+          ? `/${createdCompanyPrefix}/issues/${result.issueRef}`
+          : `/issues/${result.issueRef}`
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task");
@@ -623,7 +639,6 @@ export function OnboardingWizard() {
       if (step === 1 && companyName.trim()) handleStep1Next();
       else if (step === 2 && agentName.trim()) handleStep2Next();
       else if (step === 3 && taskTitle.trim()) handleStep3Next();
-      else if (step === 4) handleLaunch();
     }
   }
 
@@ -667,9 +682,8 @@ export function OnboardingWizard() {
                 {(
                   [
                     { step: 1 as Step, label: t("onboarding.createCompany"), icon: Building2 },
-                    { step: 2 as Step, label: t("onboarding.createFirstAgent"), icon: Bot },
-                    { step: 3 as Step, label: t("onboarding.createFirstTask"), icon: ListTodo },
-                    { step: 4 as Step, label: t("common.done"), icon: Rocket }
+                    { step: 2 as Step, label: t("onboarding.connectAiTool"), icon: Bot },
+                    { step: 3 as Step, label: t("onboarding.firstMission"), icon: ListTodo }
                   ] as const
                 ).map(({ step: s, label, icon: Icon }) => (
                   <button
@@ -735,7 +749,7 @@ export function OnboardingWizard() {
                     </label>
                     <textarea
                       className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 resize-none min-h-[60px]"
-                      placeholder={t("onboarding.companyGoal")}
+                      placeholder={t("onboarding.goalPlaceholder")}
                       value={companyGoal}
                       onChange={(e) => setCompanyGoal(e.target.value)}
                     />
@@ -750,7 +764,7 @@ export function OnboardingWizard() {
                       <Bot className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{t("onboarding.createFirstAgent")}</h3>
+                      <h3 className="font-medium">{t("onboarding.connectAiTool")}</h3>
                       <p className="text-xs text-muted-foreground">
                         {t("onboarding.chooseAdapter")}
                       </p>
@@ -769,283 +783,380 @@ export function OnboardingWizard() {
                     />
                   </div>
 
-                  {/* Adapter type radio cards */}
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-2 block">
-                      {t("onboarding.chooseAdapter")}
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        {
-                          value: "claude_local" as const,
-                          label: "Claude Code",
-                          icon: Sparkles,
-                          desc: t("adapter.desc.claude_local"),
-                          recommended: true
-                        },
-                        {
-                          value: "codex_local" as const,
-                          label: "Codex",
-                          icon: Code,
-                          desc: t("adapter.desc.codex_local"),
-                          recommended: true
-                        }
-                      ].map((opt) => (
-                        <button
-                          key={opt.value}
-                          className={cn(
-                            "flex flex-col items-center gap-1.5 rounded-md border p-3 text-xs transition-colors relative",
-                            adapterType === opt.value
-                              ? "border-foreground bg-accent"
-                              : "border-border hover:bg-accent/50"
-                          )}
-                          onClick={() => {
-                            const nextType = opt.value as AdapterType;
-                            setAdapterType(nextType);
-                            if (nextType === "codex_local" && !model) {
-                              setModel(DEFAULT_CODEX_LOCAL_MODEL);
-                            }
-                            if (nextType !== "codex_local") {
-                              setModel("");
-                            }
-                          }}
-                        >
-                          {opt.recommended && (
-                            <span className="absolute -top-1.5 right-1.5 bg-green-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
-                              권장
-                            </span>
-                          )}
-                          <opt.icon className="h-4 w-4" />
-                          <span className="font-medium">{opt.label}</span>
-                          <span className="text-muted-foreground text-[10px]">
-                            {opt.desc}
-                          </span>
-                        </button>
-                      ))}
+                  {/* Detection-based adapter selection */}
+                  {detectionLoading && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t("onboarding.detecting")}
                     </div>
+                  )}
 
-                    <button
-                      className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowMoreAdapters((v) => !v)}
-                    >
-                      <ChevronDown
-                        className={cn(
-                          "h-3 w-3 transition-transform",
-                          showMoreAdapters ? "rotate-0" : "-rotate-90"
-                        )}
-                      />
-                      {t("onboarding.moreAdapters")}
-                    </button>
+                  {!detectionLoading && adapterDetection && adapterDetection.detected.length > 0 && !recommendationMode && (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-2 block">
+                        {t("onboarding.chooseAdapter")}
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {adapterDetection.detected.map((item) => {
+                          const isRecommended = adapterDetection.recommended?.type === item.type;
+                          return (
+                            <button
+                              key={item.type}
+                              className={cn(
+                                "flex flex-col items-center gap-1.5 rounded-md border p-3 text-xs transition-colors relative",
+                                adapterType === item.type
+                                  ? "border-foreground bg-accent"
+                                  : "border-border hover:bg-accent/50"
+                              )}
+                              onClick={() => {
+                                const nextType = item.type as AdapterType;
+                                setAdapterType(nextType);
+                                if (item.defaultModel) setModel(item.defaultModel);
+                                if (item.connectionInfo.command) setCommand(item.connectionInfo.command);
+                                if (item.connectionInfo.args?.length) setArgs(item.connectionInfo.args.join(" "));
+                                if (item.connectionInfo.baseUrl) setUrl(item.connectionInfo.baseUrl);
+                              }}
+                            >
+                              <span className="absolute -top-1.5 left-1.5 bg-blue-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+                                {t("onboarding.detected")}
+                              </span>
+                              {isRecommended && (
+                                <span className="absolute -top-1.5 right-1.5 bg-green-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none">
+                                  {t("onboarding.recommended")}
+                                </span>
+                              )}
+                              <Bot className="h-4 w-4" />
+                              <span className="font-medium">{item.name}</span>
+                              {item.version && (
+                                <span className="text-muted-foreground text-[10px]">
+                                  v{item.version}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => void runDetection()}
+                      >
+                        <Loader2 className={cn("h-3 w-3", detectionLoading && "animate-spin")} />
+                        {t("onboarding.redetect")}
+                      </button>
+                    </div>
+                  )}
 
-                    {showMoreAdapters && (
-                      <div className="grid grid-cols-2 gap-2 mt-2">
+                  {!detectionLoading && (recommendationMode || (!adapterDetection)) && !adapterDetection?.detected.length && (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-2 block">
+                        {t("onboarding.whatAiService")}
+                      </label>
+                      <div className="grid grid-cols-1 gap-2">
                         {[
-                          {
-                            value: "gemini_local" as const,
-                            label: "Gemini CLI",
-                            icon: Gem,
-                            desc: t("adapter.desc.gemini_local")
-                          },
-                          {
-                            value: "opencode_local" as const,
-                            label: "OpenCode",
-                            icon: OpenCodeLogoIcon,
-                            desc: t("adapter.desc.opencode_local")
-                          },
-                          {
-                            value: "pi_local" as const,
-                            label: "Pi",
-                            icon: Terminal,
-                            desc: t("adapter.desc.pi_local")
-                          },
-                          {
-                            value: "cursor" as const,
-                            label: "Cursor",
-                            icon: MousePointer2,
-                            desc: t("adapter.desc.cursor")
-                          },
-                          {
-                            value: "ollama_local" as const,
-                            label: "Ollama",
-                            icon: Cpu,
-                            desc: t("adapter.desc.ollama_local")
-                          },
-                          {
-                            value: "lm_studio_local" as const,
-                            label: "LM Studio",
-                            icon: Server,
-                            desc: t("adapter.desc.lm_studio_local")
-                          },
-                          {
-                            value: "hermes_local" as const,
-                            label: "Hermes Agent",
-                            icon: HermesIcon,
-                            desc: t("adapter.desc.hermes_local")
-                          },
-                          {
-                            value: "openclaw_gateway" as const,
-                            label: "OpenClaw Gateway",
-                            icon: Bot,
-                            desc: t("adapter.desc.openclaw_gateway"),
-                            comingSoon: true,
-                            disabledLabel: t("adapter.openclaw_gateway")
-                          }
+                          { value: "claude_local" as const, label: "Anthropic (Claude)", icon: Sparkles },
+                          { value: "codex_local" as const, label: "OpenAI (ChatGPT/Codex)", icon: Code },
+                          { value: "gemini_local" as const, label: "Google (Gemini)", icon: Gem },
+                          { value: "ollama_local" as const, label: t("onboarding.noInstallNeeded") + " (Ollama)", icon: Cpu },
+                          { value: "openclaw_gateway" as const, label: t("onboarding.iDontKnow"), icon: Bot }
                         ].map((opt) => (
                           <button
                             key={opt.value}
-                            disabled={!!opt.comingSoon}
                             className={cn(
-                              "flex flex-col items-center gap-1.5 rounded-md border p-3 text-xs transition-colors relative",
-                              opt.comingSoon
-                                ? "border-border opacity-40 cursor-not-allowed"
-                                : adapterType === opt.value
+                              "flex items-center gap-3 rounded-md border p-3 text-sm transition-colors",
+                              adapterType === opt.value
                                 ? "border-foreground bg-accent"
                                 : "border-border hover:bg-accent/50"
                             )}
                             onClick={() => {
-                              if (opt.comingSoon) return;
                               const nextType = opt.value as AdapterType;
                               setAdapterType(nextType);
-                              if (nextType === "gemini_local" && !model) {
-                                setModel(DEFAULT_GEMINI_LOCAL_MODEL);
-                                return;
-                              }
-                              if (nextType === "cursor" && !model) {
-                                setModel(DEFAULT_CURSOR_LOCAL_MODEL);
-                                return;
-                              }
-                              if (nextType === "opencode_local") {
-                                if (!model.includes("/")) {
-                                  setModel("");
-                                }
-                                return;
-                              }
-                              setModel("");
+                              if (nextType === "codex_local" && !model) setModel(DEFAULT_CODEX_LOCAL_MODEL);
+                              else if (nextType === "gemini_local" && !model) setModel(DEFAULT_GEMINI_LOCAL_MODEL);
+                              else if (nextType !== "codex_local" && nextType !== "gemini_local") setModel("");
                             }}
                           >
-                            <opt.icon className="h-4 w-4" />
+                            <opt.icon className="h-4 w-4 shrink-0" />
                             <span className="font-medium">{opt.label}</span>
-                            <span className="text-muted-foreground text-[10px]">
-                              {opt.comingSoon
-                                ? (opt as { disabledLabel?: string })
-                                    .disabledLabel ?? "Coming soon"
-                                : opt.desc}
-                            </span>
                           </button>
                         ))}
+                      </div>
+                      <button
+                        className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => void runDetection()}
+                      >
+                        <Loader2 className={cn("h-3 w-3", detectionLoading && "animate-spin")} />
+                        {t("onboarding.redetect")}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Collapsible advanced settings */}
+                  <div>
+                    <button
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setAdvancedOpen((v) => !v)}
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-3 w-3 transition-transform",
+                          advancedOpen ? "rotate-0" : "-rotate-90"
+                        )}
+                      />
+                      {t("onboarding.advancedSettings")}
+                    </button>
+
+                    {advancedOpen && (
+                      <div className="mt-3 space-y-3">
+                        {/* Adapter type radio cards */}
+                        <div>
+                          <label className="text-xs text-muted-foreground mb-2 block">
+                            {t("onboarding.chooseAdapter")}
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              {
+                                value: "claude_local" as const,
+                                label: "Claude Code",
+                                icon: Sparkles,
+                                desc: t("adapter.desc.claude_local")
+                              },
+                              {
+                                value: "codex_local" as const,
+                                label: "Codex",
+                                icon: Code,
+                                desc: t("adapter.desc.codex_local")
+                              },
+                              {
+                                value: "gemini_local" as const,
+                                label: "Gemini CLI",
+                                icon: Gem,
+                                desc: t("adapter.desc.gemini_local")
+                              },
+                              {
+                                value: "opencode_local" as const,
+                                label: "OpenCode",
+                                icon: OpenCodeLogoIcon,
+                                desc: t("adapter.desc.opencode_local")
+                              },
+                              {
+                                value: "pi_local" as const,
+                                label: "Pi",
+                                icon: Terminal,
+                                desc: t("adapter.desc.pi_local")
+                              },
+                              {
+                                value: "cursor" as const,
+                                label: "Cursor",
+                                icon: MousePointer2,
+                                desc: t("adapter.desc.cursor")
+                              },
+                              {
+                                value: "ollama_local" as const,
+                                label: "Ollama",
+                                icon: Cpu,
+                                desc: t("adapter.desc.ollama_local")
+                              },
+                              {
+                                value: "lm_studio_local" as const,
+                                label: "LM Studio",
+                                icon: Server,
+                                desc: t("adapter.desc.lm_studio_local")
+                              },
+                              {
+                                value: "hermes_local" as const,
+                                label: "Hermes Agent",
+                                icon: HermesIcon,
+                                desc: t("adapter.desc.hermes_local")
+                              },
+                              {
+                                value: "openclaw_gateway" as const,
+                                label: "OpenClaw Gateway",
+                                icon: Bot,
+                                desc: t("adapter.desc.openclaw_gateway"),
+                                comingSoon: true,
+                                disabledLabel: t("adapter.openclaw_gateway")
+                              }
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                disabled={"comingSoon" in opt && !!opt.comingSoon}
+                                className={cn(
+                                  "flex flex-col items-center gap-1.5 rounded-md border p-3 text-xs transition-colors relative",
+                                  "comingSoon" in opt && opt.comingSoon
+                                    ? "border-border opacity-40 cursor-not-allowed"
+                                    : adapterType === opt.value
+                                    ? "border-foreground bg-accent"
+                                    : "border-border hover:bg-accent/50"
+                                )}
+                                onClick={() => {
+                                  if ("comingSoon" in opt && opt.comingSoon) return;
+                                  const nextType = opt.value as AdapterType;
+                                  setAdapterType(nextType);
+                                  if (nextType === "codex_local" && !model) {
+                                    setModel(DEFAULT_CODEX_LOCAL_MODEL);
+                                    return;
+                                  }
+                                  if (nextType === "gemini_local" && !model) {
+                                    setModel(DEFAULT_GEMINI_LOCAL_MODEL);
+                                    return;
+                                  }
+                                  if (nextType === "cursor" && !model) {
+                                    setModel(DEFAULT_CURSOR_LOCAL_MODEL);
+                                    return;
+                                  }
+                                  if (nextType === "opencode_local") {
+                                    if (!model.includes("/")) setModel("");
+                                    return;
+                                  }
+                                  setModel("");
+                                }}
+                              >
+                                <opt.icon className="h-4 w-4" />
+                                <span className="font-medium">{opt.label}</span>
+                                <span className="text-muted-foreground text-[10px]">
+                                  {"comingSoon" in opt && opt.comingSoon
+                                    ? ("disabledLabel" in opt ? (opt.disabledLabel as string) : "Coming soon")
+                                    : opt.desc}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Conditional adapter fields — model selector */}
+                        {(adapterType === "claude_local" ||
+                          adapterType === "codex_local" ||
+                          adapterType === "gemini_local" ||
+                          adapterType === "hermes_local" ||
+                          adapterType === "opencode_local" ||
+                          adapterType === "pi_local" ||
+                          adapterType === "cursor") && (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-xs text-muted-foreground mb-1 block">
+                                {t("onboarding.model")}
+                              </label>
+                              <Popover
+                                open={modelOpen}
+                                onOpenChange={(next) => {
+                                  setModelOpen(next);
+                                  if (!next) setModelSearch("");
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-accent/50 transition-colors w-full justify-between">
+                                    <span
+                                      className={cn(
+                                        !model && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {selectedModel
+                                        ? selectedModel.label
+                                        : model ||
+                                          (adapterType === "opencode_local"
+                                            ? t("onboarding.chooseModel")
+                                            : t("priority.default"))}
+                                    </span>
+                                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-[var(--radix-popover-trigger-width)] p-1"
+                                  align="start"
+                                >
+                                  <input
+                                    className="w-full px-2 py-1.5 text-xs bg-transparent outline-none border-b border-border mb-1 placeholder:text-muted-foreground/50"
+                                    placeholder={`${t("common.search")}...`}
+                                    value={modelSearch}
+                                    onChange={(e) => setModelSearch(e.target.value)}
+                                    autoFocus
+                                  />
+                                  {adapterType !== "opencode_local" && (
+                                    <button
+                                      className={cn(
+                                        "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent/50",
+                                        !model && "bg-accent"
+                                      )}
+                                      onClick={() => {
+                                        setModel("");
+                                        setModelOpen(false);
+                                      }}
+                                    >
+                                      {t("priority.default")}
+                                    </button>
+                                  )}
+                                  <div className="max-h-[240px] overflow-y-auto">
+                                    {groupedModels.map((group) => (
+                                      <div
+                                        key={group.provider}
+                                        className="mb-1 last:mb-0"
+                                      >
+                                        {adapterType === "opencode_local" && (
+                                          <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                            {group.provider} ({group.entries.length})
+                                          </div>
+                                        )}
+                                        {group.entries.map((m) => (
+                                          <button
+                                            key={m.id}
+                                            className={cn(
+                                              "flex items-center w-full px-2 py-1.5 text-sm rounded hover:bg-accent/50",
+                                              m.id === model && "bg-accent"
+                                            )}
+                                            onClick={() => {
+                                              setModel(m.id);
+                                              setModelOpen(false);
+                                            }}
+                                          >
+                                            <span
+                                              className="block w-full text-left truncate"
+                                              title={m.id}
+                                            >
+                                              {adapterType === "opencode_local"
+                                                ? extractModelName(m.id)
+                                                : m.label}
+                                            </span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {filteredModels.length === 0 && (
+                                    <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                                      {t("common.noResults")}
+                                    </p>
+                                  )}
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
+                        )}
+
+                        {(adapterType === "http" ||
+                          adapterType === "openclaw_gateway") && (
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">
+                              {adapterType === "openclaw_gateway"
+                                ? "Gateway URL"
+                                : "Webhook URL"}
+                            </label>
+                            <input
+                              className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                              placeholder={
+                                adapterType === "openclaw_gateway"
+                                  ? "ws://127.0.0.1:18789"
+                                  : "https://..."
+                              }
+                              value={url}
+                              onChange={(e) => setUrl(e.target.value)}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* Conditional adapter fields */}
-                  {(adapterType === "claude_local" ||
-                    adapterType === "codex_local" ||
-                    adapterType === "gemini_local" ||
-                    adapterType === "hermes_local" ||
-                    adapterType === "opencode_local" ||
-                    adapterType === "pi_local" ||
-                    adapterType === "cursor") && (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs text-muted-foreground mb-1 block">
-                          {t("onboarding.model")}
-                        </label>
-                        <Popover
-                          open={modelOpen}
-                          onOpenChange={(next) => {
-                            setModelOpen(next);
-                            if (!next) setModelSearch("");
-                          }}
-                        >
-                          <PopoverTrigger asChild>
-                            <button className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-sm hover:bg-accent/50 transition-colors w-full justify-between">
-                              <span
-                                className={cn(
-                                  !model && "text-muted-foreground"
-                                )}
-                              >
-                                {selectedModel
-                                  ? selectedModel.label
-                                  : model ||
-                                    (adapterType === "opencode_local"
-                                      ? t("onboarding.chooseModel")
-                                      : t("priority.default"))}
-                              </span>
-                              <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent
-                            className="w-[var(--radix-popover-trigger-width)] p-1"
-                            align="start"
-                          >
-                            <input
-                              className="w-full px-2 py-1.5 text-xs bg-transparent outline-none border-b border-border mb-1 placeholder:text-muted-foreground/50"
-                              placeholder={`${t("common.search")}...`}
-                              value={modelSearch}
-                              onChange={(e) => setModelSearch(e.target.value)}
-                              autoFocus
-                            />
-                            {adapterType !== "opencode_local" && (
-                              <button
-                                className={cn(
-                                  "flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded hover:bg-accent/50",
-                                  !model && "bg-accent"
-                                )}
-                                onClick={() => {
-                                  setModel("");
-                                  setModelOpen(false);
-                                }}
-                              >
-                                {t("priority.default")}
-                              </button>
-                            )}
-                            <div className="max-h-[240px] overflow-y-auto">
-                              {groupedModels.map((group) => (
-                                <div
-                                  key={group.provider}
-                                  className="mb-1 last:mb-0"
-                                >
-                                  {adapterType === "opencode_local" && (
-                                    <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-                                      {group.provider} ({group.entries.length})
-                                    </div>
-                                  )}
-                                  {group.entries.map((m) => (
-                                    <button
-                                      key={m.id}
-                                      className={cn(
-                                        "flex items-center w-full px-2 py-1.5 text-sm rounded hover:bg-accent/50",
-                                        m.id === model && "bg-accent"
-                                      )}
-                                      onClick={() => {
-                                        setModel(m.id);
-                                        setModelOpen(false);
-                                      }}
-                                    >
-                                      <span
-                                        className="block w-full text-left truncate"
-                                        title={m.id}
-                                      >
-                                        {adapterType === "opencode_local"
-                                          ? extractModelName(m.id)
-                                          : m.label}
-                                      </span>
-                                    </button>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                            {filteredModels.length === 0 && (
-                              <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                                {t("common.noResults")}
-                              </p>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                  )}
-
+                  {/* Environment test section */}
                   {isLocalAdapter && (
                     <div className="space-y-2 rounded-md border border-border p-3">
                       <div className="flex items-center justify-between gap-2">
@@ -1173,27 +1284,6 @@ export function OnboardingWizard() {
                       )}
                     </div>
                   )}
-
-                  {(adapterType === "http" ||
-                    adapterType === "openclaw_gateway") && (
-                    <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">
-                        {adapterType === "openclaw_gateway"
-                          ? "Gateway URL"
-                          : "Webhook URL"}
-                      </label>
-                      <input
-                        className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-                        placeholder={
-                          adapterType === "openclaw_gateway"
-                            ? "ws://127.0.0.1:18789"
-                            : "https://..."
-                        }
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                      />
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1204,7 +1294,7 @@ export function OnboardingWizard() {
                       <ListTodo className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <h3 className="font-medium">{t("onboarding.createFirstTask")}</h3>
+                      <h3 className="font-medium">{t("onboarding.firstMission")}</h3>
                       <p className="text-xs text-muted-foreground">
                         {t("onboarding.taskDescription")}
                       </p>
@@ -1233,56 +1323,6 @@ export function OnboardingWizard() {
                       value={taskDescription}
                       onChange={(e) => setTaskDescription(e.target.value)}
                     />
-                  </div>
-                </div>
-              )}
-
-              {step === 4 && (
-                <div className="space-y-5">
-                  <div className="flex items-center gap-3 mb-1">
-                    <div className="bg-muted/50 p-2">
-                      <Rocket className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{t("onboarding.allSet")}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {t("onboarding.completeOnboarding")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="border border-border divide-y divide-border">
-                    <div className="flex items-center gap-3 px-3 py-2.5">
-                      <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {companyName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{t("onboarding.createCompany")}</p>
-                      </div>
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-2.5">
-                      <Bot className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {agentName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("common.agent")} · {getUIAdapter(adapterType).label}
-                        </p>
-                      </div>
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
-                    </div>
-                    <div className="flex items-center gap-3 px-3 py-2.5">
-                      <ListTodo className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {taskTitle}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{t("onboarding.createFirstTask")}</p>
-                      </div>
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
-                    </div>
                   </div>
                 </div>
               )}
@@ -1349,19 +1389,9 @@ export function OnboardingWizard() {
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                       ) : (
-                        <ArrowRight className="h-3.5 w-3.5 mr-1" />
+                        <Rocket className="h-3.5 w-3.5 mr-1" />
                       )}
-                      {loading ? t("common.creating") : t("common.next")}
-                    </Button>
-                  )}
-                  {step === 4 && (
-                    <Button size="sm" disabled={loading} onClick={handleLaunch}>
-                      {loading ? (
-                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                      ) : (
-                        <ArrowRight className="h-3.5 w-3.5 mr-1" />
-                      )}
-                      {loading ? t("common.creating") : t("issues.createIssue")}
+                      {loading ? t("common.creating") : t("onboarding.createAndStart")}
                     </Button>
                   )}
                 </div>
