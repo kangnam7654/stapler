@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { OfficeCanvas } from "../components/simulation/OfficeCanvas";
 
 export function Simulation() {
   const { t } = useTranslation();
@@ -16,7 +17,7 @@ export function Simulation() {
 
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <p className="text-muted-foreground">{t("simulation.title")}</p>
+      <OfficeCanvas />
     </div>
   );
 }
