@@ -17,6 +17,7 @@ import type {
 function agentStatusToBehavior(status: Agent["status"]): AgentBehavior {
   switch (status) {
     case "active":
+    case "running":
       return "working";
     case "idle":
       return "idle-walking";
