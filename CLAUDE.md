@@ -1,4 +1,4 @@
-# paperclip-ko — Agent Guide
+# Stapler — Agent Guide
 
 > This file is read by Claude Code as `CLAUDE.md` and by Codex / Cursor / Aider
 > as `AGENTS.md` (symbolic link). Sections §1–§10 are tool-agnostic. Claude Code
@@ -8,8 +8,16 @@ Guidance for human and AI contributors working in this repository.
 
 ## 1. Purpose
 
-Paperclip is a control plane for AI-agent companies.
-The current implementation target is V1 and is defined in `doc/SPEC-implementation.md`.
+Stapler is a personal fork of [paperclipai/paperclip](https://github.com/paperclipai/paperclip)
+maintained by [@kangnam7654](https://github.com/kangnam7654). It is a control plane for
+AI-agent companies with Korean localization and additional local-model adapters (Ollama,
+LM Studio). The current implementation target is V1 and is defined in
+`doc/SPEC-implementation.md`.
+
+Upstream is tracked via the `paperclipai` git remote for reference — do not push to it.
+Internal identifiers (package names `@paperclipai/*`, env vars `PAPERCLIP_*`, data
+directories `~/.paperclip/`) remain unchanged for upstream compatibility; the `stapler`
+name only applies to the fork identity (repo name, README, this guide).
 
 ## 2. Read This First
 

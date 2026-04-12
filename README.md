@@ -1,3 +1,11 @@
+<p align="center"><sup>
+  <strong>Stapler</strong> — a personal fork of <a href="https://github.com/paperclipai/paperclip">paperclipai/paperclip</a> maintained by <a href="https://github.com/kangnam7654">@kangnam7654</a>.<br/>
+  Adds Korean localization and experimental adapters (Ollama, LM Studio). Upstream is tracked as the <code>paperclipai</code> git remote for reference.<br/>
+  Internal package names (<code>@paperclipai/*</code>), env vars (<code>PAPERCLIP_*</code>), and data directories (<code>~/.paperclip/</code>) remain unchanged for compatibility with upstream.
+</sup></p>
+
+<br/>
+
 <p align="center">
   <img src="doc/assets/header.png" alt="Paperclip — runs your business" width="720" />
 </p>
