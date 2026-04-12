@@ -123,6 +123,7 @@ import { FilterBar, type FilterValue } from "@/components/FilterBar";
 import { InlineEditor } from "@/components/InlineEditor";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { Identity } from "@/components/Identity";
+import { GettingStartedPanel } from "@/components/GettingStartedPanel";
 
 /* ------------------------------------------------------------------ */
 /*  Section wrapper                                                    */
@@ -1300,6 +1301,21 @@ export function DesignGuide() {
               </div>
             );
           })}
+        </div>
+      </Section>
+
+      {/* ============================================================ */}
+      {/*  GETTING STARTED PANEL                                        */}
+      {/* ============================================================ */}
+      <Section title="Getting Started Panel">
+        <p className="text-sm text-muted-foreground mb-4">
+          Post-onboarding side panel with 6-step checklist
+        </p>
+        <div className="border rounded-lg h-[400px] flex">
+          <div className="flex-1 p-4 bg-muted/30">
+            <p className="text-sm text-muted-foreground">Board content area</p>
+          </div>
+          <GettingStartedPanel companyId="demo" companyPrefix="DEMO" />
         </div>
       </Section>
 
