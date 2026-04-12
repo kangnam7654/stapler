@@ -3,4 +3,5 @@
 # rustflags = ["-C", "link-arg=-fuse-ld=mold"]
 
 [target.aarch64-apple-darwin]
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+# lld is not available by default on macOS; use the system linker
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
