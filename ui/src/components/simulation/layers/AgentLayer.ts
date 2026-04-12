@@ -1,11 +1,27 @@
 import { Container, Graphics, Text } from "pixi.js";
 import type { SimulationLayer } from "./types";
-import type { AgentSimState } from "../types";
+import type { AgentSimState, AgentBehavior } from "../types";
 import { getRoleVisual } from "../sprites";
+import { getRandomIdleDestination } from "./layout";
+
+const WALK_SPEED = 0.8;
+const IDLE_PAUSE_MIN = 120;
+const IDLE_PAUSE_MAX = 300;
+
+interface WalkState {
+  targetX: number;
+  targetY: number;
+  paused: boolean;
+  pauseTimer: number;
+}
 
 interface AgentSprite {
   container: Container;
   agentId: string;
+  seatX: number;
+  seatY: number;
+  behavior: AgentBehavior;
+  walkState: WalkState | null;
 }
 
 export class AgentLayer implements SimulationLayer {
@@ -40,9 +56,29 @@ export class AgentLayer implements SimulationLayer {
         this.container.addChild(sprite.container);
       }
 
-      // Update position
-      sprite.container.x = simState.seat.pixelX;
-      sprite.container.y = simState.seat.pixelY;
+      // Update behavior and seat position
+      sprite.seatX = simState.seat.pixelX;
+      sprite.seatY = simState.seat.pixelY;
+      const prevBehavior = sprite.behavior;
+      sprite.behavior = simState.behavior;
+
+      if (simState.behavior === "idle-walking") {
+        // Initialize walk state if not already walking
+        if (!sprite.walkState || prevBehavior !== "idle-walking") {
+          const dest = getRandomIdleDestination();
+          sprite.walkState = {
+            targetX: dest.x,
+            targetY: dest.y,
+            paused: false,
+            pauseTimer: 0,
+          };
+        }
+      } else {
+        // Snap to seat position and clear walk state
+        sprite.container.x = simState.seat.pixelX;
+        sprite.container.y = simState.seat.pixelY;
+        sprite.walkState = null;
+      }
     }
   }
 
@@ -96,11 +132,49 @@ export class AgentLayer implements SimulationLayer {
     return {
       container: agentContainer,
       agentId: simState.agent.id,
+      seatX: simState.seat.pixelX,
+      seatY: simState.seat.pixelY,
+      behavior: simState.behavior,
+      walkState: null,
     };
   }
 
-  public update(_deltaTime: number): void {
-    // Placeholder — animations in next task
+  public update(deltaTime: number): void {
+    for (const sprite of this.sprites.values()) {
+      if (sprite.behavior !== "idle-walking" || !sprite.walkState) continue;
+
+      const ws = sprite.walkState;
+
+      if (ws.paused) {
+        ws.pauseTimer -= deltaTime;
+        if (ws.pauseTimer <= 0) {
+          // Pick a new random destination
+          const dest = getRandomIdleDestination();
+          ws.targetX = dest.x;
+          ws.targetY = dest.y;
+          ws.paused = false;
+        }
+      } else {
+        // Move toward target
+        const dx = ws.targetX - sprite.container.x;
+        const dy = ws.targetY - sprite.container.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 2) {
+          // Arrived — pause for a random duration
+          sprite.container.x = ws.targetX;
+          sprite.container.y = ws.targetY;
+          ws.paused = true;
+          ws.pauseTimer =
+            IDLE_PAUSE_MIN +
+            Math.random() * (IDLE_PAUSE_MAX - IDLE_PAUSE_MIN);
+        } else {
+          const speed = WALK_SPEED * deltaTime;
+          sprite.container.x += (dx / dist) * speed;
+          sprite.container.y += (dy / dist) * speed;
+        }
+      }
+    }
   }
 
   public destroy(): void {

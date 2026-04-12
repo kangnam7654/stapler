@@ -1,0 +1,176 @@
+import { Container, Graphics, Text } from "pixi.js";
+import type { SimulationLayer } from "./types";
+import type { KanbanState } from "../types";
+import type { IssueStatus, Issue } from "@paperclipai/shared";
+import { KANBAN_POS } from "./layout";
+
+const COLUMN_ORDER: IssueStatus[] = [
+  "backlog",
+  "todo",
+  "in_progress",
+  "in_review",
+  "done",
+];
+
+const COLUMN_COLORS: Record<string, number> = {
+  backlog: 0x6b7280,
+  todo: 0xef4444,
+  in_progress: 0xeab308,
+  in_review: 0x6366f1,
+  done: 0x22c55e,
+};
+
+const COLUMN_LABELS: Record<string, string> = {
+  backlog: "BACKLOG",
+  todo: "TODO",
+  in_progress: "PROGRESS",
+  in_review: "REVIEW",
+  done: "DONE",
+};
+
+const MAX_VISIBLE_CARDS = 6;
+
+export class KanbanLayer implements SimulationLayer {
+  public container: Container;
+  private cardContainer: Container;
+  private onIssueClick: ((issueId: string) => void) | null = null;
+
+  constructor() {
+    this.container = new Container();
+    this.cardContainer = new Container();
+    this.drawBoard();
+    this.container.addChild(this.cardContainer);
+  }
+
+  public setOnIssueClick(callback: (issueId: string) => void): void {
+    this.onIssueClick = callback;
+  }
+
+  private drawBoard(): void {
+    const bg = new Graphics();
+
+    // Board background with rounded corners
+    bg.roundRect(KANBAN_POS.x, KANBAN_POS.y, KANBAN_POS.w, KANBAN_POS.h, 4);
+    bg.fill(0xf5f0e8);
+    bg.roundRect(KANBAN_POS.x, KANBAN_POS.y, KANBAN_POS.w, KANBAN_POS.h, 4);
+    bg.stroke({ color: 0xd6cfc0, width: 1 });
+
+    this.container.addChild(bg);
+
+    // Title
+    const title = new Text({
+      text: "KANBAN BOARD",
+      style: {
+        fontSize: 7,
+        fill: 0x333333,
+        fontFamily: "monospace",
+        fontWeight: "bold",
+      },
+    });
+    title.x = KANBAN_POS.x + KANBAN_POS.w / 2;
+    title.y = KANBAN_POS.y + 2;
+    title.anchor.set(0.5, 0);
+    this.container.addChild(title);
+
+    // Column headers
+    const colWidth = KANBAN_POS.w / COLUMN_ORDER.length;
+    for (let i = 0; i < COLUMN_ORDER.length; i++) {
+      const status = COLUMN_ORDER[i];
+      const colX = KANBAN_POS.x + i * colWidth;
+
+      // Column separator line (skip first column)
+      if (i > 0) {
+        const sep = new Graphics();
+        sep.moveTo(colX, KANBAN_POS.y + 12);
+        sep.lineTo(colX, KANBAN_POS.y + KANBAN_POS.h - 2);
+        sep.stroke({ color: 0xd6cfc0, width: 1 });
+        this.container.addChild(sep);
+      }
+
+      // Column header label
+      const label = new Text({
+        text: COLUMN_LABELS[status] ?? status,
+        style: {
+          fontSize: 5,
+          fill: COLUMN_COLORS[status] ?? 0x333333,
+          fontFamily: "monospace",
+          fontWeight: "bold",
+        },
+      });
+      label.x = colX + colWidth / 2;
+      label.y = KANBAN_POS.y + 12;
+      label.anchor.set(0.5, 0);
+      this.container.addChild(label);
+    }
+  }
+
+  public updateKanban(kanban: KanbanState): void {
+    // Clear existing cards
+    this.cardContainer.removeChildren();
+    for (const child of [...this.cardContainer.children]) {
+      child.destroy({ children: true });
+    }
+
+    const colWidth = KANBAN_POS.w / COLUMN_ORDER.length;
+    const cardStartY = KANBAN_POS.y + 22;
+    const cardHeight = 10;
+    const cardGap = 2;
+    const cardMarginX = 3;
+
+    for (let i = 0; i < COLUMN_ORDER.length; i++) {
+      const status = COLUMN_ORDER[i];
+      const issues = kanban.columns.get(status) ?? [];
+      const colX = KANBAN_POS.x + i * colWidth;
+      const color = COLUMN_COLORS[status] ?? 0x6b7280;
+
+      const visibleCount = Math.min(issues.length, MAX_VISIBLE_CARDS);
+      for (let j = 0; j < visibleCount; j++) {
+        const issue = issues[j];
+        const opacity = Math.max(0.3, 0.5 - j * 0.05);
+
+        const card = new Graphics();
+        const cardX = colX + cardMarginX;
+        const cardY = cardStartY + j * (cardHeight + cardGap);
+        const cardW = colWidth - cardMarginX * 2;
+
+        card.roundRect(cardX, cardY, cardW, cardHeight, 2);
+        card.fill({ color, alpha: opacity });
+
+        card.eventMode = "static";
+        card.cursor = "pointer";
+        card.on("pointertap", () => {
+          this.onIssueClick?.(issue.id);
+        });
+
+        this.cardContainer.addChild(card);
+      }
+
+      // Overflow text
+      if (issues.length > MAX_VISIBLE_CARDS) {
+        const overflow = issues.length - MAX_VISIBLE_CARDS;
+        const overflowText = new Text({
+          text: `+${overflow}`,
+          style: {
+            fontSize: 6,
+            fill: 0x666666,
+            fontFamily: "monospace",
+          },
+        });
+        overflowText.x = colX + colWidth / 2;
+        overflowText.y =
+          cardStartY + MAX_VISIBLE_CARDS * (cardHeight + cardGap);
+        overflowText.anchor.set(0.5, 0);
+        this.cardContainer.addChild(overflowText);
+      }
+    }
+  }
+
+  public update(_deltaTime: number): void {
+    // Static layer — cards update via updateKanban()
+  }
+
+  public destroy(): void {
+    this.cardContainer.destroy({ children: true });
+    this.container.destroy({ children: true });
+  }
+}

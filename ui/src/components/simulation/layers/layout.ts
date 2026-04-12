@@ -66,3 +66,21 @@ export function getSeatPosition(
   const y = TABLE_TOP + 20 + row * ROW_SPACING;
   return { x, y };
 }
+
+// Idle walk destinations
+export const IDLE_DESTINATIONS = [
+  COFFEE_MACHINE_POS,
+  ...PLANT_POSITIONS,
+  { x: 750, y: 200 },
+  { x: 780, y: 400 },
+  { x: 700, y: 500 },
+];
+
+export function getRandomIdleDestination(): { x: number; y: number } {
+  const dest =
+    IDLE_DESTINATIONS[Math.floor(Math.random() * IDLE_DESTINATIONS.length)];
+  return {
+    x: dest.x + (Math.random() - 0.5) * 40,
+    y: dest.y + (Math.random() - 0.5) * 40,
+  };
+}
