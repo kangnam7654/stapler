@@ -10,12 +10,13 @@ import type {
   FinanceEvent,
   QuotaWindow,
 } from "@paperclipai/shared";
-import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Coins, DollarSign, ReceiptText } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronRight, Coins, DollarSign, Plus, ReceiptText } from "lucide-react";
 import { budgetsApi } from "../api/budgets";
 import { costsApi } from "../api/costs";
 import { BillerSpendCard } from "../components/BillerSpendCard";
 import { BudgetIncidentCard } from "../components/BudgetIncidentCard";
 import { BudgetPolicyCard } from "../components/BudgetPolicyCard";
+import { BudgetPolicyDialog } from "../components/BudgetPolicyDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FinanceBillerCard } from "../components/FinanceBillerCard";
 import { FinanceKindCard } from "../components/FinanceKindCard";
@@ -156,6 +157,7 @@ export function Costs() {
   const [mainTab, setMainTab] = useState<"overview" | "budgets" | "providers" | "billers" | "finance">("overview");
   const [activeProvider, setActiveProvider] = useState("all");
   const [activeBiller, setActiveBiller] = useState("all");
+  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
 
   const {
     preset,
@@ -902,10 +904,20 @@ export function Costs() {
                 </div>
               ) : null}
 
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">{t("costs.budgets")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("costs.budgetsDescription")}</p>
+                </div>
+                <Button onClick={() => setBudgetDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t("costs.addBudget")}
+                </Button>
+              </div>
+
               <div className="space-y-5">
                 {(["company", "agent", "project"] as const).map((scopeType) => {
                   const rows = budgetPoliciesByScope[scopeType];
-                  if (rows.length === 0) return null;
                   return (
                     <section key={scopeType} className="space-y-3">
                       <div>
@@ -918,34 +930,37 @@ export function Costs() {
                               : "Lifetime spend policies for execution-bound projects."}
                         </p>
                       </div>
-                      <div className="grid gap-4 xl:grid-cols-2">
-                        {rows.map((summary) => (
-                          <BudgetPolicyCard
-                            key={summary.policyId}
-                            summary={summary}
-                            isSaving={policyMutation.isPending}
-                            onSave={(amount) =>
-                              policyMutation.mutate({
-                                scopeType: summary.scopeType,
-                                scopeId: summary.scopeId,
-                                amount,
-                                windowKind: summary.windowKind,
-                              })}
-                          />
-                        ))}
-                      </div>
+                      {rows.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">아직 설정된 예산이 없습니다.</p>
+                      ) : (
+                        <div className="grid gap-4 xl:grid-cols-2">
+                          {rows.map((summary) => (
+                            <BudgetPolicyCard
+                              key={summary.policyId}
+                              summary={summary}
+                              isSaving={policyMutation.isPending}
+                              onSave={(amount) =>
+                                policyMutation.mutate({
+                                  scopeType: summary.scopeType,
+                                  scopeId: summary.scopeId,
+                                  amount,
+                                  windowKind: summary.windowKind,
+                                })}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </section>
                   );
                 })}
-
-                {budgetPolicies.length === 0 ? (
-                  <Card>
-                    <CardContent className="px-5 py-8 text-sm text-muted-foreground">
-                      {t("empty.noItems")}
-                    </CardContent>
-                  </Card>
-                ) : null}
               </div>
+
+              <BudgetPolicyDialog
+                open={budgetDialogOpen}
+                onOpenChange={setBudgetDialogOpen}
+                companyId={companyId}
+                existingPolicies={budgetPolicies}
+              />
             </>
           )}
         </TabsContent>

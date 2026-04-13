@@ -470,9 +470,20 @@
     "selectCompany": "회사를 선택하여 비용을 확인하세요.",
     "overview": "개요",
     "budgets": "예산",
+    "budgetsDescription": "에이전트·프로젝트·회사 단위 예산 정책을 관리합니다.",
     "providers": "프로바이더",
     "billers": "청구자",
-    "finance": "재무"
+    "finance": "재무",
+    "addBudget": "예산 추가",
+    "budgetScopeCompany": "회사 (총합)",
+    "budgetScopeAgent": "에이전트",
+    "budgetScopeProject": "프로젝트",
+    "selectAgent": "에이전트 선택",
+    "selectProject": "프로젝트 선택",
+    "budgetAmountUsd": "금액 (USD)",
+    "alreadyConfigured": "이미 설정됨",
+    "noAvailableTargets": "선택 가능한 항목이 없습니다.",
+    "budgetCreatedSuccess": "예산이 생성되었습니다."
   },
   "org": {
     "title": "조직도",

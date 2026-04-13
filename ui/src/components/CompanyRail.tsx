@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Paperclip, Plus } from "lucide-react";
+import { Paperclip, PanelLeft, PanelLeftClose, Plus } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
 import {
   DndContext,
@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
+import { useSidebar } from "../context/SidebarContext";
 import { cn } from "../lib/utils";
 import { queryKeys } from "../lib/queryKeys";
 import { sidebarBadgesApi } from "../api/sidebarBadges";
@@ -156,6 +157,7 @@ function SortableCompanyItem({
 export function CompanyRail() {
   const { companies, selectedCompanyId, setSelectedCompanyId } = useCompany();
   const { openOnboarding } = useDialog();
+  const { sidebarOpen, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const isInstanceRoute = location.pathname.startsWith("/instance/");
@@ -303,8 +305,26 @@ export function CompanyRail() {
         </DndContext>
       </div>
 
-      {/* Separator before add button */}
+      {/* Separator before bottom buttons */}
       <div className="w-8 h-px bg-border mx-auto shrink-0" />
+
+      {/* Sidebar toggle button */}
+      <div className="flex items-center justify-center py-1 shrink-0">
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <button
+              onClick={toggleSidebar}
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            {sidebarOpen ? "접기" : "펼치기"} · [
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
       {/* Add company button */}
       <div className="flex items-center justify-center py-2 shrink-0">

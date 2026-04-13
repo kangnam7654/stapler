@@ -1,21 +1,13 @@
 import { useEffect, useState } from "react";
 import type { BudgetPolicySummary } from "@paperclipai/shared";
 import { AlertTriangle, PauseCircle, ShieldAlert, Wallet } from "lucide-react";
-import { cn, formatCents } from "../lib/utils";
+import { cn, formatCents, parseDollarInput } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 function centsInputValue(value: number) {
   return (value / 100).toFixed(2);
-}
-
-function parseDollarInput(value: string) {
-  const normalized = value.trim();
-  if (normalized.length === 0) return 0;
-  const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
-  return Math.round(parsed * 100);
 }
 
 function windowLabel(windowKind: BudgetPolicySummary["windowKind"]) {

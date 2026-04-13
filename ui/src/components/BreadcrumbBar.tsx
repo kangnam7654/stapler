@@ -1,5 +1,5 @@
 import { Link } from "@/lib/router";
-import { Menu } from "lucide-react";
+import { PanelLeft, PanelLeftClose } from "lucide-react";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useSidebar } from "../context/SidebarContext";
 import { useCompany } from "../context/CompanyContext";
@@ -12,6 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Fragment, useMemo } from "react";
 import { PluginSlotOutlet, usePluginSlots } from "@/plugins/slots";
 import { PluginLauncherOutlet, usePluginLaunchers } from "@/plugins/launchers";
@@ -32,7 +33,7 @@ function GlobalToolbarPlugins({ context }: { context: GlobalToolbarContext }) {
 
 export function BreadcrumbBar() {
   const { breadcrumbs } = useBreadcrumbs();
-  const { toggleSidebar, isMobile } = useSidebar();
+  const { toggleSidebar, sidebarOpen } = useSidebar();
   const { selectedCompanyId, selectedCompany } = useCompany();
 
   const globalToolbarSlotContext = useMemo(
@@ -45,31 +46,37 @@ export function BreadcrumbBar() {
 
   const globalToolbarSlots = <GlobalToolbarPlugins context={globalToolbarSlotContext} />;
 
+  const toggleButton = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="mr-2 shrink-0"
+          onClick={toggleSidebar}
+          aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeft className="h-5 w-5" />}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{sidebarOpen ? "접기" : "펼치기"} · [</TooltipContent>
+    </Tooltip>
+  );
+
   if (breadcrumbs.length === 0) {
     return (
-      <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center justify-end">
+      <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center">
+        {toggleButton}
         {globalToolbarSlots}
       </div>
     );
   }
 
-  const menuButton = isMobile && (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      className="mr-2 shrink-0"
-      onClick={toggleSidebar}
-      aria-label="Open sidebar"
-    >
-      <Menu className="h-5 w-5" />
-    </Button>
-  );
-
   // Single breadcrumb = page title (uppercase)
   if (breadcrumbs.length === 1) {
     return (
       <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center">
-        {menuButton}
+        {toggleButton}
         <div className="min-w-0 overflow-hidden flex-1">
           <h1 className="text-sm font-semibold uppercase tracking-wider truncate">
             {breadcrumbs[0].label}
@@ -83,7 +90,7 @@ export function BreadcrumbBar() {
   // Multiple breadcrumbs = breadcrumb trail
   return (
     <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center">
-      {menuButton}
+      {toggleButton}
       <div className="min-w-0 overflow-hidden flex-1">
         <Breadcrumb className="min-w-0 overflow-hidden">
           <BreadcrumbList className="flex-nowrap">

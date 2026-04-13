@@ -165,3 +165,12 @@ export function projectRouteRef(project: { id: string; urlKey?: string | null; n
 export function projectUrl(project: { id: string; urlKey?: string | null; name?: string | null }): string {
   return `/projects/${projectRouteRef(project)}`;
 }
+
+/** Parse a dollar-denominated string into cents. Returns null for invalid input. */
+export function parseDollarInput(value: string): number | null {
+  const normalized = value.trim();
+  if (normalized.length === 0) return 0;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.round(parsed * 100);
+}
