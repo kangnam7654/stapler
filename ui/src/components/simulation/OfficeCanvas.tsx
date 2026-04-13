@@ -83,7 +83,12 @@ export const OfficeCanvas = forwardRef<OfficeCanvasHandle, OfficeCanvasProps>(
       let kanbanLayer: KanbanLayer | null = null;
       let agentLayer: AgentLayer | null = null;
       let effectLayer: EffectLayer | null = null;
+      // destroyed: set by cleanup to signal that unmount happened.
+      // initialized: set after app.init() resolves — only safe to call
+      // app.destroy() once this is true (PixiJS ResizePlugin registers
+      // _cancelResize during init; calling destroy before that throws).
       let destroyed = false;
+      let initialized = false;
 
       // Mouse handlers registered after init — we capture references here so
       // the cleanup function can detach them even if init has already resolved.
@@ -104,10 +109,13 @@ export const OfficeCanvas = forwardRef<OfficeCanvasHandle, OfficeCanvasProps>(
         });
 
         if (destroyed) {
+          // Cleanup ran while init was in-flight (React StrictMode double-invoke).
+          // Now that init has completed it is safe to destroy.
           app.destroy(true);
           return;
         }
 
+        initialized = true;
         appRef.current = app;
         app.canvas.style.imageRendering = "pixelated";
         container.appendChild(app.canvas);
@@ -228,11 +236,16 @@ export const OfficeCanvas = forwardRef<OfficeCanvasHandle, OfficeCanvasProps>(
         kanbanLayerRef.current = null;
         effectLayerRef.current = null;
         appRef.current = null;
-        effectLayer?.destroy();
-        agentLayer?.destroy();
-        kanbanLayer?.destroy();
-        tilemapLayer?.destroy();
-        app.destroy(true);
+        if (initialized) {
+          // Only safe to destroy after app.init() has fully resolved.
+          // If still in-flight, the async block above will handle destroy
+          // once init completes (it checks `destroyed` after await).
+          effectLayer?.destroy();
+          agentLayer?.destroy();
+          kanbanLayer?.destroy();
+          tilemapLayer?.destroy();
+          app.destroy(true);
+        }
       };
       // Only run init once on mount; updates happen via the separate useEffects below
       // eslint-disable-next-line react-hooks/exhaustive-deps

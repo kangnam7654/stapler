@@ -10,6 +10,7 @@ import { SimulationControls } from "../components/simulation/SimulationControls"
 import { AgentDetailPanel } from "../components/simulation/AgentDetailPanel";
 import { KanbanDetailPanel } from "../components/simulation/KanbanDetailPanel";
 import { useSimulationState } from "../hooks/useSimulationState";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 export function Simulation() {
   const { t } = useTranslation();
@@ -29,13 +30,15 @@ export function Simulation() {
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
-      <OfficeCanvas
-        ref={canvasRef}
-        state={state}
-        onAgentClick={selectAgent}
-        onIssueClick={selectIssue}
-        onIssueDrop={moveIssue}
-      />
+      <ErrorBoundary>
+        <OfficeCanvas
+          ref={canvasRef}
+          state={state}
+          onAgentClick={selectAgent}
+          onIssueClick={selectIssue}
+          onIssueDrop={moveIssue}
+        />
+      </ErrorBoundary>
       <SimulationControls
         onZoomIn={() => canvasRef.current?.zoomIn()}
         onZoomOut={() => canvasRef.current?.zoomOut()}
