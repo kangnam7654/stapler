@@ -24,4 +24,18 @@ describe("codex-local draftText", () => {
     }
     expect(chunks.join("")).toBe("foo");
   });
+
+  it("flushes the last line when CLI emits no trailing newline", async () => {
+    const fakeScript = `process.stdout.write(JSON.stringify({type:"agent_message",content:"tail"}))`;
+    const chunks: string[] = [];
+    for await (const c of draftText({
+      config: {
+        command: "node",
+        codexArgsPrefix: ["-e", fakeScript, "--"],
+      },
+      messages: [{ role: "user", content: "hi" }],
+      signal: new AbortController().signal,
+    })) chunks.push(c);
+    expect(chunks.join("")).toBe("tail");
+  });
 });

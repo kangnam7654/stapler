@@ -1,6 +1,6 @@
 import type { AdapterDraftTextContext } from "@paperclipai/adapter-utils";
 import { spawnAndStreamStdout } from "@paperclipai/adapter-utils";
-import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
+import { asString, asStringArray, parseObject } from "@paperclipai/adapter-utils/server-utils";
 
 export async function* draftText(
   ctx: AdapterDraftTextContext,
@@ -15,12 +15,10 @@ export async function* draftText(
     .map((m) => `[${m.role}]\n${m.content}`)
     .join("\n\n");
 
-  const args: string[] = Array.isArray(
-    (config as Record<string, unknown>).opencodeArgsPrefix,
-  )
-    ? ((config as { opencodeArgsPrefix?: string[] }).opencodeArgsPrefix ?? [])
-    : ["run", "--model", model];
-  args.push(prompt);
+  const prefixArr = asStringArray(config.opencodeArgsPrefix);
+  const usingArgsPrefix = prefixArr.length > 0;
+  // opencode takes prompt as positional arg (not stdin)
+  const args: string[] = usingArgsPrefix ? prefixArr : ["run", "--model", model, prompt];
 
   yield* spawnAndStreamStdout({
     command,

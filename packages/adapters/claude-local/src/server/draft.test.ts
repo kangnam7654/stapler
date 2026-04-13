@@ -32,4 +32,15 @@ describe("claude-local draftText", () => {
       for await (const _ of gen) {}
     }).rejects.toThrow(/command/);
   });
+
+  it("flushes the last line when CLI emits no trailing newline", async () => {
+    const fakeScript = `process.stdout.write(JSON.stringify({type:"assistant",message:{content:[{type:"text",text:"tail"}]}}))`;
+    const chunks: string[] = [];
+    for await (const c of draftText({
+      config: { command: "node", claudeArgsPrefix: ["-e", fakeScript, "--"] },
+      messages: [{ role: "user", content: "hi" }],
+      signal: new AbortController().signal,
+    })) chunks.push(c);
+    expect(chunks.join("")).toBe("tail");
+  });
 });

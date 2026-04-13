@@ -1,6 +1,6 @@
 import type { AdapterDraftTextContext } from "@paperclipai/adapter-utils";
 import { spawnAndStreamStdout } from "@paperclipai/adapter-utils";
-import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
+import { asString, asStringArray, parseObject } from "@paperclipai/adapter-utils/server-utils";
 
 export async function* draftText(
   ctx: AdapterDraftTextContext,
@@ -14,12 +14,12 @@ export async function* draftText(
     .map((m) => `[${m.role}]\n${m.content}`)
     .join("\n\n");
 
-  const args: string[] = Array.isArray(
-    (config as Record<string, unknown>).geminiArgsPrefix,
-  )
-    ? ((config as { geminiArgsPrefix?: string[] }).geminiArgsPrefix ?? [])
-    : ["-p", prompt];
-  if (model && !args.includes("--model")) args.push("--model", model);
+  const prefixArr = asStringArray(config.geminiArgsPrefix);
+  const usingArgsPrefix = prefixArr.length > 0;
+  const args: string[] = usingArgsPrefix ? prefixArr : ["-p", prompt];
+  if (!usingArgsPrefix && model && !args.includes("--model")) {
+    args.push("--model", model);
+  }
 
   yield* spawnAndStreamStdout({
     command,

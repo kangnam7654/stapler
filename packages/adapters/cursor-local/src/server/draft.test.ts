@@ -22,4 +22,18 @@ describe("cursor-local draftText", () => {
     }
     expect(chunks.join("")).toBe("cursor");
   });
+
+  it("flushes the last line when CLI emits no trailing newline", async () => {
+    const fakeScript = `process.stdout.write(JSON.stringify({type:"assistant",message:{content:[{type:"text",text:"tail"}]}}))`;
+    const chunks: string[] = [];
+    for await (const c of draftText({
+      config: {
+        command: "node",
+        cursorArgsPrefix: ["-e", fakeScript, "--"],
+      },
+      messages: [{ role: "user", content: "hi" }],
+      signal: new AbortController().signal,
+    })) chunks.push(c);
+    expect(chunks.join("")).toBe("tail");
+  });
 });

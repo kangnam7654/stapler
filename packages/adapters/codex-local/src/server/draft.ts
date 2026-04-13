@@ -1,6 +1,6 @@
 import type { AdapterDraftTextContext } from "@paperclipai/adapter-utils";
 import { spawnAndStreamStdout } from "@paperclipai/adapter-utils";
-import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
+import { asString, asStringArray, parseObject } from "@paperclipai/adapter-utils/server-utils";
 
 interface CodexEvent {
   type?: string;
@@ -13,6 +13,17 @@ async function* parseCodexNdjson(
   source: AsyncIterable<string>,
 ): AsyncIterable<string> {
   let buf = "";
+  function* emit(line: string): IterableIterator<string> {
+    try {
+      const evt = JSON.parse(line) as CodexEvent;
+      if (evt.type === "agent_message" || evt.type === "message_delta") {
+        const text = evt.content ?? evt.delta ?? evt.text ?? "";
+        if (typeof text === "string" && text.length > 0) yield text;
+      }
+    } catch {
+      // ignore
+    }
+  }
   for await (const chunk of source) {
     buf += chunk;
     let nl: number;
@@ -20,17 +31,11 @@ async function* parseCodexNdjson(
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
       if (!line) continue;
-      try {
-        const evt = JSON.parse(line) as CodexEvent;
-        if (evt.type === "agent_message" || evt.type === "message_delta") {
-          const text = evt.content ?? evt.delta ?? evt.text ?? "";
-          if (typeof text === "string" && text.length > 0) yield text;
-        }
-      } catch {
-        // ignore
-      }
+      yield* emit(line);
     }
   }
+  const tail = buf.trim();
+  if (tail) yield* emit(tail);
 }
 
 export async function* draftText(
@@ -45,16 +50,13 @@ export async function* draftText(
     .map((m) => `[${m.role}]\n${m.content}`)
     .join("\n\n");
 
-  const args: string[] = Array.isArray(
-    (config as Record<string, unknown>).codexArgsPrefix,
-  )
-    ? ((config as { codexArgsPrefix?: string[] }).codexArgsPrefix ?? [])
-    : ["exec", "--json"];
-  if (model && args[0] === "exec" && !args.includes("--model")) {
-    args.push("--model", model);
+  const prefixArr = asStringArray(config.codexArgsPrefix);
+  const usingArgsPrefix = prefixArr.length > 0;
+  const args: string[] = usingArgsPrefix ? prefixArr : ["exec", "--json"];
+  if (!usingArgsPrefix) {
+    if (model && !args.includes("--model")) args.push("--model", model);
+    args.push(prompt);
   }
-  // Prompt goes at the end as positional arg
-  args.push(prompt);
 
   const stdoutStream = spawnAndStreamStdout({
     command,

@@ -1,6 +1,6 @@
 import type { AdapterDraftTextContext } from "@paperclipai/adapter-utils";
 import { spawnAndStreamStdout } from "@paperclipai/adapter-utils";
-import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
+import { asString, asStringArray, parseObject } from "@paperclipai/adapter-utils/server-utils";
 
 export async function* draftText(
   ctx: AdapterDraftTextContext,
@@ -13,11 +13,9 @@ export async function* draftText(
     .map((m) => `[${m.role}]\n${m.content}`)
     .join("\n\n");
 
-  const args: string[] = Array.isArray(
-    (config as Record<string, unknown>).piArgsPrefix,
-  )
-    ? ((config as { piArgsPrefix?: string[] }).piArgsPrefix ?? [])
-    : ["-p", prompt];
+  const prefixArr = asStringArray(config.piArgsPrefix);
+  const usingArgsPrefix = prefixArr.length > 0;
+  const args: string[] = usingArgsPrefix ? prefixArr : ["-p", prompt];
 
   yield* spawnAndStreamStdout({
     command,
