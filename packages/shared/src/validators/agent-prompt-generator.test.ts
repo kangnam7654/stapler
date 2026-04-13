@@ -59,4 +59,15 @@ describe("draftPromptTemplateRequestSchema", () => {
       }),
     ).toThrow();
   });
+
+  it("rejects malformed env in adapterConfig", () => {
+    expect(() =>
+      draftPromptTemplateRequestSchema.parse({
+        adapterType: "ollama_local",
+        adapterConfig: { env: "not-a-valid-env-map" },
+        name: "X",
+        role: "cto",
+      }),
+    ).toThrow();
+  });
 });

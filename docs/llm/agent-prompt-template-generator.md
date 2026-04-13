@@ -95,9 +95,11 @@ File: `packages/shared/src/validators/agent-prompt-generator.ts`
 Export:
 
 ```ts
+import { adapterConfigSchema } from "./agent.js";
+
 export const draftPromptTemplateRequestSchema = z.object({
   adapterType: z.enum(AGENT_ADAPTER_TYPES),
-  adapterConfig: z.record(z.unknown()),
+  adapterConfig: adapterConfigSchema,
   name: z.string().min(1),
   role: z.enum(AGENT_ROLES),
   title: z.string().nullable().optional(),
