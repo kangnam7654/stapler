@@ -262,10 +262,19 @@ export interface ProviderQuotaResult {
   windows: QuotaWindow[];
 }
 
+export interface AdapterDraftTextContext {
+  adapterConfig: Record<string, unknown>;
+  messages: { role: "system" | "user"; content: string }[];
+  signal: AbortSignal;
+  maxTokens?: number;
+  temperature?: number;
+}
+
 export interface ServerAdapterModule {
   type: string;
   execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult>;
   testEnvironment(ctx: AdapterEnvironmentTestContext): Promise<AdapterEnvironmentTestResult>;
+  draftText?: (ctx: AdapterDraftTextContext) => AsyncIterable<string>;
   listSkills?: (ctx: AdapterSkillContext) => Promise<AdapterSkillSnapshot>;
   syncSkills?: (ctx: AdapterSkillContext, desiredSkills: string[]) => Promise<AdapterSkillSnapshot>;
   sessionCodec?: AdapterSessionCodec;
