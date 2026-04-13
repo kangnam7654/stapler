@@ -5,9 +5,9 @@ import { adapterConfigSchema } from "./agent.js";
 export const draftPromptTemplateRequestSchema = z.object({
   adapterType: z.enum(AGENT_ADAPTER_TYPES),
   adapterConfig: adapterConfigSchema,
-  name: z.string().min(1),
+  name: z.string().trim().min(1).max(200),
   role: z.enum(AGENT_ROLES),
-  title: z.string().nullable().optional(),
+  title: z.string().max(500).nullable().optional(),
   reportsTo: z.string().uuid().nullable().optional(),
   hint: z.string().max(2000).optional(),
 });

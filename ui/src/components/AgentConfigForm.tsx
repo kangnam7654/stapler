@@ -701,7 +701,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           )}
 
           {/* Prompt template (create mode only — edit mode shows this in Identity) */}
-          {isLocal && isCreate && (
+          {!ADAPTERS_WITHOUT_DRAFT.has(adapterType) && isCreate && (
             <>
               <Field
                 label={
@@ -745,7 +745,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   companyId={selectedCompanyId}
                   requestBase={{
                     // Narrow from CreateConfigValues["adapterType"] (string) to the shared enum;
-                    // isLocal + ADAPTERS_WITHOUT_DRAFT guards ensure this runs only for valid adapters.
+                    // ADAPTERS_WITHOUT_DRAFT outer guard ensures this runs only for draft-capable adapters.
                     adapterType: adapterType as DraftPromptTemplateRequest["adapterType"],
                     adapterConfig: uiAdapter.buildAdapterConfig(val!),
                     name: props.identityForDraft.name,
