@@ -207,8 +207,8 @@ hooks. Also add the new `AdapterDraftTextContext` interface just above
 
 ```ts
 export interface AdapterDraftTextContext {
-  adapterConfig: Record<string, unknown>;
-  messages: { role: "system" | "user"; content: string }[];
+  config: Record<string, unknown>;
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
   signal: AbortSignal;
   maxTokens?: number;
   temperature?: number;
@@ -614,7 +614,7 @@ import { DEFAULT_OLLAMA_BASE_URL } from "../index.js";
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const baseUrl = asString(config.baseUrl, DEFAULT_OLLAMA_BASE_URL);
   const model = asString(config.model, "").trim();
   if (!model) throw new Error("model is required for ollama_local draftText");
@@ -727,7 +727,7 @@ import { DEFAULT_LM_STUDIO_BASE_URL } from "../index.js";
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const baseUrl = asString(config.baseUrl, DEFAULT_LM_STUDIO_BASE_URL);
   const model = asString(config.model, "").trim();
   if (!model) throw new Error("model is required for lm_studio_local draftText");
@@ -850,7 +850,7 @@ import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const baseUrl = asString(config.baseUrl, "").trim();
   const apiKey = asString(config.apiKey, "").trim() || undefined;
   const model = asString(config.model, "").trim();
@@ -1257,7 +1257,7 @@ export function registerAgentPromptGeneratorRoutes(
 
       try {
         for await (const delta of adapter.draftText({
-          adapterConfig,
+          config: adapterConfig,
           messages,
           signal: controller.signal,
         })) {
@@ -2373,7 +2373,7 @@ async function* parseClaudeNdjson(
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const command = asString(config.command, "claude").trim();
   const model = asString(config.model, "").trim();
   if (!command) throw new Error("command is required for claude_local draftText");
@@ -2531,7 +2531,7 @@ async function* parseCodexNdjson(
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const command = asString(config.command, "codex").trim();
   const model = asString(config.model, "").trim();
   if (!command) throw new Error("command is required for codex_local draftText");
@@ -2649,7 +2649,7 @@ import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const command = asString(config.command, "gemini").trim();
   const model = asString(config.model, "").trim();
   if (!command) throw new Error("command is required for gemini_local draftText");
@@ -2796,7 +2796,7 @@ async function* parseCursorNdjson(
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const command = asString(config.command, "cursor-agent").trim();
   const model = asString(config.model, "").trim();
   if (!command) throw new Error("command is required for cursor draftText");
@@ -2911,7 +2911,7 @@ import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const command = asString(config.command, "opencode").trim();
   const model = asString(config.model, "").trim();
   if (!command) throw new Error("command is required for opencode_local draftText");
@@ -3021,7 +3021,7 @@ import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 export async function* draftText(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const command = asString(config.command, "pi").trim();
   if (!command) throw new Error("command is required for pi_local draftText");
 
@@ -3209,7 +3209,7 @@ import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 export async function* draftHermes(
   ctx: AdapterDraftTextContext,
 ): AsyncIterable<string> {
-  const config = parseObject(ctx.adapterConfig);
+  const config = parseObject(ctx.config);
   const command = asString(config.command, "hermes").trim();
   if (!command) throw new Error("command is required for hermes_local draftText");
 

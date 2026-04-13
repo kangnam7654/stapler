@@ -130,8 +130,8 @@ New types:
 
 ```ts
 export interface AdapterDraftTextContext {
-  adapterConfig: Record<string, unknown>;
-  messages: { role: "system" | "user"; content: string }[];
+  config: Record<string, unknown>;
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
   signal: AbortSignal;
   maxTokens?: number;
   temperature?: number;
@@ -179,8 +179,8 @@ File: `packages/adapters/ollama-local/src/server/draft.ts`
 
 ```ts
 export async function* draftText(ctx: AdapterDraftTextContext): AsyncIterable<string> {
-  const baseUrl = String(ctx.adapterConfig.baseUrl ?? "http://127.0.0.1:11434");
-  const model = String(ctx.adapterConfig.model ?? "");
+  const baseUrl = String(ctx.config.baseUrl ?? "http://127.0.0.1:11434");
+  const model = String(ctx.config.model ?? "");
   if (!model) throw new Error("model is required");
   yield* streamChatCompletionSSE({
     baseUrl, model, messages: ctx.messages,
@@ -213,8 +213,8 @@ Signature:
 
 ```ts
 export async function* draftText(ctx: AdapterDraftTextContext): AsyncIterable<string> {
-  const command = String(ctx.adapterConfig.command ?? "claude");
-  const model = String(ctx.adapterConfig.model ?? "");
+  const command = String(ctx.config.command ?? "claude");
+  const model = String(ctx.config.model ?? "");
   const prompt = ctx.messages.map(m => `[${m.role}]\n${m.content}`).join("\n\n");
   const args = ["--print", "--output-format", "stream-json"];
   if (model) args.push("--model", model);
@@ -253,7 +253,7 @@ File: `packages/adapters/openclaw-gateway/src/server/draft.ts`
 
 Forward to the gateway's OpenAI-compat endpoint. Reuse
 `streamChatCompletionSSE()` with gateway's baseUrl + API key from
-`ctx.adapterConfig`.
+`ctx.config`.
 
 ### Step 9: Meta-prompt builder
 
@@ -330,7 +330,7 @@ router.post(
 
     try {
       for await (const chunk of adapter.draftText({
-        adapterConfig, messages, signal: controller.signal,
+        config: adapterConfig, messages, signal: controller.signal,
       })) {
         res.write(`data: ${JSON.stringify({ kind: "delta", delta: chunk })}\n\n`);
       }
@@ -498,8 +498,8 @@ interface ServerAdapterModule {
 }
 
 interface AdapterDraftTextContext {
-  adapterConfig: Record<string, unknown>;
-  messages: { role: "system" | "user"; content: string }[];
+  config: Record<string, unknown>;
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
   signal: AbortSignal;
   maxTokens?: number;
   temperature?: number;
