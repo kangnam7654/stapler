@@ -543,6 +543,9 @@ export {
   type ListPluginState,
   sendAgentMessageSchema,
   type SendAgentMessage,
+  draftPromptTemplateRequestSchema,
+  type DraftPromptTemplateRequest,
+  type DraftPromptTemplateEvent,
 } from "./validators/index.js";
 
 export { API_PREFIX, API } from "./api.js";

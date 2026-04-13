@@ -1,0 +1,21 @@
+import { z } from "zod";
+import { AGENT_ADAPTER_TYPES, AGENT_ROLES } from "../constants.js";
+
+export const draftPromptTemplateRequestSchema = z.object({
+  adapterType: z.enum(AGENT_ADAPTER_TYPES),
+  adapterConfig: z.record(z.unknown()),
+  name: z.string().min(1),
+  role: z.enum(AGENT_ROLES),
+  title: z.string().nullable().optional(),
+  reportsTo: z.string().uuid().nullable().optional(),
+  hint: z.string().max(2000).optional(),
+});
+
+export type DraftPromptTemplateRequest = z.infer<
+  typeof draftPromptTemplateRequestSchema
+>;
+
+export type DraftPromptTemplateEvent =
+  | { kind: "delta"; delta: string }
+  | { kind: "done" }
+  | { kind: "error"; message: string };
