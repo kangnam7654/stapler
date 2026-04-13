@@ -281,7 +281,21 @@
     "noCompanySkills": "설치된 선택적 회사 스킬이 없습니다.",
     "willBeCeo": "이 에이전트가 CEO가 됩니다",
     "createAgent": "에이전트 생성",
-    "advancedAgentConfig": "고급 에이전트 설정"
+    "advancedAgentConfig": "고급 에이전트 설정",
+    "promptTemplate": {
+      "aiGenerate": "✨ AI로 생성",
+      "aiDialogTitle": "AI로 Prompt Template 생성",
+      "aiHintPlaceholder": "어떤 에이전트를 원하는지 한두 문장으로 설명해주세요 (선택)",
+      "aiGenerating": "생성 중...",
+      "aiAccept": "적용",
+      "aiRegenerate": "다시 생성",
+      "aiCancel": "취소",
+      "aiConfirmOverwriteTitle": "기존 Prompt Template을 덮어쓸까요?",
+      "aiConfirmOverwriteBody": "현재 입력된 내용이 사라집니다.",
+      "aiConfirmOverwriteOk": "덮어쓰기",
+      "aiButtonDisabledTooltip": "모델을 먼저 선택하세요",
+      "aiStreamError": "생성 실패: {{message}}"
+    }
   },
   "issues": {
     "title": "이슈",
