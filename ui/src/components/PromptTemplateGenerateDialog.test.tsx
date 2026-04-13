@@ -110,4 +110,24 @@ describe("PromptTemplateGenerateDialog", () => {
     ) as HTMLTextAreaElement;
     expect(inputAgain.value).toBe("focus on code review");
   });
+
+  it("does not warn about state updates after unmount during cancel transition", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { unmount } = renderDialog();
+
+    await user.click(screen.getByRole("button", { name: /생성/ }));
+    await waitFor(() => screen.getByRole("button", { name: /적용/ }));
+    await user.click(screen.getByRole("button", { name: /취소/ }));
+    unmount();
+
+    // Wait past the 150ms close animation timer
+    await new Promise((r) => setTimeout(r, 200));
+
+    const stateWarnings = errorSpy.mock.calls.filter((call) =>
+      String(call[0]).includes("unmounted"),
+    );
+    expect(stateWarnings).toHaveLength(0);
+    errorSpy.mockRestore();
+  });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Loader2 } from "lucide-react";
 import type { DraftPromptTemplateRequest } from "@paperclipai/shared";
@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { usePromptTemplateStream } from "../hooks/usePromptTemplateStream";
+
+const DIALOG_CLOSE_ANIMATION_MS = 150;
 
 export interface PromptTemplateGenerateDialogProps {
   open: boolean;
@@ -37,6 +39,7 @@ export function PromptTemplateGenerateDialog({
   const [stage, setStage] = useState<Stage>("input");
   const { status, preview, error, start, cancel, reset } =
     usePromptTemplateStream(companyId);
+  const closeResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleGenerate = useCallback(() => {
     start({ ...requestBase, hint: hint.trim() || undefined });
@@ -65,11 +68,23 @@ export function PromptTemplateGenerateDialog({
   const handleCancel = useCallback(() => {
     cancel();
     onOpenChange(false);
-    setTimeout(() => {
+    if (closeResetTimerRef.current !== null) {
+      clearTimeout(closeResetTimerRef.current);
+    }
+    closeResetTimerRef.current = setTimeout(() => {
       reset();
       setStage("input");
-    }, 150);
+      closeResetTimerRef.current = null;
+    }, DIALOG_CLOSE_ANIMATION_MS);
   }, [cancel, onOpenChange, reset]);
+
+  useEffect(() => {
+    return () => {
+      if (closeResetTimerRef.current !== null) {
+        clearTimeout(closeResetTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <Dialog
@@ -113,13 +128,17 @@ export function PromptTemplateGenerateDialog({
             </div>
           )}
 
-        {status === "streaming" && (
+        {stage === "input" && status === "streaming" && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               {t("agents.promptTemplate.aiGenerating")}
             </div>
-            <pre className="whitespace-pre-wrap text-sm font-mono border border-border rounded-md p-3 min-h-[140px] max-h-[360px] overflow-auto">
+            <pre
+              aria-live="polite"
+              aria-busy="true"
+              className="whitespace-pre-wrap text-sm font-mono border border-border rounded-md p-3 min-h-[140px] max-h-[360px] overflow-auto"
+            >
               {preview}
             </pre>
             <DialogFooter>
