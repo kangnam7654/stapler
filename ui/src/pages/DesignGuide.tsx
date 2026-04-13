@@ -124,6 +124,7 @@ import { InlineEditor } from "@/components/InlineEditor";
 import { PageSkeleton } from "@/components/PageSkeleton";
 import { Identity } from "@/components/Identity";
 import { GettingStartedPanel } from "@/components/GettingStartedPanel";
+import { PromptTemplateGenerateDialog } from "@/components/PromptTemplateGenerateDialog";
 
 /* ------------------------------------------------------------------ */
 /*  Section wrapper                                                    */
@@ -166,6 +167,38 @@ function Swatch({ name, cssVar }: { name: string; cssVar: string }) {
         <p className="text-xs text-muted-foreground">{name}</p>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  AI Prompt Template Generator showcase                              */
+/* ------------------------------------------------------------------ */
+
+function PromptTemplateGeneratorShowcase() {
+  const [open, setOpen] = useState(false);
+  return (
+    <SubSection title="AI Prompt Template Generator">
+      <p className="text-xs text-muted-foreground">
+        Modal dialog shown from the agent create form. Streams a prompt template
+        preview from the currently selected adapter.
+      </p>
+      <Button onClick={() => setOpen(true)}>Open generator dialog</Button>
+      <PromptTemplateGenerateDialog
+        open={open}
+        onOpenChange={setOpen}
+        companyId="showcase-company"
+        requestBase={{
+          adapterType: "ollama_local",
+          adapterConfig: { baseUrl: "http://127.0.0.1:11434", model: "llama3" },
+          name: "CTO",
+          role: "cto",
+          title: "Chief Technology Officer",
+          reportsTo: null,
+        }}
+        existingTemplate=""
+        onAccept={(text) => console.log("accepted:", text)}
+      />
+    </SubSection>
   );
 }
 
@@ -1317,6 +1350,13 @@ export function DesignGuide() {
           </div>
           <GettingStartedPanel companyId="demo" companyPrefix="DEMO" />
         </div>
+      </Section>
+
+      {/* ============================================================ */}
+      {/*  AI PROMPT TEMPLATE GENERATOR                                 */}
+      {/* ============================================================ */}
+      <Section title="AI Prompt Template Generator">
+        <PromptTemplateGeneratorShowcase />
       </Section>
 
       {/* ============================================================ */}
