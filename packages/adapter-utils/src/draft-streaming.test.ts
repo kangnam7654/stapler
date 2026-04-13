@@ -61,6 +61,35 @@ describe("streamChatCompletionSSE", () => {
       await expect(async () => { for await (const _ of gen) {} }).rejects.toThrow();
     });
   });
+
+  it("throws when aborted mid-stream", async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      res.write(`data: {"choices":[{"delta":{"content":"first"}}]}\n\n`);
+      // Hold connection open — do NOT end — so reader will be blocked
+      // (server will be closed in finally)
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+    const { port } = server.address() as AddressInfo;
+    const controller = new AbortController();
+    try {
+      const gen = streamChatCompletionSSE({
+        baseUrl: `http://127.0.0.1:${port}`,
+        model: "m",
+        messages: [{ role: "user", content: "hi" }],
+        timeoutMs: 5_000,
+        signal: controller.signal,
+      });
+      const iterator = gen[Symbol.asyncIterator]();
+      const first = await iterator.next();
+      expect(first.value).toBe("first");
+      // Now abort; next iteration must throw
+      controller.abort();
+      await expect(iterator.next()).rejects.toThrow();
+    } finally {
+      server.close();
+    }
+  });
 });
 
 describe("spawnAndStreamStdout", () => {
