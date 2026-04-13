@@ -262,10 +262,21 @@ export interface ProviderQuotaResult {
   windows: QuotaWindow[];
 }
 
+/** Context passed to the optional draftText streaming hook. */
+export interface AdapterDraftTextContext {
+  config: Record<string, unknown>;
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
+  signal: AbortSignal;
+  maxTokens?: number;
+  temperature?: number;
+}
+
 export interface ServerAdapterModule {
   type: string;
   execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult>;
   testEnvironment(ctx: AdapterEnvironmentTestContext): Promise<AdapterEnvironmentTestResult>;
+  /** Optional one-shot text generation hook. Streams tokens as an async iterable. */
+  draftText?: (ctx: AdapterDraftTextContext) => AsyncIterable<string>;
   listSkills?: (ctx: AdapterSkillContext) => Promise<AdapterSkillSnapshot>;
   syncSkills?: (ctx: AdapterSkillContext, desiredSkills: string[]) => Promise<AdapterSkillSnapshot>;
   sessionCodec?: AdapterSessionCodec;

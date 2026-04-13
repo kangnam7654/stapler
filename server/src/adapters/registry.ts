@@ -7,6 +7,7 @@ import {
   testEnvironment as claudeTestEnvironment,
   sessionCodec as claudeSessionCodec,
   getQuotaWindows as claudeGetQuotaWindows,
+  draftText as claudeDraftText,
 } from "@paperclipai/adapter-claude-local/server";
 import { agentConfigurationDoc as claudeAgentConfigurationDoc, models as claudeModels } from "@paperclipai/adapter-claude-local";
 import {
@@ -16,6 +17,7 @@ import {
   testEnvironment as codexTestEnvironment,
   sessionCodec as codexSessionCodec,
   getQuotaWindows as codexGetQuotaWindows,
+  draftText as codexDraftText,
 } from "@paperclipai/adapter-codex-local/server";
 import { agentConfigurationDoc as codexAgentConfigurationDoc, models as codexModels } from "@paperclipai/adapter-codex-local";
 import {
@@ -24,6 +26,7 @@ import {
   syncCursorSkills,
   testEnvironment as cursorTestEnvironment,
   sessionCodec as cursorSessionCodec,
+  draftText as cursorDraftText,
 } from "@paperclipai/adapter-cursor-local/server";
 import { agentConfigurationDoc as cursorAgentConfigurationDoc, models as cursorModels } from "@paperclipai/adapter-cursor-local";
 import {
@@ -32,6 +35,7 @@ import {
   syncGeminiSkills,
   testEnvironment as geminiTestEnvironment,
   sessionCodec as geminiSessionCodec,
+  draftText as geminiDraftText,
 } from "@paperclipai/adapter-gemini-local/server";
 import { agentConfigurationDoc as geminiAgentConfigurationDoc, models as geminiModels } from "@paperclipai/adapter-gemini-local";
 import {
@@ -41,6 +45,7 @@ import {
   testEnvironment as openCodeTestEnvironment,
   sessionCodec as openCodeSessionCodec,
   listOpenCodeModels,
+  draftText as openCodeDraftText,
 } from "@paperclipai/adapter-opencode-local/server";
 import {
   agentConfigurationDoc as openCodeAgentConfigurationDoc,
@@ -48,6 +53,7 @@ import {
 import {
   execute as openclawGatewayExecute,
   testEnvironment as openclawGatewayTestEnvironment,
+  draftText as openclawGatewayDraftText,
 } from "@paperclipai/adapter-openclaw-gateway/server";
 import {
   agentConfigurationDoc as openclawGatewayAgentConfigurationDoc,
@@ -62,6 +68,7 @@ import {
   testEnvironment as piTestEnvironment,
   sessionCodec as piSessionCodec,
   listPiModels,
+  draftText as piDraftText,
 } from "@paperclipai/adapter-pi-local/server";
 import {
   agentConfigurationDoc as piAgentConfigurationDoc,
@@ -70,6 +77,7 @@ import {
   execute as ollamaExecute,
   testEnvironment as ollamaTestEnvironment,
   listModels as listOllamaModels,
+  draftText as ollamaDraftText,
 } from "@paperclipai/adapter-ollama-local/server";
 import {
   agentConfigurationDoc as ollamaAgentConfigurationDoc,
@@ -79,6 +87,7 @@ import {
   execute as lmStudioExecute,
   testEnvironment as lmStudioTestEnvironment,
   listModels as listLmStudioModels,
+  draftText as lmStudioDraftText,
 } from "@paperclipai/adapter-lm-studio-local/server";
 import {
   agentConfigurationDoc as lmStudioAgentConfigurationDoc,
@@ -92,6 +101,7 @@ import {
   syncSkills as hermesSyncSkills,
   detectModel as detectModelFromHermes,
 } from "hermes-paperclip-adapter/server";
+import { draftHermes } from "./hermes-draft.js";
 import {
   agentConfigurationDoc as hermesAgentConfigurationDoc,
   models as hermesModels,
@@ -103,6 +113,7 @@ const claudeLocalAdapter: ServerAdapterModule = {
   type: "claude_local",
   execute: claudeExecute,
   testEnvironment: claudeTestEnvironment,
+  draftText: claudeDraftText,
   listSkills: listClaudeSkills,
   syncSkills: syncClaudeSkills,
   sessionCodec: claudeSessionCodec,
@@ -117,6 +128,7 @@ const codexLocalAdapter: ServerAdapterModule = {
   type: "codex_local",
   execute: codexExecute,
   testEnvironment: codexTestEnvironment,
+  draftText: codexDraftText,
   listSkills: listCodexSkills,
   syncSkills: syncCodexSkills,
   sessionCodec: codexSessionCodec,
@@ -132,6 +144,7 @@ const cursorLocalAdapter: ServerAdapterModule = {
   type: "cursor",
   execute: cursorExecute,
   testEnvironment: cursorTestEnvironment,
+  draftText: cursorDraftText,
   listSkills: listCursorSkills,
   syncSkills: syncCursorSkills,
   sessionCodec: cursorSessionCodec,
@@ -146,6 +159,7 @@ const geminiLocalAdapter: ServerAdapterModule = {
   type: "gemini_local",
   execute: geminiExecute,
   testEnvironment: geminiTestEnvironment,
+  draftText: geminiDraftText,
   listSkills: listGeminiSkills,
   syncSkills: syncGeminiSkills,
   sessionCodec: geminiSessionCodec,
@@ -159,6 +173,7 @@ const openclawGatewayAdapter: ServerAdapterModule = {
   type: "openclaw_gateway",
   execute: openclawGatewayExecute,
   testEnvironment: openclawGatewayTestEnvironment,
+  draftText: openclawGatewayDraftText,
   models: openclawGatewayModels,
   supportsLocalAgentJwt: false,
   agentConfigurationDoc: openclawGatewayAgentConfigurationDoc,
@@ -168,6 +183,7 @@ const openCodeLocalAdapter: ServerAdapterModule = {
   type: "opencode_local",
   execute: openCodeExecute,
   testEnvironment: openCodeTestEnvironment,
+  draftText: openCodeDraftText,
   listSkills: listOpenCodeSkills,
   syncSkills: syncOpenCodeSkills,
   sessionCodec: openCodeSessionCodec,
@@ -182,6 +198,7 @@ const piLocalAdapter: ServerAdapterModule = {
   type: "pi_local",
   execute: piExecute,
   testEnvironment: piTestEnvironment,
+  draftText: piDraftText,
   listSkills: listPiSkills,
   syncSkills: syncPiSkills,
   sessionCodec: piSessionCodec,
@@ -196,6 +213,7 @@ const hermesLocalAdapter: ServerAdapterModule = {
   type: "hermes_local",
   execute: hermesExecute,
   testEnvironment: hermesTestEnvironment,
+  draftText: draftHermes,
   sessionCodec: hermesSessionCodec,
   listSkills: hermesListSkills,
   syncSkills: hermesSyncSkills,
@@ -209,6 +227,7 @@ const ollamaLocalAdapter: ServerAdapterModule = {
   type: "ollama_local",
   execute: ollamaExecute,
   testEnvironment: ollamaTestEnvironment,
+  draftText: ollamaDraftText,
   models: ollamaModels,
   listModels: listOllamaModels,
   supportsLocalAgentJwt: true,
@@ -219,6 +238,7 @@ const lmStudioLocalAdapter: ServerAdapterModule = {
   type: "lm_studio_local",
   execute: lmStudioExecute,
   testEnvironment: lmStudioTestEnvironment,
+  draftText: lmStudioDraftText,
   models: lmStudioModels,
   listModels: listLmStudioModels,
   supportsLocalAgentJwt: true,

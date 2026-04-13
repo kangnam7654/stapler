@@ -1,3 +1,4 @@
+export { draftText } from "./draft.js";
 export { execute, ensureCursorSkillsInjected } from "./execute.js";
 export { listCursorSkills, syncCursorSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";

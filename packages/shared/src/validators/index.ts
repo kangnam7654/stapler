@@ -104,6 +104,12 @@ export {
 } from "./agent.js";
 
 export {
+  draftPromptTemplateRequestSchema,
+  type DraftPromptTemplateRequest,
+  type DraftPromptTemplateEvent,
+} from "./agent-prompt-generator.js";
+
+export {
   createProjectSchema,
   updateProjectSchema,
   createProjectWorkspaceSchema,
