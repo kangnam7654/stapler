@@ -101,6 +101,7 @@ import {
   syncSkills as hermesSyncSkills,
   detectModel as detectModelFromHermes,
 } from "hermes-paperclip-adapter/server";
+import { draftHermes } from "./hermes-draft.js";
 import {
   agentConfigurationDoc as hermesAgentConfigurationDoc,
   models as hermesModels,
@@ -212,6 +213,7 @@ const hermesLocalAdapter: ServerAdapterModule = {
   type: "hermes_local",
   execute: hermesExecute,
   testEnvironment: hermesTestEnvironment,
+  draftText: draftHermes,
   sessionCodec: hermesSessionCodec,
   listSkills: hermesListSkills,
   syncSkills: hermesSyncSkills,
