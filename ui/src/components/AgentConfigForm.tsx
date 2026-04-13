@@ -663,6 +663,42 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
             </Field>
           )}
 
+          {/* Model — shown right below adapter type for local (CLI) adapters */}
+          {isLocal && (
+            <>
+              <ModelDropdown
+                models={models}
+                value={currentModelId}
+                onChange={(v) =>
+                  isCreate
+                    ? set!({ model: v })
+                    : mark("adapterConfig", "model", v || undefined)
+                }
+                open={modelOpen}
+                onOpenChange={setModelOpen}
+                allowDefault={adapterType !== "opencode_local" && adapterType !== "hermes_local"}
+                required={adapterType === "opencode_local" || adapterType === "hermes_local"}
+                groupByProvider={adapterType === "opencode_local"}
+                creatable={adapterType === "hermes_local"}
+                detectedModel={adapterType === "hermes_local" ? detectedModel : null}
+                onDetectModel={adapterType === "hermes_local"
+                  ? async () => {
+                      const result = await refetchDetectedModel();
+                      return result.data?.model ?? null;
+                    }
+                  : undefined}
+                detectModelLabel={adapterType === "hermes_local" ? "Detect from Hermes config" : undefined}
+              />
+              {fetchedModelsError && (
+                <p className="text-xs text-destructive">
+                  {fetchedModelsError instanceof Error
+                    ? fetchedModelsError.message
+                    : "Failed to load adapter models."}
+                </p>
+              )}
+            </>
+          )}
+
           {testEnvironment.error && (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               {testEnvironment.error instanceof Error
@@ -805,37 +841,6 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   }
                 />
               </Field>
-
-              <ModelDropdown
-                models={models}
-                value={currentModelId}
-                onChange={(v) =>
-                  isCreate
-                    ? set!({ model: v })
-                    : mark("adapterConfig", "model", v || undefined)
-                }
-                open={modelOpen}
-                onOpenChange={setModelOpen}
-                allowDefault={adapterType !== "opencode_local" && adapterType !== "hermes_local"}
-                required={adapterType === "opencode_local" || adapterType === "hermes_local"}
-                groupByProvider={adapterType === "opencode_local"}
-                creatable={adapterType === "hermes_local"}
-                detectedModel={adapterType === "hermes_local" ? detectedModel : null}
-                onDetectModel={adapterType === "hermes_local"
-                  ? async () => {
-                      const result = await refetchDetectedModel();
-                      return result.data?.model ?? null;
-                    }
-                  : undefined}
-                detectModelLabel={adapterType === "hermes_local" ? "Detect from Hermes config" : undefined}
-              />
-              {fetchedModelsError && (
-                <p className="text-xs text-destructive">
-                  {fetchedModelsError instanceof Error
-                    ? fetchedModelsError.message
-                    : "Failed to load adapter models."}
-                </p>
-              )}
 
               {showThinkingEffort && (
                 <>
