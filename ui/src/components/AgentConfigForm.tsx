@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AGENT_ADAPTER_TYPES } from "@paperclipai/shared";
 import type {
@@ -6,6 +7,7 @@ import type {
   AdapterEnvironmentTestResult,
   CompanySecret,
   EnvBinding,
+  DraftPromptTemplateRequest,
 } from "@paperclipai/shared";
 import type { AdapterModel } from "../api/agents";
 import { agentsApi } from "../api/agents";
@@ -23,7 +25,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { FolderOpen, Heart, ChevronDown, X } from "lucide-react";
+import { FolderOpen, Heart, ChevronDown, X, Sparkles } from "lucide-react";
 import { cn } from "../lib/utils";
 import { extractModelName, extractProviderId } from "../lib/model-utils";
 import { queryKeys } from "../lib/queryKeys";
@@ -42,6 +44,7 @@ import { defaultCreateValues } from "./agent-config-defaults";
 import { getUIAdapter } from "../adapters";
 import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-fields";
 import { MarkdownEditor } from "./MarkdownEditor";
+import { PromptTemplateGenerateDialog } from "./PromptTemplateGenerateDialog";
 import { ChoosePathButton } from "./PathInstructionsModal";
 import { OpenCodeLogoIcon } from "./OpenCodeLogoIcon";
 import { ReportsToPicker } from "./ReportsToPicker";
@@ -75,6 +78,12 @@ type AgentConfigFormProps = {
       mode: "create";
       values: CreateConfigValues;
       onChange: (patch: Partial<CreateConfigValues>) => void;
+      identityForDraft?: {
+        name: string;
+        role: string;
+        title: string | null;
+        reportsTo: string | null;
+      };
     }
   | {
       mode: "edit";
@@ -371,11 +380,14 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     hideInstructionsFile,
   };
 
+  const { t } = useTranslation();
+
   // Section toggle state — advanced always starts collapsed
   const [runPolicyAdvancedOpen, setRunPolicyAdvancedOpen] = useState(false);
   // Popover states
   const [modelOpen, setModelOpen] = useState(false);
   const [thinkingEffortOpen, setThinkingEffortOpen] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
 
   // Create mode helpers
   const val = isCreate ? props.values : null;
@@ -406,6 +418,14 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const currentModelId = isCreate
     ? val!.model
     : eff("adapterConfig", "model", String(config.model ?? ""));
+
+  const ADAPTERS_WITHOUT_DRAFT = new Set<string>(["process", "http"]);
+  const hasModel = typeof currentModelId === "string" && currentModelId.trim().length > 0;
+  const canUseAiGenerate = Boolean(
+    selectedCompanyId &&
+    !ADAPTERS_WITHOUT_DRAFT.has(adapterType) &&
+    hasModel,
+  );
 
   const thinkingEffortKey =
     adapterType === "codex_local"
@@ -671,7 +691,26 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           {/* Prompt template (create mode only — edit mode shows this in Identity) */}
           {isLocal && isCreate && (
             <>
-              <Field label="Prompt Template" hint={help.promptTemplate}>
+              <Field
+                label={
+                  <div className="flex items-center justify-between gap-2">
+                    <span>Prompt Template</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setAiDialogOpen(true)}
+                      disabled={!canUseAiGenerate}
+                      title={!canUseAiGenerate ? t("agents.promptTemplate.aiButtonDisabledTooltip") : undefined}
+                    >
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      {t("agents.promptTemplate.aiGenerate")}
+                    </Button>
+                  </div>
+                }
+                hint={help.promptTemplate}
+              >
                 <MarkdownEditor
                   value={val!.promptTemplate}
                   onChange={(v) => set!({ promptTemplate: v })}
@@ -687,6 +726,23 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
               <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
                 Prompt template is replayed on every heartbeat. Prefer small task framing and variables like <code>{"{{ context.* }}"}</code> or <code>{"{{ run.* }}"}</code>; avoid repeating stable instructions here.
               </div>
+              {selectedCompanyId && props.mode === "create" && props.identityForDraft && (
+                <PromptTemplateGenerateDialog
+                  open={aiDialogOpen}
+                  onOpenChange={setAiDialogOpen}
+                  companyId={selectedCompanyId}
+                  requestBase={{
+                    adapterType: adapterType as DraftPromptTemplateRequest["adapterType"],
+                    adapterConfig: uiAdapter.buildAdapterConfig(val!),
+                    name: props.identityForDraft.name,
+                    role: props.identityForDraft.role as DraftPromptTemplateRequest["role"],
+                    title: props.identityForDraft.title,
+                    reportsTo: props.identityForDraft.reportsTo,
+                  }}
+                  existingTemplate={val!.promptTemplate}
+                  onAccept={(generated) => set!({ promptTemplate: generated })}
+                />
+              )}
             </>
           )}
 

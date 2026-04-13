@@ -288,6 +288,12 @@ export function NewAgent() {
           values={configValues}
           onChange={(patch) => setConfigValues((prev) => ({ ...prev, ...patch }))}
           adapterModels={adapterModels}
+          identityForDraft={{
+            name: name.trim() || "new-agent",
+            role: effectiveRole,
+            title: title.trim() || null,
+            reportsTo,
+          }}
         />
 
         <div className="border-t border-border px-4 py-4">
