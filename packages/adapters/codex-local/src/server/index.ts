@@ -1,3 +1,4 @@
+export { draftText } from "./draft.js";
 export { execute, ensureCodexSkillsInjected } from "./execute.js";
 export { listCodexSkills, syncCodexSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";
