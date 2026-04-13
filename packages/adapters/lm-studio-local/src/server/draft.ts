@@ -1,5 +1,5 @@
 import type { AdapterDraftTextContext } from "@paperclipai/adapter-utils";
-import { streamChatCompletionSSE } from "@paperclipai/adapter-utils";
+import { streamChatCompletionSSE } from "@paperclipai/adapter-utils/draft-streaming";
 import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 import { DEFAULT_LM_STUDIO_BASE_URL } from "../index.js";
 

@@ -1,5 +1,5 @@
 import type { AdapterDraftTextContext } from "@paperclipai/adapter-utils";
-import { spawnAndStreamStdout } from "@paperclipai/adapter-utils";
+import { spawnAndStreamStdout } from "@paperclipai/adapter-utils/draft-streaming";
 import { asString, asStringArray, parseObject } from "@paperclipai/adapter-utils/server-utils";
 
 interface ClaudeStreamEvent {

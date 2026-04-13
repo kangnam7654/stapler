@@ -1,5 +1,5 @@
 import type { AdapterDraftTextContext } from "@paperclipai/adapter-utils";
-import { streamChatCompletionSSE } from "@paperclipai/adapter-utils";
+import { streamChatCompletionSSE } from "@paperclipai/adapter-utils/draft-streaming";
 import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
 
 export async function* draftText(
