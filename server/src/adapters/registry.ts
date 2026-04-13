@@ -70,6 +70,7 @@ import {
   execute as ollamaExecute,
   testEnvironment as ollamaTestEnvironment,
   listModels as listOllamaModels,
+  draftText as ollamaDraftText,
 } from "@paperclipai/adapter-ollama-local/server";
 import {
   agentConfigurationDoc as ollamaAgentConfigurationDoc,
@@ -209,6 +210,8 @@ const ollamaLocalAdapter: ServerAdapterModule = {
   type: "ollama_local",
   execute: ollamaExecute,
   testEnvironment: ollamaTestEnvironment,
+  // TODO(task-19): wire draftText for lm_studio_local and openclaw_gateway too.
+  draftText: ollamaDraftText,
   models: ollamaModels,
   listModels: listOllamaModels,
   supportsLocalAgentJwt: true,
