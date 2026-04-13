@@ -33,6 +33,7 @@ import { createStorageServiceFromConfig } from "./storage/index.js";
 import { printStartupBanner } from "./startup-banner.js";
 import { getBoardClaimWarningUrl, initializeBoardClaimChallenge } from "./board-claim.js";
 import { maybePersistWorktreeRuntimePorts } from "./worktree-config.js";
+import { instanceSkillsCache } from "./services/instance-skills-cache.js";
 
 type BetterAuthSessionUser = {
   id: string;
@@ -553,6 +554,13 @@ export async function startServer(): Promise<StartedServer> {
     .catch((err) => {
       logger.error({ err }, "startup reconciliation of persisted runtime services failed");
     });
+
+  // Fire-and-forget: non-blocking instance skills scan
+  void instanceSkillsCache.scan().then((result) => {
+    logger.info(result, "instance skills loaded from Claude Code directories");
+  }).catch((err) => {
+    logger.warn({ err }, "instance skills scan failed at startup");
+  });
   
   if (config.heartbeatSchedulerEnabled) {
     const heartbeat = heartbeatService(db as any);

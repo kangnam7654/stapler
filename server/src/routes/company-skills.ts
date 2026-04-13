@@ -1,5 +1,6 @@
 import { Router, type Request } from "express";
 import type { Db } from "@paperclipai/db";
+import type { CompanySkillListItem } from "@paperclipai/shared";
 import {
   companySkillCreateSchema,
   companySkillFileUpdateSchema,
@@ -11,6 +12,32 @@ import { accessService, agentService, companySkillService, logActivity } from ".
 import { forbidden } from "../errors.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 import { t } from "../i18n/index.js";
+import { instanceSkillsCache, type InstanceSkill } from "../services/instance-skills-cache.js";
+
+function toCompanySkillListItem(s: InstanceSkill, companyId: string): CompanySkillListItem {
+  return {
+    id: s.id,
+    companyId,
+    key: s.key,
+    slug: s.slug,
+    name: s.name,
+    description: s.description,
+    sourceType: s.sourceType,
+    sourceLocator: s.diskPath,
+    sourceRef: null,
+    sourcePath: null,
+    trustLevel: "markdown_only",
+    compatibility: "compatible",
+    fileInventory: [{ path: "SKILL.md", kind: "skill" }],
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    attachedAgentCount: 0,
+    editable: false,
+    editableReason: "Claude Code 디스크 스킬은 편집할 수 없습니다",
+    sourceLabel: s.sourceLabel,
+    sourceBadge: s.sourceType,
+  };
+}
 
 export function companySkillRoutes(db: Db) {
   const router = Router();
@@ -55,8 +82,13 @@ export function companySkillRoutes(db: Db) {
   router.get("/companies/:companyId/skills", async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
-    const result = await svc.list(companyId);
-    res.json(result);
+    const dbSkills = await svc.list(companyId);
+    const dbKeys = new Set(dbSkills.map((s) => s.key));
+    const instanceItems = instanceSkillsCache
+      .getAll()
+      .filter((s) => !dbKeys.has(s.key))
+      .map((s) => toCompanySkillListItem(s, companyId));
+    res.json([...dbSkills, ...instanceItems]);
   });
 
   router.get("/companies/:companyId/skills/:skillId", async (req, res) => {
@@ -88,6 +120,14 @@ export function companySkillRoutes(db: Db) {
     const skillId = req.params.skillId as string;
     const relativePath = String(req.query.path ?? "SKILL.md");
     assertCompanyAccess(req, companyId);
+
+    // Instance skill: serve from disk
+    const instanceSkill = instanceSkillsCache.getById(skillId);
+    if (instanceSkill) {
+      res.json({ path: "SKILL.md", content: instanceSkill.markdown });
+      return;
+    }
+
     const result = await svc.readFile(companyId, skillId, relativePath);
     if (!result) {
       res.status(404).json({ error: t("error.skillNotFound") });

@@ -160,6 +160,10 @@ function sourceMeta(sourceBadge: CompanySkillSourceBadge, sourceLabel: string | 
       return { icon: Folder, label: sourceLabel ?? "Folder", managedLabel: "Folder managed" };
     case "paperclip":
       return { icon: Paperclip, label: sourceLabel ?? "Paperclip", managedLabel: "Paperclip managed" };
+    case "claude_code":
+      return { icon: Folder, label: sourceLabel ?? "Claude Code", managedLabel: "Claude Code" };
+    case "claude_plugin":
+      return { icon: Boxes, label: sourceLabel ?? "Claude Plugin", managedLabel: sourceLabel ?? "Claude Plugin" };
     default:
       return { icon: Boxes, label: sourceLabel ?? "Catalog", managedLabel: "Catalog managed" };
   }
@@ -932,6 +936,25 @@ export function CompanySkills() {
     },
   });
 
+  const refreshInstanceSkills = useMutation({
+    mutationFn: () => companySkillsApi.refreshInstanceSkills(),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.companySkills.list(selectedCompanyId!) });
+      pushToast({
+        tone: "success",
+        title: "Claude Code 동기화 완료",
+        body: `${result.count}개의 스킬을 불러왔습니다.`,
+      });
+    },
+    onError: (error) => {
+      pushToast({
+        tone: "error",
+        title: "동기화 실패",
+        body: error instanceof Error ? error.message : "Claude Code 스킬 동기화에 실패했습니다.",
+      });
+    },
+  });
+
   const saveFile = useMutation({
     mutationFn: () => companySkillsApi.updateFile(
       selectedCompanyId!,
@@ -1055,6 +1078,15 @@ export function CompanySkills() {
                 </p>
               </div>
               <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => refreshInstanceSkills.mutate()}
+                  disabled={refreshInstanceSkills.isPending}
+                  title="Claude Code 스킬 동기화"
+                >
+                  <RefreshCw className={cn("h-4 w-4", refreshInstanceSkills.isPending && "animate-spin")} />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon-sm"

@@ -51,4 +51,9 @@ export const companySkillsApi = {
       `/companies/${encodeURIComponent(companyId)}/skills/${encodeURIComponent(skillId)}/install-update`,
       {},
     ),
+  refreshInstanceSkills: () =>
+    api.post<{ count: number; claudeCodeCount: number; pluginCount: number }>(
+      "/instance/skills/refresh",
+      {},
+    ),
 };
