@@ -52,3 +52,9 @@ export {
   redactTranscriptEntryPaths,
 } from "./log-redaction.js";
 export { inferOpenAiCompatibleBiller } from "./billing.js";
+export {
+  streamChatCompletionSSE,
+  spawnAndStreamStdout,
+  type StreamChatCompletionSSEArgs,
+  type SpawnAndStreamStdoutArgs,
+} from "./draft-streaming.js";
