@@ -48,6 +48,7 @@ export const sessionCodec: AdapterSessionCodec = {
   },
 };
 
+export { draftText } from "./draft.js";
 export { execute } from "./execute.js";
 export { listPiSkills, syncPiSkills } from "./skills.js";
 export { testEnvironment } from "./test.js";
