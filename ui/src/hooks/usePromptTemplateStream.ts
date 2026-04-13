@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DraftPromptTemplateRequest } from "@paperclipai/shared";
 import { streamDraftPromptTemplate } from "../api/draftPromptTemplate";
 
@@ -25,6 +25,13 @@ export function usePromptTemplateStream(
   const [preview, setPreview] = useState("");
   const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+
+  // Abort any in-flight stream when the consuming component unmounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+  }, []);
 
   const cancel = useCallback(() => {
     controllerRef.current?.abort();
@@ -75,6 +82,10 @@ export function usePromptTemplateStream(
           if (controller.signal.aborted) return;
           setError(err instanceof Error ? err.message : "stream failed");
           setStatus("error");
+        } finally {
+          if (controllerRef.current === controller) {
+            controllerRef.current = null;
+          }
         }
       })();
     },

@@ -116,4 +116,66 @@ describe("usePromptTemplateStream", () => {
     expect(result.current.preview).toBe("");
     expect(result.current.error).toBeNull();
   });
+
+  it("aborts in-flight stream on unmount", async () => {
+    const abortSpy = vi.fn();
+    async function* mockStream(signal: AbortSignal) {
+      signal.addEventListener("abort", abortSpy);
+      for (let i = 0; i < 100; i++) {
+        if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+        await new Promise((r) => setTimeout(r, 10));
+        yield { kind: "delta" as const, delta: "." };
+      }
+    }
+    vi.spyOn(apiModule, "streamDraftPromptTemplate").mockImplementation(
+      (_c, _b, signal) => mockStream(signal),
+    );
+
+    const { result, unmount } = renderHook(() => usePromptTemplateStream("c-1"));
+    act(() => {
+      result.current.start({
+        adapterType: "ollama_local",
+        adapterConfig: {},
+        name: "X",
+        role: "cto",
+      });
+    });
+    await waitFor(() => expect(result.current.status).toBe("streaming"));
+
+    unmount();
+
+    await waitFor(() => expect(abortSpy).toHaveBeenCalled());
+  });
+
+  it("clears controller ref on completion so next start is independent", async () => {
+    let callCount = 0;
+    vi.spyOn(apiModule, "streamDraftPromptTemplate").mockImplementation(async function* () {
+      callCount++;
+      yield { kind: "delta" as const, delta: callCount === 1 ? "first" : "second" };
+      yield { kind: "done" as const };
+    });
+
+    const { result } = renderHook(() => usePromptTemplateStream("c-1"));
+    act(() => {
+      result.current.start({
+        adapterType: "ollama_local",
+        adapterConfig: {},
+        name: "X",
+        role: "cto",
+      });
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.preview).toBe("first");
+
+    act(() => {
+      result.current.start({
+        adapterType: "ollama_local",
+        adapterConfig: {},
+        name: "X",
+        role: "cto",
+      });
+    });
+    await waitFor(() => expect(result.current.status).toBe("done"));
+    expect(result.current.preview).toBe("second");
+  });
 });
