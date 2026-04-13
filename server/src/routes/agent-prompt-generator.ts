@@ -5,7 +5,7 @@ import {
 } from "@paperclipai/shared";
 import type { Db } from "@paperclipai/db";
 import { validate } from "../middleware/validate.js";
-import { assertCompanyAccess } from "./authz.js";
+import { assertBoard, assertCompanyAccess } from "./authz.js";
 import { getServerAdapter } from "../adapters/registry.js";
 import { buildMetaPrompt } from "../services/prompt-template-generator.js";
 import { companyService, agentService } from "../services/index.js";
@@ -20,6 +20,7 @@ export function agentPromptGeneratorRoutes(db: Db): Router {
     validate(draftPromptTemplateRequestSchema),
     async (req, res) => {
       const companyId = req.params.companyId as string;
+      assertBoard(req);
       assertCompanyAccess(req, companyId);
 
       const body = req.body as {

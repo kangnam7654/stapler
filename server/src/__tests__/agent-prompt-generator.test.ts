@@ -152,4 +152,23 @@ describe("POST /api/companies/:id/agents/draft-prompt-template", () => {
       });
     expect(response.status).toBe(404);
   });
+
+  it("returns 403 for agent-typed actor (board-only endpoint)", async () => {
+    const app = createApp({
+      type: "agent",
+      agentId: "99999999-9999-4999-8999-999999999999",
+      companyId,
+    });
+
+    const response = await request(app)
+      .post(`/api/companies/${companyId}/agents/draft-prompt-template`)
+      .send({
+        adapterType: "ollama_local",
+        adapterConfig: { baseUrl: mockUrl, model: "llama3" },
+        name: "X",
+        role: "cto",
+      });
+
+    expect(response.status).toBe(403);
+  });
 });
