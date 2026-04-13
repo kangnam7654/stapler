@@ -294,6 +294,7 @@
       "aiConfirmOverwriteBody": "현재 입력된 내용이 사라집니다.",
       "aiConfirmOverwriteOk": "덮어쓰기",
       "aiButtonDisabledTooltip": "모델을 먼저 선택하세요",
+      "aiButtonDisabledNoCompany": "먼저 회사를 선택하세요",
       "aiStreamError": "생성 실패: {{message}}"
     }
   },

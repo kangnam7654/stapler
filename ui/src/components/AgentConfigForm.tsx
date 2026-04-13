@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AGENT_ADAPTER_TYPES } from "@paperclipai/shared";
 import type {
   Agent,
+  AgentRole,
   AdapterEnvironmentTestResult,
   CompanySecret,
   EnvBinding,
@@ -57,6 +58,10 @@ import { shouldShowLegacyWorkingDirectoryField } from "../lib/legacy-agent-confi
 export type { CreateConfigValues } from "@paperclipai/adapter-utils";
 import type { CreateConfigValues } from "@paperclipai/adapter-utils";
 
+/* ---- Module-level constants ---- */
+
+const ADAPTERS_WITHOUT_DRAFT = new Set<string>(["process", "http"]);
+
 /* ---- Props ---- */
 
 type AgentConfigFormProps = {
@@ -80,7 +85,7 @@ type AgentConfigFormProps = {
       onChange: (patch: Partial<CreateConfigValues>) => void;
       identityForDraft?: {
         name: string;
-        role: string;
+        role: AgentRole;
         title: string | null;
         reportsTo: string | null;
       };
@@ -419,13 +424,20 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     ? val!.model
     : eff("adapterConfig", "model", String(config.model ?? ""));
 
-  const ADAPTERS_WITHOUT_DRAFT = new Set<string>(["process", "http"]);
   const hasModel = typeof currentModelId === "string" && currentModelId.trim().length > 0;
   const canUseAiGenerate = Boolean(
     selectedCompanyId &&
     !ADAPTERS_WITHOUT_DRAFT.has(adapterType) &&
-    hasModel,
+    hasModel &&
+    props.mode === "create" &&
+    props.identityForDraft,
   );
+
+  const aiGenerateDisabledReason = !selectedCompanyId
+    ? t("agents.promptTemplate.aiButtonDisabledNoCompany")
+    : !hasModel
+    ? t("agents.promptTemplate.aiButtonDisabledTooltip")
+    : undefined;
 
   const thinkingEffortKey =
     adapterType === "codex_local"
@@ -702,7 +714,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                       className="h-6 px-2 text-xs"
                       onClick={() => setAiDialogOpen(true)}
                       disabled={!canUseAiGenerate}
-                      title={!canUseAiGenerate ? t("agents.promptTemplate.aiButtonDisabledTooltip") : undefined}
+                      title={!canUseAiGenerate ? aiGenerateDisabledReason : undefined}
                     >
                       <Sparkles className="h-3 w-3 mr-1" />
                       {t("agents.promptTemplate.aiGenerate")}
@@ -732,10 +744,12 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                   onOpenChange={setAiDialogOpen}
                   companyId={selectedCompanyId}
                   requestBase={{
+                    // Narrow from CreateConfigValues["adapterType"] (string) to the shared enum;
+                    // isLocal + ADAPTERS_WITHOUT_DRAFT guards ensure this runs only for valid adapters.
                     adapterType: adapterType as DraftPromptTemplateRequest["adapterType"],
                     adapterConfig: uiAdapter.buildAdapterConfig(val!),
                     name: props.identityForDraft.name,
-                    role: props.identityForDraft.role as DraftPromptTemplateRequest["role"],
+                    role: props.identityForDraft.role,
                     title: props.identityForDraft.title,
                     reportsTo: props.identityForDraft.reportsTo,
                   }}
