@@ -9,6 +9,7 @@ import { listRemoteModels } from "@paperclipai/adapter-openai-compat-local";
 import { DEFAULT_OLLAMA_BASE_URL } from "../index.js";
 
 export { execute } from "./execute.js";
+export { draftText } from "./draft.js";
 
 export async function listModels(): Promise<AdapterModel[]> {
   try {
