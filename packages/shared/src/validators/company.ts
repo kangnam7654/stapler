@@ -4,6 +4,20 @@ import { COMPANY_STATUSES } from "../constants.js";
 const logoAssetIdSchema = z.string().uuid().nullable().optional();
 const brandColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
 
+const adapterEndpointSchema = z
+  .object({ baseUrl: z.string().min(1).optional() })
+  .optional();
+
+const adapterDefaultsSchema = z
+  .object({
+    lm_studio_local: adapterEndpointSchema,
+    ollama_local: adapterEndpointSchema,
+  })
+  .nullable()
+  .optional();
+
+export type AdapterDefaults = NonNullable<z.infer<typeof adapterDefaultsSchema>>;
+
 export const createCompanySchema = z.object({
   name: z.string().min(1),
   description: z.string().optional().nullable(),
@@ -20,6 +34,7 @@ export const updateCompanySchema = createCompanySchema
     requireBoardApprovalForNewAgents: z.boolean().optional(),
     brandColor: brandColorSchema,
     logoAssetId: logoAssetIdSchema,
+    adapterDefaults: adapterDefaultsSchema,
   });
 
 export type UpdateCompany = z.infer<typeof updateCompanySchema>;

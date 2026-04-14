@@ -23,6 +23,7 @@ export {
   type CreateCompany,
   type UpdateCompany,
   type UpdateCompanyBranding,
+  type AdapterDefaults,
 } from "./company.js";
 export {
   companySkillSourceTypeSchema,
