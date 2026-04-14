@@ -11,10 +11,10 @@ import { DEFAULT_OLLAMA_BASE_URL } from "../index.js";
 export { execute } from "./execute.js";
 export { draftText } from "./draft.js";
 
-export async function listModels(): Promise<AdapterModel[]> {
+export async function listModels(baseUrl?: string): Promise<AdapterModel[]> {
   try {
     const names = await listRemoteModels({
-      baseUrl: DEFAULT_OLLAMA_BASE_URL,
+      baseUrl: baseUrl ?? DEFAULT_OLLAMA_BASE_URL,
       timeoutMs: 3000,
       style: "ollama",
     });

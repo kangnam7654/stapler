@@ -26,7 +26,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { FolderOpen, Heart, ChevronDown, X, Sparkles } from "lucide-react";
+import { FolderOpen, Heart, ChevronDown, X, Sparkles, RefreshCw } from "lucide-react";
 import { cn } from "../lib/utils";
 import { extractModelName, extractProviderId } from "../lib/model-utils";
 import { queryKeys } from "../lib/queryKeys";
@@ -337,14 +337,26 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const uiAdapter = useMemo(() => getUIAdapter(adapterType), [adapterType]);
 
   // Fetch adapter models for the effective adapter type
+  // For local adapters with a configurable baseUrl (LM Studio, Ollama), pass the current
+  // baseUrl from config so the server fetches from the right endpoint.
+  const hasRemoteModelList = adapterType === "lm_studio_local" || adapterType === "ollama_local";
+  const configBaseUrl = isCreate
+    ? (typeof (props.values as unknown as Record<string, unknown>).baseUrl === "string"
+        ? (props.values as unknown as Record<string, unknown>).baseUrl as string
+        : undefined)
+    : (typeof config.baseUrl === "string" && config.baseUrl.trim() ? config.baseUrl.trim() : undefined);
+  const effectiveBaseUrl = hasRemoteModelList ? configBaseUrl : undefined;
+
   const {
     data: fetchedModels,
     error: fetchedModelsError,
+    refetch: refetchModels,
+    isFetching: isFetchingModels,
   } = useQuery({
     queryKey: selectedCompanyId
-      ? queryKeys.agents.adapterModels(selectedCompanyId, adapterType)
-      : ["agents", "none", "adapter-models", adapterType],
-    queryFn: () => agentsApi.adapterModels(selectedCompanyId!, adapterType),
+      ? [...queryKeys.agents.adapterModels(selectedCompanyId, adapterType), effectiveBaseUrl ?? ""]
+      : ["agents", "none", "adapter-models", adapterType, effectiveBaseUrl ?? ""],
+    queryFn: () => agentsApi.adapterModels(selectedCompanyId!, adapterType, effectiveBaseUrl),
     enabled: Boolean(selectedCompanyId),
   });
   const models = fetchedModels ?? externalModels ?? [];
@@ -666,29 +678,44 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
           {/* Model — shown right below adapter type for local (CLI) adapters */}
           {isLocal && (
             <>
-              <ModelDropdown
-                models={models}
-                value={currentModelId}
-                onChange={(v) =>
-                  isCreate
-                    ? set!({ model: v })
-                    : mark("adapterConfig", "model", v || undefined)
-                }
-                open={modelOpen}
-                onOpenChange={setModelOpen}
-                allowDefault={adapterType !== "opencode_local" && adapterType !== "hermes_local"}
-                required={adapterType === "opencode_local" || adapterType === "hermes_local"}
-                groupByProvider={adapterType === "opencode_local"}
-                creatable={adapterType === "hermes_local"}
-                detectedModel={adapterType === "hermes_local" ? detectedModel : null}
-                onDetectModel={adapterType === "hermes_local"
-                  ? async () => {
-                      const result = await refetchDetectedModel();
-                      return result.data?.model ?? null;
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <ModelDropdown
+                    models={models}
+                    value={currentModelId}
+                    onChange={(v) =>
+                      isCreate
+                        ? set!({ model: v })
+                        : mark("adapterConfig", "model", v || undefined)
                     }
-                  : undefined}
-                detectModelLabel={adapterType === "hermes_local" ? "Detect from Hermes config" : undefined}
-              />
+                    open={modelOpen}
+                    onOpenChange={setModelOpen}
+                    allowDefault={adapterType !== "opencode_local" && adapterType !== "hermes_local"}
+                    required={adapterType === "opencode_local" || adapterType === "hermes_local"}
+                    groupByProvider={adapterType === "opencode_local"}
+                    creatable={adapterType === "hermes_local"}
+                    detectedModel={adapterType === "hermes_local" ? detectedModel : null}
+                    onDetectModel={adapterType === "hermes_local"
+                      ? async () => {
+                          const result = await refetchDetectedModel();
+                          return result.data?.model ?? null;
+                        }
+                      : undefined}
+                    detectModelLabel={adapterType === "hermes_local" ? "Detect from Hermes config" : undefined}
+                  />
+                </div>
+                {hasRemoteModelList && (
+                  <button
+                    type="button"
+                    onClick={() => refetchModels()}
+                    disabled={isFetchingModels}
+                    title="Refresh model list"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isFetchingModels ? "animate-spin" : ""}`} />
+                  </button>
+                )}
+              </div>
               {fetchedModelsError && (
                 <p className="text-xs text-destructive">
                   {fetchedModelsError instanceof Error
