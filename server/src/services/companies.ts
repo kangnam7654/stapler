@@ -52,6 +52,7 @@ export function companyService(db: Db) {
     spentMonthlyCents: companies.spentMonthlyCents,
     requireBoardApprovalForNewAgents: companies.requireBoardApprovalForNewAgents,
     brandColor: companies.brandColor,
+    adapterDefaults: companies.adapterDefaults,
     logoAssetId: companyLogos.assetId,
     createdAt: companies.createdAt,
     updatedAt: companies.updatedAt,
@@ -300,6 +301,8 @@ export function companyService(db: Db) {
         await tx.delete(assets).where(eq(assets.companyId, id));
         // documents.companyId has no cascade; delete after issues so issueDocuments are already gone
         await tx.delete(documents).where(eq(documents.companyId, id));
+        // projects.goalId → goals (RESTRICT): null out before deleting goals
+        await tx.update(projects).set({ goalId: null }).where(eq(projects.companyId, id));
         await tx.delete(goals).where(eq(goals.companyId, id));
         await tx.delete(projects).where(eq(projects.companyId, id));
         await tx.delete(agents).where(eq(agents.companyId, id));
