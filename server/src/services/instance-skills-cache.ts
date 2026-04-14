@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { CompanySkillFileInventoryEntry } from "@paperclipai/shared";
 
 export interface InstanceSkill {
   id: string;
@@ -9,8 +10,12 @@ export interface InstanceSkill {
   slug: string;
   name: string;
   description: string | null;
+  /** Absolute path to SKILL.md */
   diskPath: string;
+  /** Absolute path to the directory containing SKILL.md */
+  diskDir: string;
   markdown: string;
+  fileInventory: CompanySkillFileInventoryEntry[];
   sourceType: "claude_code" | "claude_plugin";
   sourceLabel: string;
   pluginName?: string;
@@ -63,6 +68,37 @@ async function tryReaddir(dir: string): Promise<string[]> {
   }
 }
 
+function fileKind(filePath: string): CompanySkillFileInventoryEntry["kind"] {
+  const base = path.basename(filePath).toLowerCase();
+  if (base === "skill.md") return "skill";
+  const ext = path.extname(base);
+  if (ext === ".md") return "markdown";
+  if ([".sh", ".py", ".js", ".ts", ".rb", ".pl", ".lua"].includes(ext)) return "script";
+  if ([".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico"].includes(ext)) return "asset";
+  return "reference";
+}
+
+/** Recursively list all files under a directory, returning paths relative to that directory. */
+async function listSkillFiles(dir: string, rel = ""): Promise<CompanySkillFileInventoryEntry[]> {
+  const result: CompanySkillFileInventoryEntry[] = [];
+  let entries: import("node:fs").Dirent[];
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return result;
+  }
+  for (const entry of entries) {
+    const relPath = rel ? `${rel}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      const nested = await listSkillFiles(path.join(dir, entry.name), relPath);
+      result.push(...nested);
+    } else if (entry.isFile()) {
+      result.push({ path: relPath, kind: fileKind(relPath) });
+    }
+  }
+  return result;
+}
+
 async function scanClaudeSkillsDir(root: string): Promise<InstanceSkill[]> {
   const entries = await tryReaddir(root);
   const skills: InstanceSkill[] = [];
@@ -84,6 +120,7 @@ async function scanClaudeSkillsDir(root: string): Promise<InstanceSkill[]> {
 
     const { name, description } = parseFrontmatter(content);
     const key = `claude/${entry}`;
+    const fileInventory = await listSkillFiles(skillDir);
     skills.push({
       id: makeInstanceSkillId(key),
       key,
@@ -91,7 +128,9 @@ async function scanClaudeSkillsDir(root: string): Promise<InstanceSkill[]> {
       name: name ?? entry,
       description: description ?? null,
       diskPath: skillMdPath,
+      diskDir: skillDir,
       markdown: content,
+      fileInventory,
       sourceType: "claude_code",
       sourceLabel: "Claude Code",
     });
@@ -132,6 +171,7 @@ async function scanPluginsCacheDir(cacheRoot: string): Promise<InstanceSkill[]> 
 
           const { name, description } = parseFrontmatter(content);
           const key = `claude-plugins/${pluginName}/${skillName}`;
+          const fileInventory = await listSkillFiles(skillDir);
           skills.push({
             id: makeInstanceSkillId(key),
             key,
@@ -139,7 +179,9 @@ async function scanPluginsCacheDir(cacheRoot: string): Promise<InstanceSkill[]> 
             name: name ?? skillName,
             description: description ?? null,
             diskPath: skillMdPath,
+            diskDir: skillDir,
             markdown: content,
+            fileInventory,
             sourceType: "claude_plugin",
             sourceLabel: `${pluginName} ${version}`,
             pluginName,

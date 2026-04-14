@@ -1,4 +1,6 @@
 import { Router, type Request } from "express";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import type { Db } from "@paperclipai/db";
 import type { CompanySkillListItem } from "@paperclipai/shared";
 import {
@@ -28,7 +30,7 @@ function toCompanySkillListItem(s: InstanceSkill, companyId: string): CompanySki
     sourcePath: null,
     trustLevel: "markdown_only",
     compatibility: "compatible",
-    fileInventory: [{ path: "SKILL.md", kind: "skill" }],
+    fileInventory: s.fileInventory,
     createdAt: new Date(0),
     updatedAt: new Date(0),
     attachedAgentCount: 0,
@@ -121,10 +123,24 @@ export function companySkillRoutes(db: Db) {
     const relativePath = String(req.query.path ?? "SKILL.md");
     assertCompanyAccess(req, companyId);
 
-    // Instance skill: serve from disk
+    // Instance skill: serve from disk, any file within the skill directory
     const instanceSkill = instanceSkillsCache.getById(skillId);
     if (instanceSkill) {
-      res.json({ path: "SKILL.md", content: instanceSkill.markdown });
+      const skillDir = instanceSkill.diskDir;
+      const resolved = path.resolve(skillDir, relativePath);
+      // Path traversal protection: resolved path must stay within skillDir
+      if (!resolved.startsWith(skillDir + path.sep) && resolved !== path.join(skillDir, "SKILL.md")) {
+        res.status(400).json({ error: t("error.invalidPath") });
+        return;
+      }
+      let content: string;
+      try {
+        content = await fs.readFile(resolved, "utf-8");
+      } catch {
+        res.status(404).json({ error: t("error.skillNotFound") });
+        return;
+      }
+      res.json({ path: relativePath, content });
       return;
     }
 
