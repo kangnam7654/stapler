@@ -122,6 +122,15 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
 
     const toolCalls = assistantMsg.tool_calls ?? [];
     if (toolCalls.length === 0) {
+      // Log the model's text response so we can diagnose tool-calling issues
+      const textContent = typeof assistantMsg.content === "string" ? assistantMsg.content : "";
+      if (textContent) {
+        await onLog("stdout", `[model] ${textContent}\n`);
+      }
+      await onLog(
+        "stdout",
+        `[loop] finish_reason=${choice.finish_reason ?? "unknown"} — no tool_calls returned (tokens: in=${usage.inputTokens} out=${usage.outputTokens})\n`,
+      );
       return { messages, finishReason: "done", errorMessage: null, usage };
     }
 
