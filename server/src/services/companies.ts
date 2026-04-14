@@ -299,8 +299,9 @@ export function companyService(db: Db) {
         await tx.delete(documents).where(eq(documents.companyId, id));
         await tx.delete(goals).where(eq(goals.companyId, id));
         await tx.delete(projects).where(eq(projects.companyId, id));
-        await tx.delete(agents).where(eq(agents.companyId, id));
+        // activityLog.agentId → agents.id (RESTRICT): must delete before agents
         await tx.delete(activityLog).where(eq(activityLog.companyId, id));
+        await tx.delete(agents).where(eq(agents.companyId, id));
         // workspace tables: companyId has no cascade; projectId/executionWorkspaceId are set null (cleared above)
         await tx.delete(workspaceOperations).where(eq(workspaceOperations.companyId, id));
         await tx.delete(workspaceRuntimeServices).where(eq(workspaceRuntimeServices.companyId, id));
