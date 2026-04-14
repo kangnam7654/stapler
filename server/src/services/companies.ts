@@ -266,6 +266,9 @@ export function companyService(db: Db) {
         // Refuse to delete the last company
         const total = await tx.select({ count: count() }).from(companies).then((r) => r[0]?.count ?? 0);
         if (total <= 1) throw unprocessable(t("error.cannotDeleteLastCompany"));
+        // activityLog.runId → heartbeat_runs (RESTRICT) and activityLog.agentId → agents (RESTRICT):
+        // delete first so nothing references heartbeat_runs or agents
+        await tx.delete(activityLog).where(eq(activityLog.companyId, id));
         // Break circular FKs: heartbeat_runs ↔ agent_wakeup_requests
         await tx.update(heartbeatRuns).set({ wakeupRequestId: null }).where(eq(heartbeatRuns.companyId, id));
         await tx.update(agentWakeupRequests).set({ runId: null }).where(eq(agentWakeupRequests.companyId, id));
@@ -299,8 +302,6 @@ export function companyService(db: Db) {
         await tx.delete(documents).where(eq(documents.companyId, id));
         await tx.delete(goals).where(eq(goals.companyId, id));
         await tx.delete(projects).where(eq(projects.companyId, id));
-        // activityLog.agentId → agents.id (RESTRICT): must delete before agents
-        await tx.delete(activityLog).where(eq(activityLog.companyId, id));
         await tx.delete(agents).where(eq(agents.companyId, id));
         // workspace tables: companyId has no cascade; projectId/executionWorkspaceId are set null (cleared above)
         await tx.delete(workspaceOperations).where(eq(workspaceOperations.companyId, id));
