@@ -2,6 +2,7 @@ import type { CompanyStatus, PauseReason } from "../constants.js";
 
 export interface AdapterEndpoint {
   baseUrl?: string;
+  apiKey?: string;
 }
 
 export interface CompanyAdapterDefaults {

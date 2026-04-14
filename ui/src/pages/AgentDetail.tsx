@@ -1662,10 +1662,13 @@ function PromptsTab({
   const isLocal =
     agent.adapterType === "claude_local" ||
     agent.adapterType === "codex_local" ||
+    agent.adapterType === "gemini_local" ||
     agent.adapterType === "opencode_local" ||
     agent.adapterType === "pi_local" ||
     agent.adapterType === "hermes_local" ||
-    agent.adapterType === "cursor";
+    agent.adapterType === "cursor" ||
+    agent.adapterType === "lm_studio_local" ||
+    agent.adapterType === "ollama_local";
 
   const { data: bundle, isLoading: bundleLoading } = useQuery({
     queryKey: queryKeys.agents.instructionsBundle(agent.id),
@@ -1767,7 +1770,9 @@ function PromptsTab({
     }
     const availablePaths = bundle.files.map((file) => file.path);
     if (availablePaths.length === 0) {
-      if (selectedFile !== bundle.entryFile) setSelectedFile(bundle.entryFile);
+      if (selectedFile !== bundle.entryFile && !pendingFiles.includes(selectedFile)) {
+        setSelectedFile(bundle.entryFile);
+      }
       return;
     }
     if (!availablePaths.includes(selectedFile) && selectedFile !== currentEntryFile && !pendingFiles.includes(selectedFile)) {
@@ -1913,10 +1918,19 @@ function PromptsTab({
   }, [filePanelWidth]);
 
   if (!isLocal) {
+    const isApiAdapter =
+      agent.adapterType === "ollama_local" || agent.adapterType === "lm_studio_local";
     return (
-      <div className="max-w-3xl">
+      <div className="max-w-3xl space-y-1">
         <p className="text-sm text-muted-foreground">
-          지시사항 번들은 로컬 어댑터에서만 사용할 수 있습니다.
+          {isApiAdapter
+            ? `${agent.adapterType === "ollama_local" ? "Ollama" : "LM Studio"} 어댑터는 HTTP API 방식으로 동작하므로 지시사항 번들을 지원하지 않습니다.`
+            : "지시사항 번들은 CLI 기반 로컬 어댑터(Claude, Codex, Gemini, OpenCode, Cursor 등)에서만 사용할 수 있습니다."}
+        </p>
+        <p className="text-xs text-muted-foreground/60">
+          {isApiAdapter
+            ? "시스템 프롬프트는 에이전트 설정의 프롬프트 템플릿 필드를 사용하세요."
+            : "지원 어댑터: claude_local, codex_local, gemini_local, opencode_local, pi_local, hermes_local, cursor"}
         </p>
       </div>
     );
@@ -2124,12 +2138,20 @@ function PromptsTab({
               )}
             </div>
           </div>
-          {showNewFileInput && (
+          {showNewFileInput && (() => {
+            const normalizedNewPath = newFilePath
+              .trim()
+              .replace(/^\/+/, "")
+              .replace(/\/+/g, "/");
+            const newPathInvalid =
+              normalizedNewPath.length === 0 ||
+              normalizedNewPath.split("/").some((segment) => segment.length === 0 || segment === "." || segment === "..");
+            return (
             <div className="space-y-2">
               <Input
                 value={newFilePath}
                 onChange={(event) => setNewFilePath(event.target.value)}
-                placeholder="TOOLS.md"
+                placeholder="ref/database.md"
                 className="font-mono text-sm"
                 autoFocus
                 onKeyDown={(event) => {
@@ -2139,19 +2161,22 @@ function PromptsTab({
                   }
                 }}
               />
+              <p className="text-[11px] text-muted-foreground">
+                폴더는 <code className="font-mono">/</code>로 구분합니다 (예: <code className="font-mono">ref/database.md</code>)
+              </p>
               <div className="flex gap-2">
                 <Button
                   type="button"
                   size="sm"
                   variant="default"
                   className="flex-1"
-                  disabled={!newFilePath.trim() || newFilePath.includes("..")}
+                  disabled={newPathInvalid}
                   onClick={() => {
-                    const candidate = newFilePath.trim();
-                    if (!candidate || candidate.includes("..")) return;
+                    if (newPathInvalid) return;
+                    const candidate = normalizedNewPath;
                     setPendingFiles((prev) => prev.includes(candidate) ? prev : [...prev, candidate]);
                     setSelectedFile(candidate);
-                    setDraft("");
+                    setDraft(null);
                     setNewFilePath("");
                     setShowNewFileInput(false);
                   }}
@@ -2172,7 +2197,8 @@ function PromptsTab({
                 </Button>
               </div>
             </div>
-          )}
+            );
+          })()}
           <PackageFileTree
             nodes={fileTree}
             selectedFile={selectedOrEntryFile}
@@ -2185,8 +2211,10 @@ function PromptsTab({
               return next;
             })}
             onSelectFile={(filePath) => {
-              setSelectedFile(filePath);
-              if (!fileOptions.includes(filePath)) setDraft("");
+              if (filePath !== selectedOrEntryFile) {
+                setSelectedFile(filePath);
+                setDraft(null);
+              }
               if (isMobile) setShowFilePanel(false);
             }}
             onToggleCheck={() => {}}

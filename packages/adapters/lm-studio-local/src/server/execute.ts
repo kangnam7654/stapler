@@ -1,4 +1,5 @@
 // src/server/execute.ts
+import fs from "node:fs/promises";
 import type {
   AdapterExecutionContext,
   AdapterExecutionResult,
@@ -7,6 +8,7 @@ import {
   asNumber,
   asString,
   asStringArray,
+  buildBundleTree,
   buildPaperclipEnv,
   parseObject,
 } from "@paperclipai/adapter-utils/server-utils";
@@ -23,11 +25,57 @@ import {
   PROVIDER_NAME,
 } from "../index.js";
 
+const DEFAULT_PROMPT_TEMPLATE = `You are {{agent.name}}, an AI agent running inside the Paperclip control plane.
+
+You have access to the \`paperclip_request\` tool which lets you call the Paperclip REST API (base URL is in PAPERCLIP_API_URL env var).
+
+Key API endpoints:
+- Read your assigned tasks: GET /api/issues?assigneeId={{agent.id}}&status=in_progress
+- List existing agents: GET /api/companies/{{agent.companyId}}/agents
+- Comment on issues: POST /api/issues/{issueId}/comments  { "body": "..." }
+- Hire new agents: POST /api/companies/{{agent.companyId}}/agent-hires  { "name": "...", "role": "...", "adapterType": "lm_studio_local", "adapterConfig": { "model": "...", "baseUrl": "http://localhost:1234" } }
+- Mark issue done: PATCH /api/issues/{issueId}  { "status": "done" }
+
+Work loop — follow these steps exactly:
+1. Call GET /api/issues?assigneeId={{agent.id}}&status=in_progress to get your current tasks.
+2. For each task, FIRST check whether the work is already done (e.g. if the task is to hire a role, call GET /api/companies/{{agent.companyId}}/agents and check if that role already exists).
+3. If the work is already done, skip to step 4 immediately — do NOT redo it.
+4. If the work is not done, perform it now using paperclip_request.
+5. IMPORTANT: Call PATCH /api/issues/{issueId} with { "status": "done" } to mark the task complete. You MUST do this for every task before ending your session.
+
+Start now by reading your assignments.`;
+
+async function fetchIssueContext(
+  issueId: string,
+  apiUrl: string,
+  apiKey: string,
+): Promise<{ title: string; description: string | null } | null> {
+  try {
+    const url = `${apiUrl.replace(/\/+$/, "")}/api/issues/${encodeURIComponent(issueId)}`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const issue = await res.json() as Record<string, unknown>;
+    const title = typeof issue.title === "string" ? issue.title : null;
+    if (!title) return null;
+    const description = typeof issue.description === "string" ? issue.description : null;
+    return { title, description };
+  } catch {
+    return null;
+  }
+}
+
 function buildInitialMessages(opts: {
   systemPrompt: string;
   promptTemplate: string;
   prevSummary: string;
   agent: AdapterExecutionContext["agent"];
+  taskNote: string;
 }): ChatMessage[] {
   const messages: ChatMessage[] = [];
   if (opts.systemPrompt.length > 0) {
@@ -41,22 +89,47 @@ function buildInitialMessages(opts: {
   }
   const rendered = opts.promptTemplate
     .replace(/\{\{agent\.id\}\}/g, opts.agent.id)
-    .replace(/\{\{agent\.name\}\}/g, opts.agent.name ?? opts.agent.id);
-  messages.push({ role: "user", content: rendered });
+    .replace(/\{\{agent\.name\}\}/g, opts.agent.name ?? opts.agent.id)
+    .replace(/\{\{agent\.companyId\}\}/g, opts.agent.companyId);
+
+  const userContent = opts.taskNote
+    ? `${opts.taskNote}\n\n${rendered}`
+    : rendered;
+
+  messages.push({ role: "user", content: userContent });
   return messages;
 }
 
 export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionResult> {
-  const { runId, agent, runtime, config, onLog, onMeta, authToken } = ctx;
+  const { runId, agent, runtime, config, context, onLog, onMeta, authToken } = ctx;
 
   const baseUrl = asString(config.baseUrl, DEFAULT_LM_STUDIO_BASE_URL);
   const model = asString(config.model, DEFAULT_LM_STUDIO_MODEL);
-  const cwd = asString(config.cwd, process.cwd());
-  const systemPrompt = asString(config.systemPrompt, "");
-  const promptTemplate = asString(
-    config.promptTemplate,
-    "You are agent {{agent.name}}. Continue your Paperclip work.",
-  );
+  const lmStudioApiKey = asString(config.apiKey, "");
+  const instructionsFilePath = asString(config.instructionsFilePath, "");
+  const instructionsRootPath = asString(config.instructionsRootPath, "");
+  const cwd = asString(config.cwd, instructionsRootPath || process.cwd());
+  let systemPrompt = asString(config.systemPrompt, "");
+  if (instructionsFilePath) {
+    try {
+      const fileContent = await fs.readFile(instructionsFilePath, "utf8");
+      systemPrompt = fileContent.trim() + (systemPrompt ? "\n\n" + systemPrompt : "");
+    } catch {
+      // file not yet created or inaccessible — continue without it
+    }
+  }
+  if (instructionsRootPath) {
+    try {
+      const tree = await buildBundleTree(instructionsRootPath);
+      if (tree) {
+        const treeSection = `## Bundle structure\n\n\`\`\`\n${tree}\n\`\`\`\n\nThis tree is a snapshot taken at session start. Use \`read_file(path)\` to load any file. Call \`list_dir(path)\` to re-scan if files may have changed during the session.`;
+        systemPrompt = systemPrompt ? `${systemPrompt}\n\n${treeSection}` : treeSection;
+      }
+    } catch {
+      // root inaccessible — continue without tree hint
+    }
+  }
+  const promptTemplate = asString(config.promptTemplate, DEFAULT_PROMPT_TEMPLATE);
   const timeoutSec = asNumber(config.timeoutSec, 300);
   const enabledToolNames = asStringArray(config.enabledTools);
 
@@ -70,8 +143,29 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     env.PAPERCLIP_API_KEY = authToken;
   }
 
+  // Build task context note from run context
+  const issueId =
+    (typeof context.issueId === "string" && context.issueId) ||
+    (typeof context.taskId === "string" && context.taskId) ||
+    null;
+  const wakeReason = typeof context.wakeReason === "string" ? context.wakeReason : null;
+
+  let taskNote = "";
+  if (issueId) {
+    const apiUrl = env.PAPERCLIP_API_URL ?? "";
+    const apiKey = env.PAPERCLIP_API_KEY ?? "";
+    const issueData = apiUrl ? await fetchIssueContext(issueId, apiUrl, apiKey) : null;
+    if (issueData) {
+      taskNote = `## Current Task\n**${issueData.title}** (ID: ${issueId})`;
+      if (issueData.description) taskNote += `\n\n${issueData.description}`;
+      if (wakeReason) taskNote += `\n\nWake reason: ${wakeReason}`;
+    } else {
+      taskNote = `## Current Task\nTask ID: ${issueId}${wakeReason ? `\nWake reason: ${wakeReason}` : ""}`;
+    }
+  }
+
   const prevSummary = asString(parseObject(runtime.sessionParams).summary, "");
-  const messages = buildInitialMessages({ systemPrompt, promptTemplate, prevSummary, agent });
+  const messages = buildInitialMessages({ systemPrompt, promptTemplate, prevSummary, agent, taskNote });
 
   if (onMeta) {
     await onMeta({
@@ -91,6 +185,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const loopResult = await runAgentLoop({
     baseUrl,
     model,
+    apiKey: lmStudioApiKey || undefined,
     messages,
     tools: selectedTools,
     timeoutMs: timeoutSec * 1000,
@@ -102,6 +197,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const summary = await summarizeSession({
     baseUrl,
     model,
+    apiKey: lmStudioApiKey || undefined,
     messages: loopResult.messages,
     timeoutMs: 60_000,
   });

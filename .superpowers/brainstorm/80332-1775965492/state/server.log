@@ -1,0 +1,4 @@
+{"type":"server-started","port":58842,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:58842","screen_dir":"/Users/kangnam/projects/stapler/.superpowers/brainstorm/80332-1775965492/content","state_dir":"/Users/kangnam/projects/stapler/.superpowers/brainstorm/80332-1775965492/state"}
+{"type":"screen-added","file":"/Users/kangnam/projects/stapler/.superpowers/brainstorm/80332-1775965492/content/getting-started-guide.html"}
+{"type":"screen-added","file":"/Users/kangnam/projects/stapler/.superpowers/brainstorm/80332-1775965492/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

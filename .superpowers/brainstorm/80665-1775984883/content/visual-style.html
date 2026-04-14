@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Style - Agent Office</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a2e; color:#e0e0e0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:24px; }
+  h2 { text-align:center; margin-bottom:6px; font-size:22px; }
+  .subtitle { text-align:center; opacity:0.5; margin-bottom:28px; font-size:14px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; max-width:1100px; margin:0 auto; }
+  .card {
+    border:2px solid rgba(255,255,255,0.08); border-radius:12px; overflow:hidden;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .card:hover { border-color:rgba(99,102,241,0.4); transform:translateY(-2px); }
+  .card.selected { border-color:#6366f1; box-shadow:0 0 20px rgba(99,102,241,0.3); }
+  .card-canvas { height:320px; position:relative; overflow:hidden; }
+  .card-info { padding:14px; background:rgba(0,0,0,0.3); }
+  .card-info h3 { font-size:15px; margin-bottom:4px; }
+  .card-info p { font-size:12px; opacity:0.6; line-height:1.5; }
+  .tag { display:inline-block; font-size:10px; padding:2px 8px; border-radius:10px; margin-top:6px; }
+
+  /* === STYLE A: Pixel Art === */
+  .pixel-office {
+    background:#2d1b69;
+    image-rendering:pixelated;
+  }
+  .pixel-floor {
+    position:absolute; bottom:0; left:0; right:0; height:140px;
+    background:repeating-conic-gradient(#3d2b6b 0% 25%, #352563 0% 50%) 0 0 / 24px 24px;
+  }
+  .pixel-wall {
+    position:absolute; top:0; left:0; right:0; height:180px;
+    background:linear-gradient(180deg, #1a0f3d 0%, #2d1b69 100%);
+    border-bottom:3px solid #4a3580;
+  }
+  .pixel-kanban {
+    position:absolute; top:30px; left:50%; transform:translateX(-50%);
+    width:120px; height:80px; background:#f5f0e8; border-radius:2px;
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:2px; padding:4px;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.3);
+  }
+  .pixel-kanban-col { display:flex; flex-direction:column; gap:2px; }
+  .pixel-kanban-col::before {
+    content:''; display:block; height:8px; border-radius:1px; font-size:6px; text-align:center;
+  }
+  .pixel-kanban-col:nth-child(1)::before { background:#ef4444; }
+  .pixel-kanban-col:nth-child(2)::before { background:#eab308; }
+  .pixel-kanban-col:nth-child(3)::before { background:#22c55e; }
+  .pixel-card { width:100%; height:6px; background:#d4cfc4; border-radius:1px; }
+  .pixel-desk {
+    position:absolute; bottom:50px;
+    width:56px; height:32px; background:#8b6914; border-radius:2px;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.3);
+  }
+  .pixel-desk::after {
+    content:''; position:absolute; top:-16px; left:50%; transform:translateX(-50%);
+    width:28px; height:18px; background:#333; border-radius:2px 2px 0 0;
+    border:2px solid #555;
+  }
+  .pixel-char {
+    position:absolute; width:16px; height:24px; image-rendering:pixelated;
+  }
+  .pixel-char-body {
+    width:12px; height:12px; border-radius:2px; margin:0 auto;
+  }
+  .pixel-char-head {
+    width:10px; height:10px; background:#fbbf6e; border-radius:2px; margin:0 auto 1px;
+  }
+  .pixel-char-legs {
+    width:12px; height:4px; margin:0 auto; display:flex; gap:2px;
+  }
+  .pixel-char-legs div { flex:1; height:4px; background:#444; border-radius:0 0 1px 1px; }
+  .pixel-status {
+    position:absolute; top:-8px; left:50%; transform:translateX(-50%);
+    font-size:8px; white-space:nowrap;
+  }
+
+  /* Walk animation for idle characters */
+  @keyframes pixelWalk {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(20px) scaleX(-1); }
+    50% { transform: translateX(40px); }
+    75% { transform: translateX(20px) scaleX(-1); }
+  }
+  .pixel-walking { animation: pixelWalk 4s ease-in-out infinite; }
+
+  /* === STYLE B: Isometric === */
+  .iso-office {
+    background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    perspective:600px;
+  }
+  .iso-floor {
+    position:absolute; bottom:20px; left:50%; width:280px; height:160px;
+    transform:translateX(-50%) rotateX(60deg) rotateZ(45deg);
+    background:repeating-conic-gradient(#1e3a5f 0% 25%, #162d4d 0% 50%) 0 0 / 30px 30px;
+    border:1px solid rgba(99,162,241,0.1);
+  }
+  .iso-desk {
+    position:absolute;
+    width:50px; height:30px;
+    background:linear-gradient(135deg, #92734a, #7a6040);
+    transform:skewX(-15deg) skewY(5deg);
+    border-radius:2px;
+    box-shadow:0 4px 0 #5a4830, 2px 6px 8px rgba(0,0,0,0.4);
+  }
+  .iso-desk::after {
+    content:''; position:absolute; top:-18px; left:12px;
+    width:26px; height:16px;
+    background:linear-gradient(180deg, #4a90d9, #2563eb);
+    border-radius:2px 2px 0 0; border:1px solid #60a5fa;
+    box-shadow:0 0 8px rgba(37,99,235,0.3);
+  }
+  .iso-agent {
+    position:absolute; text-align:center;
+  }
+  .iso-agent-avatar {
+    width:28px; height:28px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  }
+  .iso-agent-name { font-size:8px; margin-top:2px; opacity:0.7; }
+  .iso-kanban {
+    position:absolute; top:20px; right:20px;
+    width:100px; height:130px; background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.1); border-radius:6px;
+    padding:6px; transform:perspective(400px) rotateY(-5deg);
+  }
+  .iso-kanban-title { font-size:8px; opacity:0.4; text-align:center; margin-bottom:4px; }
+  .iso-kanban-cols { display:flex; gap:3px; height:calc(100% - 16px); }
+  .iso-kanban-col { flex:1; display:flex; flex-direction:column; gap:2px; }
+  .iso-kanban-col-header { font-size:6px; text-align:center; opacity:0.5; padding:2px 0; }
+  .iso-mini-card { height:10px; border-radius:2px; }
+
+  /* === STYLE C: Flat / Minimal === */
+  .flat-office {
+    background:#111827;
+  }
+  .flat-room {
+    position:absolute; inset:16px; border:1px solid rgba(255,255,255,0.06);
+    border-radius:12px; overflow:hidden;
+  }
+  .flat-floor {
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(30,41,59,0) 0%, rgba(30,41,59,0.5) 100%);
+  }
+  .flat-grid {
+    position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.02) 39px, rgba(255,255,255,0.02) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.02) 39px, rgba(255,255,255,0.02) 40px);
+  }
+  .flat-desk-area {
+    position:absolute; border-radius:8px;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:8px;
+  }
+  .flat-monitor {
+    width:28px; height:20px; background:#1e293b; border:1px solid rgba(255,255,255,0.15);
+    border-radius:3px; margin-bottom:4px; position:relative;
+  }
+  .flat-monitor.active::after {
+    content:''; position:absolute; inset:2px; background:rgba(34,197,94,0.2);
+    border-radius:1px;
+  }
+  .flat-monitor-stand {
+    width:8px; height:4px; background:rgba(255,255,255,0.1); margin:0 auto 4px;
+  }
+  .flat-agent-dot {
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; position:relative;
+  }
+  .flat-agent-label { font-size:8px; margin-top:3px; opacity:0.5; }
+  .flat-agent-status {
+    position:absolute; bottom:-2px; right:-2px;
+    width:7px; height:7px; border-radius:50%; border:1.5px solid #111827;
+  }
+  .flat-kanban-wall {
+    position:absolute; top:16px; left:50%; transform:translateX(-50%);
+    width:180px; background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.06); border-radius:8px;
+    padding:8px;
+  }
+  .flat-kanban-header { font-size:9px; opacity:0.3; text-align:center; margin-bottom:6px; }
+  .flat-kanban-board { display:flex; gap:6px; }
+  .flat-kanban-column { flex:1; }
+  .flat-kanban-column-title { font-size:7px; opacity:0.4; margin-bottom:3px; text-align:center; }
+  .flat-task-card {
+    height:8px; border-radius:2px; margin-bottom:2px;
+  }
+
+  @keyframes flatFloat {
+    0%, 100% { transform:translate(0, 0); }
+    33% { transform:translate(12px, -8px); }
+    66% { transform:translate(-8px, 6px); }
+  }
+  .flat-floating { animation:flatFloat 6s ease-in-out infinite; }
+
+  .rec { margin-top:20px; max-width:1100px; margin-left:auto; margin-right:auto;
+    padding:14px 18px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2);
+    border-radius:10px; text-align:center; }
+  .rec p { font-size:13px; opacity:0.7; }
+</style>
+</head>
+<body>
+<h2>사무실 시뮬레이션 비주얼 스타일</h2>
+<p class="subtitle">에이전트들이 일하는 사무실을 어떤 스타일로 그릴까요?</p>
+
+<div class="cards">
+  <!-- PIXEL ART -->
+  <div class="card" data-choice="pixel" onclick="toggleSelect(this)">
+    <div class="card-canvas pixel-office">
+      <div class="pixel-wall"></div>
+      <!-- Kanban on wall -->
+      <div class="pixel-kanban">
+        <div class="pixel-kanban-col">
+          <div class="pixel-card"></div><div class="pixel-card"></div><div class="pixel-card"></div>
+        </div>
+        <div class="pixel-kanban-col">
+          <div class="pixel-card"></div><div class="pixel-card"></div>
+        </div>
+        <div class="pixel-kanban-col">
+          <div class="pixel-card"></div>
+        </div>
+      </div>
+      <div class="pixel-floor"></div>
+      <!-- Desks -->
+      <div class="pixel-desk" style="left:30px;"></div>
+      <div class="pixel-desk" style="left:120px;"></div>
+      <div class="pixel-desk" style="left:210px;"></div>
+      <!-- Seated agent (working) -->
+      <div class="pixel-char" style="left:44px; bottom:78px;">
+        <div class="pixel-status">💻</div>
+        <div class="pixel-char-head"></div>
+        <div class="pixel-char-body" style="background:#6366f1;"></div>
+        <div class="pixel-char-legs"><div></div><div></div></div>
+      </div>
+      <!-- Seated agent (working) -->
+      <div class="pixel-char" style="left:134px; bottom:78px;">
+        <div class="pixel-status">💻</div>
+        <div class="pixel-char-head"></div>
+        <div class="pixel-char-body" style="background:#22c55e;"></div>
+        <div class="pixel-char-legs"><div></div><div></div></div>
+      </div>
+      <!-- Walking agent (idle) -->
+      <div class="pixel-char pixel-walking" style="left:170px; bottom:160px;">
+        <div class="pixel-status">☕</div>
+        <div class="pixel-char-head"></div>
+        <div class="pixel-char-body" style="background:#f59e0b;"></div>
+        <div class="pixel-char-legs"><div></div><div></div></div>
+      </div>
+    </div>
+    <div class="card-info">
+      <h3>A. 픽셀 아트</h3>
+      <p>레트로 게임 느낌. 캐릭터와 가구가 도트로 표현됨. 친근하고 장난스러운 분위기.</p>
+      <span class="tag" style="background:rgba(99,102,241,0.2); color:#a5b4fc;">가벼움 · 재미 · 구현 쉬움</span>
+    </div>
+  </div>
+
+  <!-- ISOMETRIC -->
+  <div class="card" data-choice="isometric" onclick="toggleSelect(this)">
+    <div class="card-canvas iso-office">
+      <div class="iso-floor"></div>
+      <!-- Desks -->
+      <div class="iso-desk" style="left:60px; bottom:100px;"></div>
+      <div class="iso-desk" style="left:160px; bottom:80px;"></div>
+      <div class="iso-desk" style="left:100px; bottom:50px;"></div>
+      <!-- Agents -->
+      <div class="iso-agent" style="left:68px; bottom:130px;">
+        <div class="iso-agent-avatar" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">🤖</div>
+        <div class="iso-agent-name">CEO</div>
+      </div>
+      <div class="iso-agent" style="left:168px; bottom:110px;">
+        <div class="iso-agent-avatar" style="background:linear-gradient(135deg,#22c55e,#16a34a);">⚡</div>
+        <div class="iso-agent-name">Engineer</div>
+      </div>
+      <div class="iso-agent" style="left:200px; bottom:180px;">
+        <div class="iso-agent-avatar" style="background:linear-gradient(135deg,#f59e0b,#d97706);">🎨</div>
+        <div class="iso-agent-name" style="opacity:0.4;">idle ☕</div>
+      </div>
+      <!-- Kanban -->
+      <div class="iso-kanban">
+        <div class="iso-kanban-title">KANBAN</div>
+        <div class="iso-kanban-cols">
+          <div class="iso-kanban-col">
+            <div class="iso-kanban-col-header">To Do</div>
+            <div class="iso-mini-card" style="background:rgba(239,68,68,0.4);"></div>
+            <div class="iso-mini-card" style="background:rgba(239,68,68,0.3);"></div>
+            <div class="iso-mini-card" style="background:rgba(239,68,68,0.2);"></div>
+          </div>
+          <div class="iso-kanban-col">
+            <div class="iso-kanban-col-header">Doing</div>
+            <div class="iso-mini-card" style="background:rgba(234,179,8,0.4);"></div>
+            <div class="iso-mini-card" style="background:rgba(234,179,8,0.3);"></div>
+          </div>
+          <div class="iso-kanban-col">
+            <div class="iso-kanban-col-header">Done</div>
+            <div class="iso-mini-card" style="background:rgba(34,197,94,0.4);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-info">
+      <h3>B. 아이소메트릭</h3>
+      <p>SimCity / 투 포인트 호스피탈 스타일. 입체감 있는 사무실. 전문적이면서도 시각적으로 풍부함.</p>
+      <span class="tag" style="background:rgba(234,179,8,0.2); color:#fbbf24;">입체감 · 프로 · 구현 중간</span>
+    </div>
+  </div>
+
+  <!-- FLAT MINIMAL -->
+  <div class="card" data-choice="flat" onclick="toggleSelect(this)">
+    <div class="card-canvas flat-office">
+      <div class="flat-room">
+        <div class="flat-floor"></div>
+        <div class="flat-grid"></div>
+        <!-- Kanban on wall -->
+        <div class="flat-kanban-wall">
+          <div class="flat-kanban-header">BOARD</div>
+          <div class="flat-kanban-board">
+            <div class="flat-kanban-column">
+              <div class="flat-kanban-column-title">TODO</div>
+              <div class="flat-task-card" style="background:rgba(239,68,68,0.3);"></div>
+              <div class="flat-task-card" style="background:rgba(239,68,68,0.25);"></div>
+              <div class="flat-task-card" style="background:rgba(239,68,68,0.2);"></div>
+            </div>
+            <div class="flat-kanban-column">
+              <div class="flat-kanban-column-title">DOING</div>
+              <div class="flat-task-card" style="background:rgba(234,179,8,0.3);"></div>
+              <div class="flat-task-card" style="background:rgba(234,179,8,0.25);"></div>
+            </div>
+            <div class="flat-kanban-column">
+              <div class="flat-kanban-column-title">DONE</div>
+              <div class="flat-task-card" style="background:rgba(34,197,94,0.3);"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Desk areas -->
+        <div class="flat-desk-area" style="left:24px; bottom:24px; width:70px; height:80px;">
+          <div class="flat-monitor active"></div>
+          <div class="flat-monitor-stand"></div>
+          <div class="flat-agent-dot" style="background:rgba(99,102,241,0.3);">
+            🤖
+            <div class="flat-agent-status" style="background:#22c55e;"></div>
+          </div>
+          <div class="flat-agent-label">CEO</div>
+        </div>
+        <div class="flat-desk-area" style="left:110px; bottom:24px; width:70px; height:80px;">
+          <div class="flat-monitor active"></div>
+          <div class="flat-monitor-stand"></div>
+          <div class="flat-agent-dot" style="background:rgba(34,197,94,0.3);">
+            ⚡
+            <div class="flat-agent-status" style="background:#22c55e;"></div>
+          </div>
+          <div class="flat-agent-label">Engineer</div>
+        </div>
+        <div class="flat-desk-area" style="right:24px; bottom:24px; width:70px; height:80px;">
+          <div class="flat-monitor"></div>
+          <div class="flat-monitor-stand"></div>
+          <div class="flat-agent-dot flat-floating" style="background:rgba(245,158,11,0.3); position:relative; bottom:20px;">
+            🎨
+            <div class="flat-agent-status" style="background:#eab308;"></div>
+          </div>
+          <div class="flat-agent-label">Designer (idle)</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-info">
+      <h3>C. 플랫 / 미니멀</h3>
+      <p>기존 Stapler UI와 톤 일치. 깔끔하고 정보 밀도 높음. 대시보드에 자연스럽게 녹아듦.</p>
+      <span class="tag" style="background:rgba(34,197,94,0.2); color:#4ade80;">일관성 · 깔끔 · 구현 쉬움</span>
+    </div>
+  </div>
+</div>
+
+<div class="rec">
+  <p>💡 사무실 + 캐릭터 돌아다니는 "게임 느낌"을 살리려면 <strong>A(픽셀)</strong> 또는 <strong>B(아이소메트릭)</strong>이 잘 맞습니다. 기존 UI 톤과의 조화를 중시한다면 <strong>C(플랫)</strong>.</p>
+</div>
+
+<script>
+function toggleSelect(el) {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  if (window.__sendChoice) window.__sendChoice(el.dataset.choice, el.querySelector('h3')?.textContent || '');
+}
+</script>
+</body>
+</html>

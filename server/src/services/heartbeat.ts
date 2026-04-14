@@ -77,6 +77,19 @@ const SESSIONED_LOCAL_ADAPTERS = new Set([
   "pi_local",
 ]);
 
+export function mergeAdapterConfigWithCompanyDefaults(
+  companyAdapterDefaults: Record<string, unknown>,
+  runtimeConfig: Record<string, unknown>,
+): Record<string, unknown> {
+  const explicitOverrides = Object.fromEntries(
+    Object.entries(runtimeConfig).filter(([, value]) => value !== null && value !== undefined),
+  );
+  return {
+    ...companyAdapterDefaults,
+    ...explicitOverrides,
+  };
+}
+
 function deriveRepoNameFromRepoUrl(repoUrl: string | null): string | null {
   const trimmed = repoUrl?.trim() ?? "";
   if (!trimmed) return null;
@@ -2547,7 +2560,10 @@ export function heartbeatService(db: Db) {
         })
         .catch(() => ({}));
 
-      const mergedAdapterConfig = { ...companyAdapterDefaults, ...(runtimeConfig as Record<string, unknown>) };
+      const mergedAdapterConfig = mergeAdapterConfigWithCompanyDefaults(
+        companyAdapterDefaults,
+        runtimeConfig as Record<string, unknown>,
+      );
 
       const adapterResult = await adapter.execute({
         runId: run.id,

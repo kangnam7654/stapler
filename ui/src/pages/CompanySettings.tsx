@@ -1,3 +1,4 @@
+import type { AdapterEnvironmentTestResult } from "@paperclipai/shared";
 import { ChangeEvent, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -5,6 +6,7 @@ import { Link } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
+import { agentsApi } from "../api/agents";
 import { companiesApi } from "../api/companies";
 import { accessApi } from "../api/access";
 import { assetsApi } from "../api/assets";
@@ -42,6 +44,7 @@ export function CompanySettings() {
   const [logoUrl, setLogoUrl] = useState("");
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
   const [lmStudioBaseUrl, setLmStudioBaseUrl] = useState("");
+  const [lmStudioApiKey, setLmStudioApiKey] = useState("");
   const [ollamaBaseUrl, setOllamaBaseUrl] = useState("");
 
   // Sync local state from selected company
@@ -52,6 +55,7 @@ export function CompanySettings() {
     setBrandColor(selectedCompany.brandColor ?? "");
     setLogoUrl(selectedCompany.logoUrl ?? "");
     setLmStudioBaseUrl(selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "");
+    setLmStudioApiKey(selectedCompany.adapterDefaults?.lm_studio_local?.apiKey ?? "");
     setOllamaBaseUrl(selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? "");
   }, [selectedCompany]);
 
@@ -69,6 +73,7 @@ export function CompanySettings() {
   const adapterDefaultsDirty =
     !!selectedCompany &&
     (lmStudioBaseUrl !== (selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "") ||
+     lmStudioApiKey !== (selectedCompany.adapterDefaults?.lm_studio_local?.apiKey ?? "") ||
      ollamaBaseUrl !== (selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? ""));
 
   const generalMutation = useMutation({
@@ -86,13 +91,42 @@ export function CompanySettings() {
     mutationFn: () =>
       companiesApi.update(selectedCompanyId!, {
         adapterDefaults: {
-          lm_studio_local: lmStudioBaseUrl ? { baseUrl: lmStudioBaseUrl } : undefined,
+          lm_studio_local: (lmStudioBaseUrl || lmStudioApiKey)
+            ? { baseUrl: lmStudioBaseUrl || undefined, apiKey: lmStudioApiKey || undefined }
+            : undefined,
           ollama_local: ollamaBaseUrl ? { baseUrl: ollamaBaseUrl } : undefined,
         },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
       pushToast({ title: "어댑터 기본값 저장됨", tone: "success" });
+    },
+  });
+
+  const lmStudioTestMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedCompanyId) {
+        throw new Error("회사를 먼저 선택해 주세요.");
+      }
+      return agentsApi.testEnvironment(selectedCompanyId, "lm_studio_local", {
+        adapterConfig: {
+          baseUrl: lmStudioBaseUrl || undefined,
+          apiKey: lmStudioApiKey || undefined,
+        },
+      });
+    },
+  });
+
+  const ollamaTestMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedCompanyId) {
+        throw new Error("회사를 먼저 선택해 주세요.");
+      }
+      return agentsApi.testEnvironment(selectedCompanyId, "ollama_local", {
+        adapterConfig: {
+          baseUrl: ollamaBaseUrl || undefined,
+        },
+      });
     },
   });
 
@@ -195,11 +229,31 @@ export function CompanySettings() {
     clearLogoMutation.mutate();
   }
 
+  function handleLmStudioBaseUrlChange(value: string) {
+    setLmStudioBaseUrl(value);
+    lmStudioTestMutation.reset();
+  }
+
+  function handleLmStudioApiKeyChange(value: string) {
+    setLmStudioApiKey(value);
+    lmStudioTestMutation.reset();
+  }
+
+  function handleOllamaBaseUrlChange(value: string) {
+    setOllamaBaseUrl(value);
+    ollamaTestMutation.reset();
+  }
+
   useEffect(() => {
     setInviteError(null);
     setInviteSnippet(null);
     setSnippetCopied(false);
     setSnippetCopyDelightId(0);
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    lmStudioTestMutation.reset();
+    ollamaTestMutation.reset();
   }, [selectedCompanyId]);
 
   const archiveMutation = useMutation({
@@ -445,7 +499,7 @@ export function CompanySettings() {
         </div>
         <div className="space-y-3 rounded-md border border-border px-4 py-4">
           <p className="text-xs text-muted-foreground">
-            에이전트에 Base URL이 설정되지 않은 경우 여기서 지정한 값이 사용됩니다.
+            에이전트에 Base URL이 설정되지 않은 경우 여기서 지정한 값이 사용됩니다. 저장하지 않아도 현재 입력값으로 연결 테스트를 실행할 수 있습니다.
           </p>
           <div className="space-y-2">
             <label className="text-xs font-medium">LM Studio Base URL</label>
@@ -454,8 +508,47 @@ export function CompanySettings() {
               className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
               placeholder="http://192.168.x.x:1234"
               value={lmStudioBaseUrl}
-              onChange={(e) => setLmStudioBaseUrl(e.target.value)}
+              onChange={(e) => handleLmStudioBaseUrlChange(e.target.value)}
             />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium">LM Studio API Key</label>
+            <input
+              type="password"
+              className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
+              placeholder="lms-..."
+              value={lmStudioApiKey}
+              onChange={(e) => handleLmStudioApiKeyChange(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="space-y-1">
+                <div className="text-xs font-medium">LM Studio 연결 테스트</div>
+                <p className="text-[11px] text-muted-foreground">
+                  모델 목록 조회 후, 사용 가능한 첫 모델로 짧은 응답 probe까지 확인합니다.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => lmStudioTestMutation.mutate()}
+                disabled={lmStudioTestMutation.isPending || !selectedCompanyId}
+              >
+                {lmStudioTestMutation.isPending ? "테스트 중..." : "연결 테스트"}
+              </Button>
+            </div>
+            {lmStudioTestMutation.isError && (
+              <p className="text-xs text-destructive">
+                {lmStudioTestMutation.error instanceof Error
+                  ? lmStudioTestMutation.error.message
+                  : "LM Studio 연결 테스트에 실패했습니다."}
+              </p>
+            )}
+            {lmStudioTestMutation.data && (
+              <ProviderEnvironmentResult result={lmStudioTestMutation.data} />
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium">Ollama Base URL</label>
@@ -464,8 +557,37 @@ export function CompanySettings() {
               className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
               placeholder="http://192.168.x.x:11434"
               value={ollamaBaseUrl}
-              onChange={(e) => setOllamaBaseUrl(e.target.value)}
+              onChange={(e) => handleOllamaBaseUrlChange(e.target.value)}
             />
+          </div>
+          <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="space-y-1">
+                <div className="text-xs font-medium">Ollama 연결 테스트</div>
+                <p className="text-[11px] text-muted-foreground">
+                  모델 목록 조회 후, 사용 가능한 첫 모델로 짧은 응답 probe까지 확인합니다.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => ollamaTestMutation.mutate()}
+                disabled={ollamaTestMutation.isPending || !selectedCompanyId}
+              >
+                {ollamaTestMutation.isPending ? "테스트 중..." : "연결 테스트"}
+              </Button>
+            </div>
+            {ollamaTestMutation.isError && (
+              <p className="text-xs text-destructive">
+                {ollamaTestMutation.error instanceof Error
+                  ? ollamaTestMutation.error.message
+                  : "Ollama 연결 테스트에 실패했습니다."}
+              </p>
+            )}
+            {ollamaTestMutation.data && (
+              <ProviderEnvironmentResult result={ollamaTestMutation.data} />
+            )}
           </div>
           <Button
             variant="outline"
@@ -778,4 +900,51 @@ function buildResolutionTestUrl(input: AgentSnippetInput): string | null {
   } catch {
     return null;
   }
+}
+
+function ProviderEnvironmentResult({
+  result,
+}: {
+  result: AdapterEnvironmentTestResult;
+}) {
+  const statusLabel =
+    result.status === "pass"
+      ? "정상"
+      : result.status === "warn"
+        ? "경고"
+        : "실패";
+  const statusClass =
+    result.status === "pass"
+      ? "text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10"
+      : result.status === "warn"
+        ? "text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10"
+        : "text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10";
+
+  return (
+    <div className={`rounded-md border px-3 py-2 text-xs ${statusClass}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">{statusLabel}</span>
+        <span className="text-[11px] opacity-80">
+          {new Date(result.testedAt).toLocaleTimeString()}
+        </span>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {result.checks.map((check, idx) => (
+          <div key={`${check.code}-${idx}`} className="text-[11px] leading-relaxed break-words">
+            <span className="font-medium uppercase tracking-wide opacity-80">
+              {check.level}
+            </span>
+            <span className="mx-1 opacity-60">·</span>
+            <span>{check.message}</span>
+            {check.detail && (
+              <span className="block opacity-75 break-all">({check.detail})</span>
+            )}
+            {check.hint && (
+              <span className="block opacity-90 break-words">Hint: {check.hint}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

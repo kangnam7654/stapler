@@ -699,3 +699,18 @@ export const PLUGIN_BRIDGE_ERROR_CODES = [
   "UNKNOWN",
 ] as const;
 export type PluginBridgeErrorCode = (typeof PLUGIN_BRIDGE_ERROR_CODES)[number];
+
+/**
+ * Roles that are unique per company (at most one active agent per role).
+ * If a CHRO exists, agent-hire requests from non-CHRO agents are automatically
+ * delegated to the CHRO as issues instead of creating the agent directly.
+ */
+export const C_LEVEL_ROLES = new Set([
+  "ceo",
+  "cto",
+  "cfo",
+  "chro",
+  "coo",
+  "cpo",
+  "ciso",
+]);

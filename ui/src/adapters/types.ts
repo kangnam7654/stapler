@@ -20,6 +20,10 @@ export interface AdapterConfigFieldsProps {
   mark: (group: "adapterConfig", field: string, value: unknown) => void;
   /** Available models for dropdowns */
   models: { id: string; label: string }[];
+  /** Callback to refresh the models list (for adapters with dynamic model fetching) */
+  refetchModels?: () => void;
+  /** Whether models are currently being fetched */
+  isFetchingModels?: boolean;
   /** When true, hides the instructions file path field (e.g. during import where it's set automatically) */
   hideInstructionsFile?: boolean;
 }

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office Layout v3 - Long Table</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a2e; color:#e0e0e0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:24px; }
+  h2 { text-align:center; margin-bottom:6px; font-size:22px; }
+  .subtitle { text-align:center; opacity:0.5; margin-bottom:24px; font-size:14px; }
+
+  .office-container {
+    max-width:920px; margin:0 auto;
+    background:#2d1b69; border-radius:12px; overflow:hidden;
+    image-rendering:pixelated; position:relative;
+    border:2px solid rgba(255,255,255,0.08);
+  }
+
+  /* Wall */
+  .wall {
+    height:130px; background:linear-gradient(180deg, #1a0f3d 0%, #2d1b69 100%);
+    border-bottom:4px solid #4a3580; position:relative;
+  }
+  .kanban-board {
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    width:240px; height:88px; background:#f5f0e8; border-radius:3px;
+    padding:5px; box-shadow:3px 3px 0 rgba(0,0,0,0.3);
+  }
+  .kanban-title { font-size:7px; text-align:center; color:#333; font-weight:700; margin-bottom:3px; letter-spacing:1px; }
+  .kanban-cols { display:flex; gap:3px; height:calc(100% - 14px); }
+  .kanban-col { flex:1; background:rgba(0,0,0,0.05); border-radius:2px; padding:2px; }
+  .kanban-col-header { font-size:6px; text-align:center; color:#666; font-weight:600; padding:1px 0; margin-bottom:2px; border-bottom:1px solid rgba(0,0,0,0.1); }
+  .kanban-card { height:8px; border-radius:1px; margin-bottom:2px; }
+  .window {
+    position:absolute; width:40px; height:48px;
+    background:linear-gradient(180deg, #1a3a5f, #0f2440);
+    border:3px solid #4a3580; border-radius:2px;
+  }
+  .window-cross-h { position:absolute; top:50%; left:3px; right:3px; height:2px; background:#4a3580; transform:translateY(-50%); }
+  .window-cross-v { position:absolute; left:50%; top:3px; bottom:3px; width:2px; background:#4a3580; transform:translateX(-50%); }
+  .poster {
+    position:absolute; top:18px; left:30px;
+    width:30px; height:38px; background:#3d5a80; border-radius:1px;
+    border:2px solid #4a3580; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+    display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .wall-clock {
+    position:absolute; top:22px; right:45px;
+    width:22px; height:22px; background:#f5f0e8; border-radius:50%;
+    border:2px solid #4a3580; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+  }
+
+  /* Floor */
+  .floor {
+    height:560px; position:relative;
+    background:repeating-conic-gradient(#3d2b6b 0% 25%, #352563 0% 50%) 0 0 / 32px 32px;
+  }
+
+  /* Long table column */
+  .table-column {
+    position:absolute; top:20px; width:18px;
+    background:linear-gradient(90deg, #a07828, #8b6914, #a07828);
+    border-radius:3px;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.3);
+  }
+
+  /* Seat position (left or right of table) */
+  .seat {
+    position:absolute; display:flex; align-items:center; gap:3px;
+  }
+  .seat-left { flex-direction:row-reverse; }
+  .seat-right { flex-direction:row; }
+
+  /* Monitor */
+  .monitor {
+    width:24px; height:16px; background:#222; border-radius:2px 2px 0 0;
+    border:2px solid #444; position:relative; flex-shrink:0;
+  }
+  .monitor-screen { position:absolute; inset:2px; border-radius:1px; }
+  .monitor-screen.on { background:rgba(34,197,94,0.25); }
+  .monitor-screen.off { background:#1a1a1a; }
+
+  /* Character */
+  .char { display:flex; flex-direction:column; align-items:center; position:relative; flex-shrink:0; }
+  .char-bubble {
+    background:rgba(255,255,255,0.9); color:#333; font-size:6px;
+    padding:1px 3px; border-radius:3px; white-space:nowrap;
+    box-shadow:1px 1px 0 rgba(0,0,0,0.2); margin-bottom:1px;
+    position:absolute; top:-12px; left:50%; transform:translateX(-50%);
+  }
+  .char-head {
+    width:11px; height:11px; background:#fbbf6e; border-radius:2px; position:relative;
+  }
+  .char-eyes {
+    position:absolute; top:4px; left:1px; right:1px;
+    display:flex; justify-content:space-between; padding:0 1px;
+  }
+  .char-eye { width:2px; height:2px; background:#333; border-radius:50%; }
+  .char-body { width:13px; height:11px; border-radius:2px; margin-top:1px; }
+  .char-legs { display:flex; gap:1px; justify-content:center; margin-top:1px; }
+  .char-leg { width:4px; height:4px; background:#2d2d3d; border-radius:0 0 1px 1px; }
+  .char-label { font-size:6px; margin-top:1px; opacity:0.7; text-shadow:1px 1px 0 rgba(0,0,0,0.5); }
+
+  /* Empty seat */
+  .empty-monitor .monitor-screen { background:#1a1a1a; }
+  .empty-char { opacity:0.15; }
+  .empty-char .char-head { background:#888; }
+  .empty-char .char-body { background:#555; }
+  .empty-char .char-leg { background:#444; }
+
+  /* Wandering idle agents */
+  @keyframes wander1 {
+    0%,100% { left:620px; top:120px; }
+    20% { left:660px; top:80px; }
+    40% { left:700px; top:160px; }
+    60% { left:640px; top:200px; }
+    80% { left:610px; top:140px; }
+  }
+  .wandering-1 { animation:wander1 11s ease-in-out infinite; position:absolute; }
+
+  @keyframes wander2 {
+    0%,100% { left:680px; top:340px; }
+    25% { left:640px; top:300px; }
+    50% { left:710px; top:280px; }
+    75% { left:660px; top:360px; }
+  }
+  .wandering-2 { animation:wander2 9s ease-in-out infinite; position:absolute; }
+
+  @keyframes wander3 {
+    0%,100% { left:650px; top:460px; }
+    33% { left:700px; top:420px; }
+    66% { left:630px; top:440px; }
+  }
+  .wandering-3 { animation:wander3 8s ease-in-out infinite; position:absolute; }
+
+  /* Furniture */
+  .coffee-area {
+    position:absolute; display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .coffee-machine {
+    width:20px; height:26px; background:#555; border-radius:2px;
+    border:1px solid #666; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+    display:flex; align-items:center; justify-content:center; font-size:10px;
+  }
+  .coffee-label { font-size:6px; opacity:0.4; }
+  .plant { position:absolute; font-size:16px; filter:drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); }
+
+  /* Aisle label */
+  .aisle-label {
+    position:absolute; font-size:7px; opacity:0.15; letter-spacing:2px;
+    transform:rotate(-90deg); transform-origin:center;
+  }
+
+  /* Info */
+  .layout-info {
+    max-width:920px; margin:16px auto 0;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+    border-radius:8px; padding:14px 18px;
+  }
+  .layout-info h3 { font-size:14px; margin-bottom:8px; }
+  .layout-info p { font-size:12px; opacity:0.6; line-height:1.6; }
+  .layout-diagram {
+    display:inline-block; margin-top:10px; padding:10px 14px;
+    background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.15);
+    border-radius:6px; font-family:monospace; font-size:10px; line-height:1.6; white-space:pre;
+  }
+</style>
+</head>
+<body>
+<h2>사무실 레이아웃 v3: 긴 테이블</h2>
+<p class="subtitle">세로로 긴 책상 4개, 양쪽에 마주보며 앉는 5행 구조</p>
+
+<div class="office-container">
+  <div class="wall">
+    <div class="poster">🚀</div>
+    <div class="window" style="left:90px; top:20px;"><div class="window-cross-h"></div><div class="window-cross-v"></div></div>
+    <div class="kanban-board">
+      <div class="kanban-title">KANBAN BOARD</div>
+      <div class="kanban-cols">
+        <div class="kanban-col">
+          <div class="kanban-col-header">OPEN</div>
+          <div class="kanban-card" style="background:rgba(239,68,68,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(239,68,68,0.35);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">PROGRESS</div>
+          <div class="kanban-card" style="background:rgba(234,179,8,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(234,179,8,0.35);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">REVIEW</div>
+          <div class="kanban-card" style="background:rgba(99,102,241,0.5);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">DONE</div>
+          <div class="kanban-card" style="background:rgba(34,197,94,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(34,197,94,0.35);"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wall-clock"></div>
+    <div class="window" style="right:45px; top:20px;"><div class="window-cross-h"></div><div class="window-cross-v"></div></div>
+  </div>
+
+  <div class="floor">
+    <!-- === TABLE COLUMN 1 (x=90) === -->
+    <div class="table-column" style="left:90px; height:500px;"></div>
+
+    <!-- Col1 Row1: CEO (left) + CTO (right) -->
+    <div class="seat seat-left" style="left:34px; top:30px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="char">
+        <div class="char-bubble">reviewing PR</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#1e3a5f;"></div>
+        <div class="char-label">CEO</div>
+      </div>
+    </div>
+    <div class="seat seat-right" style="left:112px; top:30px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="char">
+        <div class="char-bubble">arch review</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#065f46;"></div>
+        <div class="char-label">CTO</div>
+      </div>
+    </div>
+
+    <!-- Col1 Row2: Engineer (left) + empty (right) -->
+    <div class="seat seat-left" style="left:34px; top:130px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="char">
+        <div class="char-bubble">coding auth</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#4a1d96;"></div>
+        <div class="char-label">Engineer</div>
+      </div>
+    </div>
+    <div class="seat seat-right" style="left:112px; top:130px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char">
+        <div class="char-head"></div>
+        <div class="char-body"></div>
+        <div class="char-label" style="opacity:0.2;">empty</div>
+      </div>
+    </div>
+
+    <!-- Col1 Row3~5: empty -->
+    <div class="seat seat-left" style="left:34px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:112px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:34px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:112px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:34px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:112px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+
+    <!-- === TABLE COLUMN 2 (x=230) === -->
+    <div class="table-column" style="left:230px; height:500px;"></div>
+
+    <!-- Col2 Row1: QA (left) + PM (right) -->
+    <div class="seat seat-left" style="left:174px; top:30px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="char">
+        <div class="char-bubble">testing</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#831843;"></div>
+        <div class="char-label">QA</div>
+      </div>
+    </div>
+    <div class="seat seat-right" style="left:252px; top:30px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="char">
+        <div class="char-bubble">sprint plan</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#7c2d12;"></div>
+        <div class="char-label">PM</div>
+      </div>
+    </div>
+
+    <!-- Col2 Row2~5: empty -->
+    <div class="seat seat-left" style="left:174px; top:130px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:252px; top:130px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:174px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:252px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:174px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:252px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:174px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:252px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+
+    <!-- === TABLE COLUMN 3 (x=370) === -->
+    <div class="table-column" style="left:370px; height:500px;"></div>
+
+    <div class="seat seat-left" style="left:314px; top:30px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:392px; top:30px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:314px; top:130px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:392px; top:130px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:314px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:392px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:314px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:392px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:314px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:392px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+
+    <!-- === TABLE COLUMN 4 (x=510) === -->
+    <div class="table-column" style="left:510px; height:500px;"></div>
+
+    <div class="seat seat-left" style="left:454px; top:30px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:532px; top:30px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:454px; top:130px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:532px; top:130px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:454px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:532px; top:230px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:454px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:532px; top:330px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-left" style="left:454px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+    <div class="seat seat-right" style="left:532px; top:430px;">
+      <div class="monitor empty-monitor"><div class="monitor-screen off"></div></div>
+      <div class="char empty-char"><div class="char-head"></div><div class="char-body"></div><div class="char-label" style="opacity:0.2;">empty</div></div>
+    </div>
+
+    <!-- Idle wandering agents in the right aisle area -->
+    <div class="wandering-1">
+      <div class="char">
+        <div class="char-bubble">☕</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#b45309;"></div>
+        <div class="char-label">Designer</div>
+      </div>
+    </div>
+    <div class="wandering-2">
+      <div class="char">
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#0e7490;"></div>
+        <div class="char-label">DevOps</div>
+      </div>
+    </div>
+    <div class="wandering-3">
+      <div class="char">
+        <div class="char-bubble">💬</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#9333ea;"></div>
+        <div class="char-label">Researcher</div>
+      </div>
+    </div>
+
+    <!-- Right side: coffee, plants -->
+    <div class="coffee-area" style="right:40px; top:30px;">
+      <div class="coffee-machine">☕</div>
+      <div class="coffee-label">Coffee</div>
+    </div>
+    <div class="plant" style="right:35px; top:120px;">🌿</div>
+    <div class="plant" style="right:50px; top:280px;">🪴</div>
+    <div class="plant" style="right:30px; top:440px;">🌵</div>
+
+    <!-- Aisle labels -->
+    <div class="aisle-label" style="left:155px; top:260px;">AISLE</div>
+    <div class="aisle-label" style="left:295px; top:260px;">AISLE</div>
+    <div class="aisle-label" style="left:435px; top:260px;">AISLE</div>
+  </div>
+</div>
+
+<div class="layout-info">
+  <h3>레이아웃 구조</h3>
+  <p>세로로 긴 테이블 4개가 사무실 중앙에 배치. 각 테이블 양쪽에 5행씩 자리. 4컬럼 × 5행 × 2석 = <strong>최대 40석</strong>.</p>
+  <div class="layout-diagram">     Col1        Col2        Col3        Col4
+      │            │            │            │
+☻──monitor──┤──monitor──☻  ☻──monitor──┤──monitor──☻  ...  Row 1
+      │            │            │            │
+☻──monitor──┤──monitor──○  ○──monitor──┤──monitor──○  ...  Row 2
+      │            │            │            │
+○──monitor──┤──monitor──○  ○──monitor──┤──monitor──○  ...  Row 3
+      │            │            │            │
+○──monitor──┤──monitor──○  ○──monitor──┤──monitor──○  ...  Row 4
+      │            │            │            │
+○──monitor──┤──monitor──○  ○──monitor──┤──monitor──○  ...  Row 5
+
+☻ = occupied   ○ = empty   │ = long table</div>
+</div>
+
+</body>
+</html>

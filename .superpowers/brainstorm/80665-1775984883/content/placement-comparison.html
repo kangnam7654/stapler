@@ -1,0 +1,134 @@
+<h2>대시보드 위젯 vs 독립 페이지</h2>
+<p class="subtitle">에이전트 시뮬레이션을 어디에 배치할지 비교해보세요</p>
+
+<div class="split">
+  <div class="mockup" data-choice="widget" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">A. 대시보드 위젯</div>
+    <div class="mockup-body" style="padding:12px; font-size:13px;">
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <div style="flex:1; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:20px; font-weight:700; color:#6366f1;">5</div>
+          <div style="font-size:11px; opacity:0.6;">Active Agents</div>
+        </div>
+        <div style="flex:1; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.2); border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:20px; font-weight:700; color:#22c55e;">12</div>
+          <div style="font-size:11px; opacity:0.6;">Tasks Done</div>
+        </div>
+        <div style="flex:1; background:rgba(234,179,8,0.1); border:1px solid rgba(234,179,8,0.2); border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-size:20px; font-weight:700; color:#eab308;">3</div>
+          <div style="font-size:11px; opacity:0.6;">Pending</div>
+        </div>
+      </div>
+      <div style="background:rgba(0,0,0,0.15); border-radius:8px; padding:16px; height:160px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;">
+        <div style="position:absolute; inset:0; opacity:0.08;">
+          <div style="position:absolute; width:100%; height:100%; background:repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(255,255,255,0.05) 20px, rgba(255,255,255,0.05) 21px), repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(255,255,255,0.05) 20px, rgba(255,255,255,0.05) 21px);"></div>
+        </div>
+        <div style="display:flex; gap:24px; align-items:center;">
+          <div style="text-align:center;">
+            <div style="width:28px; height:28px; background:#6366f1; border-radius:50%; margin:0 auto 4px; display:flex; align-items:center; justify-content:center; font-size:12px;">🤖</div>
+            <div style="font-size:9px; opacity:0.6;">CEO</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:28px; height:28px; background:#22c55e; border-radius:50%; margin:0 auto 4px; display:flex; align-items:center; justify-content:center; font-size:12px;">⚡</div>
+            <div style="font-size:9px; opacity:0.6;">Engineer</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="width:28px; height:28px; background:#f59e0b; border-radius:50%; margin:0 auto 4px; display:flex; align-items:center; justify-content:center; font-size:12px;">🎨</div>
+            <div style="font-size:9px; opacity:0.6;">Designer</div>
+          </div>
+        </div>
+        <div style="position:absolute; bottom:6px; right:8px; font-size:10px; opacity:0.4; cursor:pointer;">⛶ 전체화면</div>
+      </div>
+      <div style="margin-top:8px; font-size:11px; opacity:0.5; display:flex; gap:8px;">
+        <span>📊 Activity Chart</span>
+        <span>📋 Recent Issues</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup" data-choice="fullpage" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="mockup-header">B. 독립 풀스크린 페이지</div>
+    <div class="mockup-body" style="padding:0; font-size:13px;">
+      <div style="display:flex; height:280px;">
+        <div style="width:42px; background:rgba(0,0,0,0.2); padding:6px 0; display:flex; flex-direction:column; align-items:center; gap:8px; font-size:14px;">
+          <div style="opacity:0.5;">📊</div>
+          <div style="opacity:0.5;">📋</div>
+          <div style="background:rgba(99,102,241,0.3); border-radius:4px; padding:2px 4px;">🎮</div>
+          <div style="opacity:0.5;">⚙️</div>
+        </div>
+        <div style="flex:1; position:relative; overflow:hidden;">
+          <div style="position:absolute; inset:0; opacity:0.06;">
+            <div style="position:absolute; width:100%; height:100%; background:repeating-linear-gradient(0deg, transparent, transparent 24px, rgba(255,255,255,0.05) 24px, rgba(255,255,255,0.05) 25px), repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(255,255,255,0.05) 24px, rgba(255,255,255,0.05) 25px);"></div>
+          </div>
+          <!-- Agents scattered across the canvas -->
+          <div style="position:absolute; left:15%; top:20%; text-align:center;">
+            <div style="width:36px; height:36px; background:#6366f1; border-radius:50%; margin:0 auto 3px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 12px rgba(99,102,241,0.4);">🤖</div>
+            <div style="font-size:9px; opacity:0.7;">CEO Agent</div>
+            <div style="font-size:8px; color:#22c55e;">reviewing PR</div>
+          </div>
+          <div style="position:absolute; left:55%; top:35%; text-align:center;">
+            <div style="width:36px; height:36px; background:#22c55e; border-radius:50%; margin:0 auto 3px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 12px rgba(34,197,94,0.4);">⚡</div>
+            <div style="font-size:9px; opacity:0.7;">Engineer</div>
+            <div style="font-size:8px; color:#eab308;">coding...</div>
+          </div>
+          <div style="position:absolute; left:35%; top:65%; text-align:center;">
+            <div style="width:36px; height:36px; background:#f59e0b; border-radius:50%; margin:0 auto 3px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 12px rgba(245,158,11,0.4);">🎨</div>
+            <div style="font-size:9px; opacity:0.7;">Designer</div>
+            <div style="font-size:8px; color:#6366f1;">idle</div>
+          </div>
+          <div style="position:absolute; left:75%; top:15%; text-align:center;">
+            <div style="width:36px; height:36px; background:#ec4899; border-radius:50%; margin:0 auto 3px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 12px rgba(236,72,153,0.4);">🔍</div>
+            <div style="font-size:9px; opacity:0.7;">QA</div>
+            <div style="font-size:8px; color:#22c55e;">testing</div>
+          </div>
+          <!-- Connection lines implied -->
+          <svg style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;">
+            <line x1="20%" y1="30%" x2="58%" y2="42%" stroke="rgba(99,102,241,0.15)" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="58%" y1="42%" x2="40%" y2="70%" stroke="rgba(34,197,94,0.15)" stroke-width="1" stroke-dasharray="4"/>
+            <line x1="78%" y1="25%" x2="58%" y2="42%" stroke="rgba(236,72,153,0.15)" stroke-width="1" stroke-dasharray="4"/>
+          </svg>
+          <!-- Controls overlay -->
+          <div style="position:absolute; top:8px; right:8px; display:flex; gap:4px;">
+            <div style="background:rgba(0,0,0,0.4); border-radius:4px; padding:2px 6px; font-size:10px;">▶ 1x</div>
+            <div style="background:rgba(0,0,0,0.4); border-radius:4px; padding:2px 6px; font-size:10px;">🔍</div>
+          </div>
+          <!-- Info panel -->
+          <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.4); padding:6px 10px; font-size:10px; display:flex; justify-content:space-between;">
+            <span>4 agents active</span>
+            <span>12 tasks completed today</span>
+            <span>$0.45 spent</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:20px;">
+  <h3>핵심 차이점</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>A. 대시보드 위젯</h4>
+      <ul>
+        <li>한 눈에 전체 현황 + 시뮬레이션</li>
+        <li>기존 워크플로우에 자연스럽게 녹아듦</li>
+        <li>작은 캔버스 → 구현 난이도 낮음</li>
+        <li>클릭하면 풀스크린으로 확장 가능</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>B. 독립 페이지</h4>
+      <ul>
+        <li>넓은 캔버스 → 풍부한 시각화</li>
+        <li>줌, 패닝, 속도 조절 등 인터랙션</li>
+        <li>에이전트 클릭 → 상세 패널</li>
+        <li>몰입감 있는 "게임" 경험</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:16px; padding:12px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); border-radius:8px;">
+  <h3 style="margin:0 0 6px; font-size:14px;">💡 추천: 둘 다 하되, 위젯부터</h3>
+  <p style="margin:0; font-size:13px; opacity:0.8;">대시보드에 미니 캔버스 위젯을 먼저 만들고, 클릭하면 독립 페이지로 확장되는 구조. 같은 Canvas 컴포넌트를 두 곳에서 재사용할 수 있습니다.</p>
+</div>

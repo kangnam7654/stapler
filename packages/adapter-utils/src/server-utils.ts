@@ -705,6 +705,104 @@ export async function removeMaintainerOnlySkillSymlinks(
   }
 }
 
+export interface BundleTreeOptions {
+  maxEntries?: number;
+  maxDepth?: number;
+  skipNames?: ReadonlySet<string>;
+}
+
+const DEFAULT_BUNDLE_SKIP_NAMES: ReadonlySet<string> = new Set([
+  ".git",
+  ".hg",
+  ".svn",
+  "node_modules",
+  ".DS_Store",
+  "dist",
+  "build",
+  ".next",
+  ".turbo",
+  ".cache",
+]);
+
+interface TreeEntry {
+  name: string;
+  isDirectory: boolean;
+  children?: TreeEntry[];
+}
+
+async function readDirEntries(
+  dirPath: string,
+  depth: number,
+  remaining: { count: number },
+  options: Required<Omit<BundleTreeOptions, "skipNames">> & { skipNames: ReadonlySet<string> },
+): Promise<TreeEntry[]> {
+  if (depth > options.maxDepth || remaining.count <= 0) return [];
+  let dirents: Dirent[];
+  try {
+    dirents = await fs.readdir(dirPath, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const filtered = dirents
+    .filter((entry) => !options.skipNames.has(entry.name) && !entry.name.startsWith("."))
+    .sort((left, right) => {
+      const leftDir = left.isDirectory();
+      const rightDir = right.isDirectory();
+      if (leftDir !== rightDir) return leftDir ? -1 : 1;
+      return left.name.localeCompare(right.name);
+    });
+
+  const entries: TreeEntry[] = [];
+  for (const dirent of filtered) {
+    if (remaining.count <= 0) break;
+    remaining.count -= 1;
+    const isDirectory = dirent.isDirectory();
+    const node: TreeEntry = { name: dirent.name, isDirectory };
+    if (isDirectory) {
+      node.children = await readDirEntries(
+        path.join(dirPath, dirent.name),
+        depth + 1,
+        remaining,
+        options,
+      );
+    }
+    entries.push(node);
+  }
+  return entries;
+}
+
+function renderTree(entries: TreeEntry[], prefix: string, lines: string[]): void {
+  entries.forEach((entry, index) => {
+    const last = index === entries.length - 1;
+    const connector = last ? "└── " : "├── ";
+    const suffix = entry.isDirectory ? "/" : "";
+    lines.push(`${prefix}${connector}${entry.name}${suffix}`);
+    if (entry.children && entry.children.length > 0) {
+      renderTree(entry.children, prefix + (last ? "    " : "│   "), lines);
+    }
+  });
+}
+
+export async function buildBundleTree(
+  rootPath: string,
+  options: BundleTreeOptions = {},
+): Promise<string> {
+  const opts = {
+    maxEntries: options.maxEntries ?? 200,
+    maxDepth: options.maxDepth ?? 5,
+    skipNames: options.skipNames ?? DEFAULT_BUNDLE_SKIP_NAMES,
+  };
+  const remaining = { count: opts.maxEntries };
+  const entries = await readDirEntries(rootPath, 1, remaining, opts);
+  if (entries.length === 0) return "";
+  const lines: string[] = ["."];
+  renderTree(entries, "", lines);
+  if (remaining.count <= 0) {
+    lines.push(`(truncated at ${opts.maxEntries} entries — use list_dir for full contents)`);
+  }
+  return lines.join("\n");
+}
+
 export async function ensureCommandResolvable(command: string, cwd: string, env: NodeJS.ProcessEnv) {
   const resolved = await resolveCommandPath(command, cwd, env);
   if (resolved) return;

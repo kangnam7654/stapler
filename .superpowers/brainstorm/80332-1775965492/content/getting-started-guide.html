@@ -1,0 +1,119 @@
+<h2>Phase 2: Getting Started Guide</h2>
+<p class="subtitle">온보딩 완료 후 보드에서 보이는 가이드 체크리스트 — 두 가지 레이아웃 비교</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>사이드 패널 체크리스트</h3>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Board View</div>
+        <div class="mockup-body" style="display:flex;gap:0;min-height:320px">
+          <!-- Main board area -->
+          <div style="flex:1;padding:16px;border-right:1px solid #333">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+              <div style="width:10px;height:10px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite"></div>
+              <span style="color:#a1a1aa;font-size:13px">CEO 에이전트 작업 중...</span>
+            </div>
+            <div style="background:#1a1a2e;border-radius:8px;padding:12px;margin-bottom:8px">
+              <div style="font-size:13px;color:#e4e4e7">ISS-1: 첫 번째 태스크</div>
+              <div style="font-size:11px;color:#71717a;margin-top:4px">In Progress &bull; CEO</div>
+            </div>
+            <div style="background:#1a1a2e;border-radius:8px;padding:12px;opacity:0.5">
+              <div style="font-size:13px;color:#71717a">이슈가 여기에 표시됩니다</div>
+            </div>
+          </div>
+          <!-- Side panel -->
+          <div style="width:240px;padding:16px;background:#0f0f1a">
+            <div style="font-size:14px;font-weight:600;color:#e4e4e7;margin-bottom:4px">Getting Started</div>
+            <div style="font-size:11px;color:#71717a;margin-bottom:16px">3/6 완료</div>
+            <div style="width:100%;height:4px;background:#27272a;border-radius:2px;margin-bottom:16px">
+              <div style="width:50%;height:100%;background:#6366f1;border-radius:2px"></div>
+            </div>
+            <!-- Checklist items -->
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:18px;height:18px;border-radius:4px;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">&#10003;</div>
+                <span style="font-size:12px;color:#71717a;text-decoration:line-through">회사 만들기</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:18px;height:18px;border-radius:4px;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">&#10003;</div>
+                <span style="font-size:12px;color:#71717a;text-decoration:line-through">에이전트 연결</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:18px;height:18px;border-radius:4px;background:#22c55e;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">&#10003;</div>
+                <span style="font-size:12px;color:#71717a;text-decoration:line-through">첫 태스크 생성</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:18px;height:18px;border-radius:4px;background:#6366f1;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">4</div>
+                <span style="font-size:12px;color:#e4e4e7;font-weight:500">에이전트 동작 확인</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:18px;height:18px;border-radius:4px;background:#27272a;display:flex;align-items:center;justify-content:center;font-size:11px;color:#71717a;flex-shrink:0">5</div>
+                <span style="font-size:12px;color:#71717a">두 번째 에이전트 추가</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:18px;height:18px;border-radius:4px;background:#27272a;display:flex;align-items:center;justify-content:center;font-size:11px;color:#71717a;flex-shrink:0">6</div>
+                <span style="font-size:12px;color:#71717a">예산 설정</span>
+              </div>
+            </div>
+            <div style="margin-top:20px;padding:10px;background:#1a1a2e;border-radius:8px;border-left:3px solid #6366f1">
+              <div style="font-size:11px;color:#a1a1aa">에이전트가 태스크를 처리하고 있어요. 잠시 기다려주세요!</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:12px;color:#a1a1aa;font-size:13px">보드 오른쪽에 항상 표시. 접기/펼치기 가능. 모든 항목 완료 시 자동으로 사라짐.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>상단 배너 + 모달 가이드</h3>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Board View</div>
+        <div class="mockup-body" style="min-height:320px;padding:0">
+          <!-- Top banner -->
+          <div style="padding:12px 16px;background:linear-gradient(90deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:13px;color:white;font-weight:500">Getting Started: 3/6 완료</span>
+              <div style="width:120px;height:4px;background:rgba(255,255,255,0.3);border-radius:2px">
+                <div style="width:50%;height:100%;background:white;border-radius:2px"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button style="background:rgba(255,255,255,0.2);border:none;color:white;padding:4px 12px;border-radius:4px;font-size:12px;cursor:pointer">다음 단계 보기</button>
+              <button style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer">닫기</button>
+            </div>
+          </div>
+          <!-- Main board -->
+          <div style="padding:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+              <div style="width:10px;height:10px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite"></div>
+              <span style="color:#a1a1aa;font-size:13px">CEO 에이전트 작업 중...</span>
+            </div>
+            <div style="background:#1a1a2e;border-radius:8px;padding:12px;margin-bottom:8px">
+              <div style="font-size:13px;color:#e4e4e7">ISS-1: 첫 번째 태스크</div>
+              <div style="font-size:11px;color:#71717a;margin-top:4px">In Progress &bull; CEO</div>
+            </div>
+            <div style="background:#1a1a2e;border-radius:8px;padding:12px;margin-bottom:8px;opacity:0.5">
+              <div style="font-size:13px;color:#71717a">이슈가 여기에 표시됩니다</div>
+            </div>
+            <div style="background:#1a1a2e;border-radius:8px;padding:12px;opacity:0.5">
+              <div style="font-size:13px;color:#71717a">보드 영역이 더 넓게 사용됨</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:12px;color:#a1a1aa;font-size:13px">"다음 단계 보기" 클릭 시 모달로 체크리스트 표시. 보드 공간을 차지하지 않음. 배너는 닫기 가능.</p>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>

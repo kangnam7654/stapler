@@ -1,4 +1,5 @@
 import type { AdapterConfigFieldsProps } from "../types";
+import { RemoteModelDropdown } from "../remote-model-dropdown";
 import { Field, DraftInput } from "../../components/agent-config-primitives";
 
 const inputClass =
@@ -16,7 +17,19 @@ export function OllamaLocalConfigFields({
   config,
   eff,
   mark,
+  models,
+  refetchModels,
+  isFetchingModels,
 }: AdapterConfigFieldsProps) {
+  const currentModel = isCreate
+    ? (values!.model ?? "")
+    : eff("adapterConfig", "model", String(config.model ?? ""));
+
+  function onModelChange(v: string) {
+    if (isCreate) set!({ model: v });
+    else mark("adapterConfig", "model", v || undefined);
+  }
+
   return (
     <>
       <Field label="Base URL" hint={baseUrlHint}>
@@ -37,20 +50,13 @@ export function OllamaLocalConfigFields({
         />
       </Field>
       <Field label="Model" hint={modelHint}>
-        <DraftInput
-          value={
-            isCreate
-              ? values!.model ?? ""
-              : eff("adapterConfig", "model", String(config.model ?? ""))
-          }
-          onCommit={(v) =>
-            isCreate
-              ? set!({ model: v })
-              : mark("adapterConfig", "model", v || undefined)
-          }
-          immediate
-          className={inputClass}
+        <RemoteModelDropdown
+          models={models}
+          value={currentModel}
+          onChange={onModelChange}
           placeholder="llama3.1"
+          refetchModels={refetchModels}
+          isFetchingModels={isFetchingModels}
         />
       </Field>
     </>

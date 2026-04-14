@@ -281,13 +281,17 @@ async function recoverManagedBundleState(agent: AgentLike, state: BundleState): 
   const files = await listFilesRecursive(managedRootPath);
   if (files.length === 0) return state;
 
-  const recoveredEntryFile = files.includes(state.entryFile)
-    ? state.entryFile
-    : files.includes(ENTRY_FILE_DEFAULT)
-      ? ENTRY_FILE_DEFAULT
-      : files[0]!;
-
+  // For an unconfigured bundle (no rootPath), pick a sensible entry from disk.
+  // For a CONFIGURED bundle, never auto-promote another file as the entry just
+  // because the configured entry happens to be missing on disk — that hides the
+  // user's intended entry file (e.g., AGENTS.md) and silently retitles a
+  // newly-created reference file as the main entry.
   if (!state.rootPath) {
+    const recoveredEntryFile = files.includes(state.entryFile)
+      ? state.entryFile
+      : files.includes(ENTRY_FILE_DEFAULT)
+        ? ENTRY_FILE_DEFAULT
+        : files[0]!;
     return {
       ...state,
       mode: "managed",
@@ -301,30 +305,18 @@ async function recoverManagedBundleState(agent: AgentLike, state: BundleState): 
 
   const resolvedConfiguredRoot = path.resolve(state.rootPath);
   const configuredRootMatchesManaged = resolvedConfiguredRoot === managedRootPath;
-  const hasEntryMismatch = recoveredEntryFile !== state.entryFile;
 
-  if (configuredRootMatchesManaged && !hasEntryMismatch) {
-    return state;
-  }
+  if (configuredRootMatchesManaged) return state;
 
-  const warnings = [...state.warnings];
-  if (!configuredRootMatchesManaged) {
-    warnings.push(
-      `Recovered managed instructions from disk at ${managedRootPath}; ignoring stale configured root ${state.rootPath}.`,
-    );
-  }
-  if (hasEntryMismatch) {
-    warnings.push(
-      `Recovered managed instructions entry file from disk as ${recoveredEntryFile}; previous entry ${state.entryFile} was missing.`,
-    );
-  }
-
+  const warnings = [
+    ...state.warnings,
+    `Recovered managed instructions from disk at ${managedRootPath}; ignoring stale configured root ${state.rootPath}.`,
+  ];
   return {
     ...state,
     mode: "managed",
     rootPath: managedRootPath,
-    entryFile: recoveredEntryFile,
-    resolvedEntryPath: path.resolve(managedRootPath, recoveredEntryFile),
+    resolvedEntryPath: path.resolve(managedRootPath, state.entryFile),
     warnings,
   };
 }

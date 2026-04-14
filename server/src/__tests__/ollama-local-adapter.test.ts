@@ -9,9 +9,15 @@ describe("ollama_local testEnvironment", () => {
 
   it("returns 'pass' when ollama responds with model list", async () => {
     const mockFetch = globalThis.fetch as ReturnType<typeof vi.fn>;
-    mockFetch.mockResolvedValue(
+    mockFetch.mockResolvedValueOnce(
       new Response(
         JSON.stringify({ models: [{ name: "llama3.1:latest" }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ response: "hello", done: true }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       ),
     );
@@ -21,6 +27,9 @@ describe("ollama_local testEnvironment", () => {
       config: { baseUrl: "http://localhost:11434" },
     });
     expect(result.status).toBe("pass");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[1]?.[1]).toMatchObject({ method: "POST" });
+    expect(mockFetch.mock.calls[1]?.[1]?.body).toContain("\"model\":\"llama3.1:latest\"");
   });
 
   it("returns 'fail' with descriptive message when server is not reachable", async () => {

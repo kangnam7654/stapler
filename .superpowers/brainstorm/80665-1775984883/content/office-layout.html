@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office Layout - Pixel Art</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a2e; color:#e0e0e0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:24px; }
+  h2 { text-align:center; margin-bottom:6px; font-size:22px; }
+  .subtitle { text-align:center; opacity:0.5; margin-bottom:24px; font-size:14px; }
+
+  .office-container {
+    max-width:800px; margin:0 auto;
+    background:#2d1b69; border-radius:12px; overflow:hidden;
+    image-rendering:pixelated; position:relative;
+    border:2px solid rgba(255,255,255,0.08);
+  }
+
+  /* Wall */
+  .wall {
+    height:160px; background:linear-gradient(180deg, #1a0f3d 0%, #2d1b69 100%);
+    border-bottom:4px solid #4a3580; position:relative;
+  }
+
+  /* Kanban board on wall */
+  .kanban-board {
+    position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    width:280px; height:110px; background:#f5f0e8; border-radius:3px;
+    padding:6px; box-shadow:3px 3px 0 rgba(0,0,0,0.3);
+  }
+  .kanban-title {
+    font-size:8px; text-align:center; color:#333; font-weight:700;
+    margin-bottom:4px; letter-spacing:1px;
+  }
+  .kanban-cols { display:flex; gap:4px; height:calc(100% - 16px); }
+  .kanban-col { flex:1; background:rgba(0,0,0,0.05); border-radius:2px; padding:3px; }
+  .kanban-col-header {
+    font-size:7px; text-align:center; color:#666; font-weight:600;
+    padding:2px 0; margin-bottom:3px; border-bottom:1px solid rgba(0,0,0,0.1);
+  }
+  .kanban-card {
+    height:10px; border-radius:2px; margin-bottom:2px;
+  }
+
+  /* Window */
+  .window {
+    position:absolute; width:50px; height:60px;
+    background:linear-gradient(180deg, #1a3a5f, #0f2440);
+    border:3px solid #4a3580; border-radius:2px;
+  }
+  .window::after {
+    content:''; position:absolute; inset:3px;
+    background:linear-gradient(180deg, rgba(100,180,255,0.15), rgba(50,100,200,0.05));
+  }
+  .window-cross-h {
+    position:absolute; top:50%; left:3px; right:3px; height:2px;
+    background:#4a3580; transform:translateY(-50%);
+  }
+  .window-cross-v {
+    position:absolute; left:50%; top:3px; bottom:3px; width:2px;
+    background:#4a3580; transform:translateX(-50%);
+  }
+
+  /* Clock */
+  .wall-clock {
+    position:absolute; top:30px; right:40px;
+    width:28px; height:28px; background:#f5f0e8; border-radius:50%;
+    border:2px solid #4a3580; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+  }
+  .clock-hand-h {
+    position:absolute; top:50%; left:50%; width:7px; height:2px;
+    background:#333; transform-origin:left; transform:rotate(-30deg);
+  }
+  .clock-hand-m {
+    position:absolute; top:50%; left:50%; width:9px; height:1px;
+    background:#666; transform-origin:left; transform:rotate(120deg);
+  }
+
+  /* Poster */
+  .poster {
+    position:absolute; top:25px; left:30px;
+    width:36px; height:48px; background:#3d5a80; border-radius:1px;
+    border:2px solid #4a3580; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px;
+  }
+
+  /* Floor */
+  .floor {
+    height:320px; position:relative;
+    background:repeating-conic-gradient(#3d2b6b 0% 25%, #352563 0% 50%) 0 0 / 32px 32px;
+  }
+
+  /* Desk */
+  .desk {
+    position:absolute; width:72px; height:40px;
+    background:linear-gradient(180deg, #a07828, #8b6914);
+    border-radius:3px; box-shadow:3px 3px 0 rgba(0,0,0,0.3);
+  }
+  .desk-legs {
+    position:absolute; bottom:-8px; left:4px; right:4px; height:8px;
+    display:flex; justify-content:space-between;
+  }
+  .desk-leg {
+    width:4px; height:8px; background:#6b5010; border-radius:0 0 1px 1px;
+  }
+
+  /* Monitor on desk */
+  .monitor {
+    position:absolute; top:-22px; left:50%; transform:translateX(-50%);
+    width:36px; height:24px; background:#222; border-radius:3px 3px 0 0;
+    border:2px solid #444;
+  }
+  .monitor-screen {
+    position:absolute; inset:2px; border-radius:1px;
+  }
+  .monitor-screen.on { background:rgba(34,197,94,0.25); }
+  .monitor-screen.off { background:#1a1a1a; }
+  .monitor-stand {
+    position:absolute; top:2px; left:50%; transform:translateX(-50%);
+    width:8px; height:4px; background:#444;
+  }
+  .monitor-base {
+    position:absolute; top:5px; left:50%; transform:translateX(-50%);
+    width:16px; height:2px; background:#444; border-radius:1px;
+  }
+
+  /* Chair */
+  .chair {
+    position:absolute; width:24px; height:20px;
+  }
+  .chair-seat {
+    width:24px; height:10px; background:#4a4a4a; border-radius:3px;
+  }
+  .chair-back {
+    width:20px; height:12px; background:#3a3a3a; border-radius:3px 3px 0 0;
+    margin:0 auto -2px;
+  }
+  .chair-wheels {
+    display:flex; justify-content:space-between; padding:0 3px; margin-top:1px;
+  }
+  .chair-wheel { width:4px; height:3px; background:#333; border-radius:50%; }
+
+  /* Character */
+  .character {
+    position:absolute; text-align:center;
+  }
+  .char-head {
+    width:14px; height:14px; background:#fbbf6e; border-radius:3px;
+    margin:0 auto 1px; position:relative;
+  }
+  .char-eyes {
+    position:absolute; top:5px; left:2px; right:2px;
+    display:flex; justify-content:space-between; padding:0 2px;
+  }
+  .char-eye { width:2px; height:2px; background:#333; border-radius:50%; }
+  .char-body {
+    width:16px; height:14px; border-radius:3px; margin:0 auto;
+  }
+  .char-legs {
+    display:flex; gap:2px; justify-content:center; margin-top:1px;
+  }
+  .char-leg { width:5px; height:6px; background:#2d2d3d; border-radius:0 0 2px 2px; }
+  .char-label {
+    font-size:8px; margin-top:2px; opacity:0.7;
+    text-shadow:1px 1px 0 rgba(0,0,0,0.5);
+  }
+  .char-bubble {
+    position:absolute; top:-20px; left:50%; transform:translateX(-50%);
+    background:rgba(255,255,255,0.9); color:#333; font-size:8px;
+    padding:2px 5px; border-radius:4px; white-space:nowrap;
+    box-shadow:1px 1px 0 rgba(0,0,0,0.2);
+  }
+  .char-bubble::after {
+    content:''; position:absolute; bottom:-3px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:3px solid transparent; border-right:3px solid transparent;
+    border-top:3px solid rgba(255,255,255,0.9);
+  }
+
+  /* Idle walking animation */
+  @keyframes wander1 {
+    0%,100% { left:280px; top:140px; }
+    25% { left:320px; top:120px; }
+    50% { left:350px; top:160px; }
+    75% { left:300px; top:170px; }
+  }
+  .wandering-1 { animation:wander1 8s ease-in-out infinite; }
+
+  @keyframes wander2 {
+    0%,100% { left:500px; top:100px; }
+    25% { left:460px; top:140px; }
+    50% { left:520px; top:130px; }
+    75% { left:480px; top:110px; }
+  }
+  .wandering-2 { animation:wander2 10s ease-in-out infinite; }
+
+  /* Coffee machine */
+  .coffee-machine {
+    position:absolute; width:20px; height:28px;
+    background:#555; border-radius:2px; border:1px solid #666;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+  }
+  .coffee-machine::after {
+    content:'☕'; position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%); font-size:10px;
+  }
+
+  /* Plant */
+  .plant {
+    position:absolute; font-size:20px;
+    filter:drop-shadow(2px 2px 0 rgba(0,0,0,0.3));
+  }
+
+  /* Legend */
+  .legend {
+    max-width:800px; margin:16px auto 0;
+    display:grid; grid-template-columns:1fr 1fr; gap:12px;
+  }
+  .legend-section {
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+    border-radius:8px; padding:12px;
+  }
+  .legend-section h3 { font-size:13px; margin-bottom:8px; opacity:0.8; }
+  .legend-item { font-size:11px; opacity:0.6; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .legend-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+</style>
+</head>
+<body>
+<h2>사무실 레이아웃 & 오브젝트</h2>
+<p class="subtitle">픽셀 아트 사무실 구성 요소 미리보기</p>
+
+<div class="office-container">
+  <!-- WALL -->
+  <div class="wall">
+    <!-- Poster -->
+    <div class="poster">🚀</div>
+
+    <!-- Windows -->
+    <div class="window" style="left:120px; top:25px;">
+      <div class="window-cross-h"></div>
+      <div class="window-cross-v"></div>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="kanban-board">
+      <div class="kanban-title">KANBAN BOARD</div>
+      <div class="kanban-cols">
+        <div class="kanban-col">
+          <div class="kanban-col-header">OPEN</div>
+          <div class="kanban-card" style="background:rgba(239,68,68,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(239,68,68,0.4);"></div>
+          <div class="kanban-card" style="background:rgba(239,68,68,0.3);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">IN PROGRESS</div>
+          <div class="kanban-card" style="background:rgba(234,179,8,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(234,179,8,0.4);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">IN REVIEW</div>
+          <div class="kanban-card" style="background:rgba(99,102,241,0.5);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">DONE</div>
+          <div class="kanban-card" style="background:rgba(34,197,94,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(34,197,94,0.4);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clock -->
+    <div class="wall-clock">
+      <div class="clock-hand-h"></div>
+      <div class="clock-hand-m"></div>
+    </div>
+
+    <!-- Window right -->
+    <div class="window" style="right:40px; top:25px;">
+      <div class="window-cross-h"></div>
+      <div class="window-cross-v"></div>
+    </div>
+  </div>
+
+  <!-- FLOOR -->
+  <div class="floor">
+    <!-- Row 1: 4 desks -->
+    <div class="desk" style="left:40px; top:40px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <!-- Chair below desk -->
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <div class="desk" style="left:160px; top:40px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <div class="desk" style="left:280px; top:40px;">
+      <div class="monitor"><div class="monitor-screen off"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <div class="desk" style="left:400px; top:40px;">
+      <div class="monitor"><div class="monitor-screen off"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <!-- Row 2: 4 desks -->
+    <div class="desk" style="left:40px; top:170px;">
+      <div class="monitor"><div class="monitor-screen on"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <div class="desk" style="left:160px; top:170px;">
+      <div class="monitor"><div class="monitor-screen off"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <div class="desk" style="left:280px; top:170px;">
+      <div class="monitor"><div class="monitor-screen off"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <div class="desk" style="left:400px; top:170px;">
+      <div class="monitor"><div class="monitor-screen off"></div></div>
+      <div class="desk-legs"><div class="desk-leg"></div><div class="desk-leg"></div></div>
+      <div class="chair" style="position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);">
+        <div class="chair-back"></div>
+        <div class="chair-seat"></div>
+        <div class="chair-wheels"><div class="chair-wheel"></div><div class="chair-wheel"></div><div class="chair-wheel"></div></div>
+      </div>
+    </div>
+
+    <!-- Seated agents (working) -->
+    <!-- CEO at desk 1 -->
+    <div class="character" style="left:56px; top:14px;">
+      <div class="char-bubble">reviewing PR #42</div>
+      <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+      <div class="char-body" style="background:#1e3a5f;"></div>
+      <div class="char-legs"><div class="char-leg"></div><div class="char-leg"></div></div>
+      <div class="char-label">CEO</div>
+    </div>
+
+    <!-- Engineer at desk 2 -->
+    <div class="character" style="left:176px; top:14px;">
+      <div class="char-bubble">coding auth module</div>
+      <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+      <div class="char-body" style="background:#4a1d96;"></div>
+      <div class="char-legs"><div class="char-leg"></div><div class="char-leg"></div></div>
+      <div class="char-label">Engineer</div>
+    </div>
+
+    <!-- QA at desk row2-1 -->
+    <div class="character" style="left:56px; top:144px;">
+      <div class="char-bubble">running tests</div>
+      <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+      <div class="char-body" style="background:#831843;"></div>
+      <div class="char-legs"><div class="char-leg"></div><div class="char-leg"></div></div>
+      <div class="char-label">QA</div>
+    </div>
+
+    <!-- Idle agents wandering -->
+    <div class="character wandering-1" style="left:280px; top:140px;">
+      <div class="char-bubble">☕</div>
+      <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+      <div class="char-body" style="background:#b45309;"></div>
+      <div class="char-legs"><div class="char-leg"></div><div class="char-leg"></div></div>
+      <div class="char-label">Designer</div>
+    </div>
+
+    <div class="character wandering-2" style="left:500px; top:100px;">
+      <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+      <div class="char-body" style="background:#065f46;"></div>
+      <div class="char-legs"><div class="char-leg"></div><div class="char-leg"></div></div>
+      <div class="char-label">DevOps</div>
+    </div>
+
+    <!-- Furniture -->
+    <div class="coffee-machine" style="right:30px; top:20px;"></div>
+    <div class="plant" style="right:60px; top:12px;">🌿</div>
+    <div class="plant" style="left:520px; top:260px;">🪴</div>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-section">
+    <h3>오브젝트</h3>
+    <div class="legend-item"><span>🖥️</span> 책상 + 모니터 (agent 1:1 매핑)</div>
+    <div class="legend-item"><span>📋</span> 칸반보드 (실제 issue 상태 반영)</div>
+    <div class="legend-item"><span>☕</span> 커피머신 (idle 에이전트 목적지)</div>
+    <div class="legend-item"><span>🪴</span> 화분, 포스터, 시계 (장식)</div>
+    <div class="legend-item"><span>🪟</span> 창문 (장식, 시간대 반영 가능)</div>
+  </div>
+  <div class="legend-section">
+    <h3>역할별 캐릭터 색상</h3>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f;"></div> CEO — 네이비 정장</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4a1d96;"></div> Engineer — 보라 후드티</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#b45309;"></div> Designer — 오렌지</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#831843;"></div> QA — 핑크</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#065f46;"></div> DevOps — 그린</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#6b7280;"></div> (기타) — 회색</div>
+  </div>
+</div>
+
+</body>
+</html>

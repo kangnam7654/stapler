@@ -5,18 +5,19 @@ import type {
   AdapterModel,
 } from "@paperclipai/adapter-utils";
 import { asString, parseObject } from "@paperclipai/adapter-utils/server-utils";
-import { listRemoteModels } from "@paperclipai/adapter-openai-compat-local";
+import { chatCompletion, listRemoteModels } from "@paperclipai/adapter-openai-compat-local";
 import { DEFAULT_LM_STUDIO_BASE_URL } from "../index.js";
 
 export { execute } from "./execute.js";
 export { draftText } from "./draft.js";
 
-export async function listModels(baseUrl?: string): Promise<AdapterModel[]> {
+export async function listModels(baseUrl?: string, apiKey?: string): Promise<AdapterModel[]> {
   try {
     const names = await listRemoteModels({
       baseUrl: baseUrl ?? DEFAULT_LM_STUDIO_BASE_URL,
       timeoutMs: 3000,
       style: "openai",
+      apiKey,
     });
     return names.map((name) => ({ id: name, label: name }));
   } catch {
@@ -29,23 +30,26 @@ export async function testEnvironment(
 ): Promise<AdapterEnvironmentTestResult> {
   const config = parseObject(ctx.config);
   const baseUrl = asString(config.baseUrl, DEFAULT_LM_STUDIO_BASE_URL);
+  const apiKey = asString(config.apiKey, "").trim();
   const modelId = asString(config.model, "").trim();
 
   const checks: AdapterEnvironmentTestResult["checks"] = [];
   let serverReachable = false;
+  let discoveredModels: string[] = [];
 
   try {
-    const names = await listRemoteModels({
+    discoveredModels = await listRemoteModels({
       baseUrl,
       timeoutMs: 3000,
       style: "openai",
+      apiKey: apiKey || undefined,
     });
     serverReachable = true;
-    if (names.length > 0) {
+    if (discoveredModels.length > 0) {
       checks.push({
         code: "lm_studio_reachable",
         level: "info",
-        message: `LM Studio reachable at ${baseUrl}; ${names.length} model(s) loaded.`,
+        message: `LM Studio reachable at ${baseUrl}; ${discoveredModels.length} model(s) loaded.`,
       });
     } else {
       checks.push({
@@ -63,39 +67,30 @@ export async function testEnvironment(
     });
   }
 
-  // Model hello probe — only if server is reachable and model is specified
-  if (serverReachable && modelId) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30_000);
-      const res = await fetch(`${baseUrl}/v1/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: modelId,
-          messages: [{ role: "user", content: "Respond with hello." }],
-          max_tokens: 10,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+  const probeModelId = modelId || discoveredModels[0] || "";
+  const usedAutoSelectedModel = !modelId && Boolean(probeModelId);
+  const probeTargetLabel = usedAutoSelectedModel ? "Auto-selected model" : "Model";
 
-      if (res.ok) {
-        checks.push({
-          code: "lm_studio_model_probe_passed",
-          level: "info",
-          message: `Model '${modelId}' responded successfully.`,
-        });
-      } else {
-        const body = await res.text().catch(() => "");
-        checks.push({
-          code: "lm_studio_model_probe_failed",
-          level: "warn",
-          message: `Model '${modelId}' probe failed (HTTP ${res.status}).`,
-          detail: body.slice(0, 240) || undefined,
-          hint: "Load the model in LM Studio and verify it is available.",
-        });
-      }
+  // Model hello probe — use the configured model when present, otherwise
+  // auto-select the first discovered model so "test connection" proves real inference.
+  if (serverReachable && probeModelId) {
+    try {
+      await chatCompletion({
+        baseUrl,
+        apiKey: apiKey || undefined,
+        timeoutMs: 30_000,
+        request: {
+          model: probeModelId,
+          messages: [{ role: "user", content: "Respond with hello." }],
+        },
+      });
+      checks.push({
+        code: usedAutoSelectedModel
+          ? "lm_studio_auto_model_probe_passed"
+          : "lm_studio_model_probe_passed",
+        level: "info",
+        message: `${probeTargetLabel} '${probeModelId}' responded successfully.`,
+      });
     } catch (err) {
       const isTimeout =
         err instanceof Error && err.name === "AbortError";
@@ -105,8 +100,8 @@ export async function testEnvironment(
           : "lm_studio_model_probe_failed",
         level: "warn",
         message: isTimeout
-          ? `Model '${modelId}' probe timed out (30s).`
-          : `Model '${modelId}' probe failed: ${err instanceof Error ? err.message : String(err)}`,
+          ? `${probeTargetLabel} '${probeModelId}' probe timed out (30s).`
+          : `${probeTargetLabel} '${probeModelId}' probe failed: ${err instanceof Error ? err.message : String(err)}`,
         hint: "Verify the model is loaded in LM Studio.",
       });
     }

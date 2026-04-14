@@ -164,6 +164,7 @@ export const agentsApi = {
   adapterModels: (companyId: string, type: string, baseUrl?: string) =>
     api.get<AdapterModel[]>(
       `/companies/${encodeURIComponent(companyId)}/adapters/${encodeURIComponent(type)}/models${baseUrl ? `?baseUrl=${encodeURIComponent(baseUrl)}` : ""}`,
+      { cache: "no-store" },
     ),
   detectModel: (companyId: string, type: string) =>
     api.get<DetectedAdapterModel | null>(

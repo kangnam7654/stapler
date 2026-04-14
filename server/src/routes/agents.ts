@@ -76,6 +76,8 @@ export function agentRoutes(db: Db) {
     opencode_local: "instructionsFilePath",
     cursor: "instructionsFilePath",
     pi_local: "instructionsFilePath",
+    lm_studio_local: "instructionsFilePath",
+    ollama_local: "instructionsFilePath",
   };
   const DEFAULT_MANAGED_INSTRUCTIONS_ADAPTER_TYPES = new Set(Object.keys(DEFAULT_INSTRUCTIONS_PATH_KEYS));
   const KNOWN_INSTRUCTIONS_PATH_KEYS = new Set(["instructionsFilePath", "agentsMdPath"]);
@@ -686,14 +688,17 @@ export function agentRoutes(db: Db) {
     const queryBaseUrl = typeof req.query.baseUrl === "string" && req.query.baseUrl.trim()
       ? req.query.baseUrl.trim()
       : undefined;
-    // Fall back to company-level adapter default when no baseUrl in query
-    const companyBaseUrl = queryBaseUrl === undefined
-      ? await companySvc.get(companyId).then((co) => {
+    // Fall back to company-level adapter defaults when no baseUrl in query
+    const companyDefaults = queryBaseUrl === undefined
+      ? await companySvc.getById(companyId).then((co) => {
           const defaults = co?.adapterDefaults as AdapterDefaults | null;
-          return defaults?.[type as keyof AdapterDefaults]?.baseUrl ?? undefined;
-        }).catch(() => undefined)
-      : undefined;
-    const models = await listAdapterModels(type, queryBaseUrl ?? companyBaseUrl);
+          return defaults?.[type as keyof AdapterDefaults] ?? {};
+        }).catch(() => ({}))
+      : {};
+    const effectiveBaseUrl = queryBaseUrl ?? (companyDefaults as { baseUrl?: string }).baseUrl;
+    const effectiveApiKey = (companyDefaults as { apiKey?: string }).apiKey;
+    const models = await listAdapterModels(type, effectiveBaseUrl, effectiveApiKey);
+    res.set("Cache-Control", "no-store");
     res.json(models);
   });
 

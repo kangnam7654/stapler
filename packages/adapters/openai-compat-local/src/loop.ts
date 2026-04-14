@@ -58,7 +58,7 @@ async function executeToolCall(
 }
 
 export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopResult> {
-  const { baseUrl, model, tools, enabledToolNames, timeoutMs, env, cwd, onLog } = opts;
+  const { baseUrl, model, apiKey, tools, enabledToolNames, timeoutMs, env, cwd, onLog } = opts;
   const activeTools =
     enabledToolNames && enabledToolNames.length > 0
       ? tools.filter((t) => enabledToolNames.includes(t.name))
@@ -85,6 +85,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     try {
       response = await chatCompletion({
         baseUrl,
+        apiKey,
         request: {
           model,
           messages,

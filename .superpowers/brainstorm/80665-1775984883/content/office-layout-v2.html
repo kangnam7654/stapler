@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office Layout v2 - Facing Desks</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a2e; color:#e0e0e0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:24px; }
+  h2 { text-align:center; margin-bottom:6px; font-size:22px; }
+  .subtitle { text-align:center; opacity:0.5; margin-bottom:24px; font-size:14px; }
+
+  .office-container {
+    max-width:900px; margin:0 auto;
+    background:#2d1b69; border-radius:12px; overflow:hidden;
+    image-rendering:pixelated; position:relative;
+    border:2px solid rgba(255,255,255,0.08);
+  }
+
+  /* Wall */
+  .wall {
+    height:140px; background:linear-gradient(180deg, #1a0f3d 0%, #2d1b69 100%);
+    border-bottom:4px solid #4a3580; position:relative;
+  }
+
+  /* Kanban */
+  .kanban-board {
+    position:absolute; top:16px; left:50%; transform:translateX(-50%);
+    width:260px; height:96px; background:#f5f0e8; border-radius:3px;
+    padding:5px; box-shadow:3px 3px 0 rgba(0,0,0,0.3);
+  }
+  .kanban-title { font-size:7px; text-align:center; color:#333; font-weight:700; margin-bottom:3px; letter-spacing:1px; }
+  .kanban-cols { display:flex; gap:3px; height:calc(100% - 14px); }
+  .kanban-col { flex:1; background:rgba(0,0,0,0.05); border-radius:2px; padding:2px; }
+  .kanban-col-header { font-size:6px; text-align:center; color:#666; font-weight:600; padding:1px 0; margin-bottom:2px; border-bottom:1px solid rgba(0,0,0,0.1); }
+  .kanban-card { height:8px; border-radius:1px; margin-bottom:2px; }
+
+  .window {
+    position:absolute; width:44px; height:52px;
+    background:linear-gradient(180deg, #1a3a5f, #0f2440);
+    border:3px solid #4a3580; border-radius:2px;
+  }
+  .window-cross-h { position:absolute; top:50%; left:3px; right:3px; height:2px; background:#4a3580; transform:translateY(-50%); }
+  .window-cross-v { position:absolute; left:50%; top:3px; bottom:3px; width:2px; background:#4a3580; transform:translateX(-50%); }
+
+  .wall-clock {
+    position:absolute; top:24px; right:50px;
+    width:24px; height:24px; background:#f5f0e8; border-radius:50%;
+    border:2px solid #4a3580; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+  }
+  .poster {
+    position:absolute; top:20px; left:35px;
+    width:32px; height:42px; background:#3d5a80; border-radius:1px;
+    border:2px solid #4a3580; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+
+  /* Floor */
+  .floor {
+    height:520px; position:relative;
+    background:repeating-conic-gradient(#3d2b6b 0% 25%, #352563 0% 50%) 0 0 / 32px 32px;
+    padding:20px;
+  }
+
+  /* Desk cluster: a long table with 2 facing seats */
+  .desk-cluster {
+    position:absolute; display:flex; flex-direction:column; align-items:center;
+  }
+
+  /* Top-facing agent (sits above desk, faces down) */
+  .seat-top {
+    display:flex; flex-direction:column; align-items:center; margin-bottom:4px;
+  }
+
+  /* The shared long desk */
+  .shared-desk {
+    width:72px; height:20px;
+    background:linear-gradient(180deg, #a07828, #8b6914);
+    border-radius:2px; box-shadow:2px 2px 0 rgba(0,0,0,0.3);
+    position:relative;
+  }
+  .shared-desk::before {
+    content:''; position:absolute; top:50%; left:0; right:0; height:1px;
+    background:rgba(0,0,0,0.15);
+  }
+
+  /* Monitor */
+  .monitor {
+    width:28px; height:18px; background:#222; border-radius:2px 2px 0 0;
+    border:2px solid #444; position:relative;
+  }
+  .monitor-screen { position:absolute; inset:2px; border-radius:1px; }
+  .monitor-screen.on { background:rgba(34,197,94,0.25); }
+  .monitor-screen.off { background:#1a1a1a; }
+  .monitor-stand { width:6px; height:3px; background:#444; margin:0 auto; }
+
+  /* Bottom-facing agent (sits below desk, faces up) */
+  .seat-bottom {
+    display:flex; flex-direction:column; align-items:center; margin-top:4px;
+  }
+  .seat-bottom .monitor { transform:rotate(180deg); }
+
+  /* Character */
+  .char {
+    display:flex; flex-direction:column; align-items:center; position:relative;
+  }
+  .char-bubble {
+    background:rgba(255,255,255,0.9); color:#333; font-size:7px;
+    padding:1px 4px; border-radius:3px; white-space:nowrap;
+    box-shadow:1px 1px 0 rgba(0,0,0,0.2); margin-bottom:2px;
+  }
+  .char-head {
+    width:12px; height:12px; background:#fbbf6e; border-radius:2px;
+    position:relative;
+  }
+  .char-eyes {
+    position:absolute; top:4px; left:1px; right:1px;
+    display:flex; justify-content:space-between; padding:0 2px;
+  }
+  .char-eye { width:2px; height:2px; background:#333; border-radius:50%; }
+  .char-body { width:14px; height:12px; border-radius:2px; margin-top:1px; }
+  .char-legs { display:flex; gap:2px; justify-content:center; margin-top:1px; }
+  .char-leg { width:4px; height:5px; background:#2d2d3d; border-radius:0 0 1px 1px; }
+  .char-label { font-size:7px; margin-top:1px; opacity:0.7; text-shadow:1px 1px 0 rgba(0,0,0,0.5); }
+
+  /* Empty seat indicator */
+  .empty-seat {
+    display:flex; flex-direction:column; align-items:center; opacity:0.25;
+  }
+  .empty-chair {
+    width:20px; height:8px; background:#4a4a4a; border-radius:2px;
+    margin-top:2px;
+  }
+
+  /* Idle wandering characters */
+  @keyframes wander1 {
+    0%,100% { left:540px; top:180px; }
+    20% { left:580px; top:150px; }
+    40% { left:620px; top:200px; }
+    60% { left:560px; top:240px; }
+    80% { left:530px; top:200px; }
+  }
+  .wandering-1 { animation:wander1 12s ease-in-out infinite; position:absolute; }
+
+  @keyframes wander2 {
+    0%,100% { left:600px; top:350px; }
+    25% { left:560px; top:320px; }
+    50% { left:630px; top:300px; }
+    75% { left:590px; top:370px; }
+  }
+  .wandering-2 { animation:wander2 10s ease-in-out infinite; position:absolute; }
+
+  @keyframes wander3 {
+    0%,100% { left:550px; top:60px; }
+    33% { left:620px; top:80px; }
+    66% { left:580px; top:40px; }
+  }
+  .wandering-3 { animation:wander3 9s ease-in-out infinite; position:absolute; }
+
+  /* Coffee area */
+  .coffee-area {
+    position:absolute; right:30px; top:20px;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .coffee-machine {
+    width:22px; height:30px; background:#555; border-radius:2px;
+    border:1px solid #666; box-shadow:2px 2px 0 rgba(0,0,0,0.2);
+    display:flex; align-items:center; justify-content:center; font-size:11px;
+  }
+  .coffee-label { font-size:7px; opacity:0.4; }
+
+  .plant { position:absolute; font-size:18px; filter:drop-shadow(2px 2px 0 rgba(0,0,0,0.3)); }
+
+  /* Layout label */
+  .layout-info {
+    max-width:900px; margin:16px auto 0;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+    border-radius:8px; padding:14px 18px;
+  }
+  .layout-info h3 { font-size:14px; margin-bottom:8px; }
+  .layout-info p { font-size:12px; opacity:0.6; line-height:1.6; }
+  .layout-grid {
+    display:inline-block; margin-top:8px; padding:8px 12px;
+    background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2);
+    border-radius:6px; font-family:monospace; font-size:11px; line-height:1.8;
+  }
+</style>
+</head>
+<body>
+<h2>사무실 레이아웃 v2: 마주보는 책상</h2>
+<p class="subtitle">4컬럼 × 5행 = 최대 40석, 마주보는 2자리씩 한 클러스터</p>
+
+<div class="office-container">
+  <div class="wall">
+    <div class="poster">🚀</div>
+    <div class="window" style="left:100px; top:22px;"><div class="window-cross-h"></div><div class="window-cross-v"></div></div>
+    <div class="kanban-board">
+      <div class="kanban-title">KANBAN BOARD</div>
+      <div class="kanban-cols">
+        <div class="kanban-col">
+          <div class="kanban-col-header">OPEN</div>
+          <div class="kanban-card" style="background:rgba(239,68,68,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(239,68,68,0.35);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">PROGRESS</div>
+          <div class="kanban-card" style="background:rgba(234,179,8,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(234,179,8,0.35);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">REVIEW</div>
+          <div class="kanban-card" style="background:rgba(99,102,241,0.5);"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">DONE</div>
+          <div class="kanban-card" style="background:rgba(34,197,94,0.5);"></div>
+          <div class="kanban-card" style="background:rgba(34,197,94,0.35);"></div>
+        </div>
+      </div>
+    </div>
+    <div class="wall-clock"></div>
+    <div class="window" style="right:50px; top:22px;"><div class="window-cross-h"></div><div class="window-cross-v"></div></div>
+  </div>
+
+  <div class="floor">
+    <!-- Column 1 -->
+    <!-- Row 1 -->
+    <div class="desk-cluster" style="left:30px; top:20px;">
+      <div class="seat-top">
+        <div class="char">
+          <div class="char-bubble">reviewing PR</div>
+          <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+          <div class="char-body" style="background:#1e3a5f;"></div>
+          <div class="char-label">CEO</div>
+        </div>
+        <div class="monitor"><div class="monitor-screen on"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen on"></div></div>
+        <div class="char">
+          <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+          <div class="char-body" style="background:#065f46;"></div>
+          <div class="char-label">CTO</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 2, Row 1 -->
+    <div class="desk-cluster" style="left:140px; top:20px;">
+      <div class="seat-top">
+        <div class="char">
+          <div class="char-bubble">coding auth</div>
+          <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+          <div class="char-body" style="background:#4a1d96;"></div>
+          <div class="char-label">Engineer</div>
+        </div>
+        <div class="monitor"><div class="monitor-screen on"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen on"></div></div>
+        <div class="char">
+          <div class="char-bubble">testing</div>
+          <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+          <div class="char-body" style="background:#831843;"></div>
+          <div class="char-label">QA</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 3, Row 1 -->
+    <div class="desk-cluster" style="left:250px; top:20px;">
+      <div class="seat-top">
+        <div class="char">
+          <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+          <div class="char-body" style="background:#7c2d12;"></div>
+          <div class="char-label">PM</div>
+        </div>
+        <div class="monitor"><div class="monitor-screen on"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 4, Row 1 -->
+    <div class="desk-cluster" style="left:360px; top:20px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <!-- Column 1, Row 2 -->
+    <div class="desk-cluster" style="left:30px; top:180px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 2, Row 2 -->
+    <div class="desk-cluster" style="left:140px; top:180px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 3, Row 2 -->
+    <div class="desk-cluster" style="left:250px; top:180px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column 4, Row 2 -->
+    <div class="desk-cluster" style="left:360px; top:180px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3 (partial - showing expandability) -->
+    <div class="desk-cluster" style="left:30px; top:340px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="desk-cluster" style="left:140px; top:340px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="desk-cluster" style="left:250px; top:340px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="desk-cluster" style="left:360px; top:340px;">
+      <div class="seat-top">
+        <div class="empty-seat">
+          <div style="font-size:7px; opacity:0.3; margin-bottom:2px;">empty</div>
+          <div class="empty-chair"></div>
+        </div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="monitor-stand"></div>
+      </div>
+      <div class="shared-desk"></div>
+      <div class="seat-bottom">
+        <div class="monitor-stand"></div>
+        <div class="monitor"><div class="monitor-screen off"></div></div>
+        <div class="empty-seat">
+          <div class="empty-chair"></div>
+          <div style="font-size:7px; opacity:0.3; margin-top:2px;">empty</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Idle wandering agents -->
+    <div class="wandering-1">
+      <div class="char">
+        <div class="char-bubble">☕</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#b45309;"></div>
+        <div class="char-label">Designer</div>
+      </div>
+    </div>
+
+    <div class="wandering-2">
+      <div class="char">
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#0e7490;"></div>
+        <div class="char-label">DevOps</div>
+      </div>
+    </div>
+
+    <div class="wandering-3">
+      <div class="char">
+        <div class="char-bubble">💬</div>
+        <div class="char-head"><div class="char-eyes"><div class="char-eye"></div><div class="char-eye"></div></div></div>
+        <div class="char-body" style="background:#9333ea;"></div>
+        <div class="char-label">Researcher</div>
+      </div>
+    </div>
+
+    <!-- Furniture -->
+    <div class="coffee-area" style="right:30px; top:20px;">
+      <div class="coffee-machine">☕</div>
+      <div class="coffee-label">Coffee</div>
+    </div>
+    <div class="plant" style="right:25px; top:160px;">🌿</div>
+    <div class="plant" style="right:30px; top:320px;">🪴</div>
+    <div class="plant" style="left:480px; top:140px;">🌵</div>
+  </div>
+</div>
+
+<div class="layout-info">
+  <h3>배치 구조</h3>
+  <p>4컬럼 × 마주보는 2자리 = 클러스터 1개당 2석. 행을 3~5개 배치하면 24~40석까지 확장 가능.</p>
+  <div class="layout-grid">
+    ┌─── Column 1 ───┬─── Column 2 ───┬─── Column 3 ───┬─── Column 4 ───┐<br>
+    │ ☻ ↕ monitor  │ ☻ ↕ monitor  │ ☻ ↕ monitor  │ ○ ↕ monitor  │ Row 1<br>
+    │ ══desk════  │ ══desk════  │ ══desk════  │ ══desk════  │<br>
+    │ monitor ↕ ☻  │ monitor ↕ ☻  │ monitor ↕ ○  │ monitor ↕ ○  │<br>
+    ├────────────────┼────────────────┼────────────────┼────────────────┤<br>
+    │ ○ ↕ monitor  │ ○ ↕ monitor  │ ○ ↕ monitor  │ ○ ↕ monitor  │ Row 2<br>
+    │ ══desk════  │ ══desk════  │ ══desk════  │ ══desk════  │<br>
+    │ monitor ↕ ○  │ monitor ↕ ○  │ monitor ↕ ○  │ monitor ↕ ○  │<br>
+    ├────────────────┼────────────────┼────────────────┼────────────────┤<br>
+    │ ...          │ ...          │ ...          │ ...          │ Row 3~5<br>
+    └────────────────┴────────────────┴────────────────┴────────────────┘<br>
+    <br>
+    ☻ = agent 앉아있음 &nbsp; ○ = 빈 자리 &nbsp; ↕ = 마주봄
+  </div>
+</div>
+
+</body>
+</html>

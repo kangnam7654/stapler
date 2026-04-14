@@ -5,7 +5,10 @@ const logoAssetIdSchema = z.string().uuid().nullable().optional();
 const brandColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
 
 const adapterEndpointSchema = z
-  .object({ baseUrl: z.string().min(1).optional() })
+  .object({
+    baseUrl: z.string().min(1).optional(),
+    apiKey: z.string().optional(),
+  })
   .optional();
 
 const adapterDefaultsSchema = z

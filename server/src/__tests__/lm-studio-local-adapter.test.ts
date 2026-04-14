@@ -9,18 +9,41 @@ describe("lm_studio_local testEnvironment", () => {
 
   it("returns 'pass' when LM Studio responds with a model", async () => {
     const mockFetch = globalThis.fetch as ReturnType<typeof vi.fn>;
-    mockFetch.mockResolvedValue(
+    mockFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ data: [{ id: "mistral-7b-instruct" }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
     );
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          choices: [{ index: 0, message: { role: "assistant", content: "hello" }, finish_reason: "stop" }],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
     const result = await testEnvironment({
       companyId: "company-1",
       adapterType: "lm_studio_local",
-      config: { baseUrl: "http://localhost:1234" },
+      config: { baseUrl: "http://localhost:1234", apiKey: "lms-secret" },
     });
     expect(result.status).toBe("pass");
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0]?.[1]).toMatchObject({
+      method: "GET",
+      headers: { Authorization: "Bearer lms-secret" },
+    });
+    expect(mockFetch.mock.calls[1]?.[1]).toMatchObject({
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer lms-secret",
+      },
+    });
   });
 
   it("returns 'fail' when LM Studio is unreachable", async () => {

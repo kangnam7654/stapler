@@ -5,6 +5,7 @@ import { resolveDefaultAgentWorkspaceDir } from "../home-paths.js";
 import {
   buildExplicitResumeSessionOverride,
   formatRuntimeWorkspaceWarningLog,
+  mergeAdapterConfigWithCompanyDefaults,
   prioritizeProjectWorkspaceCandidatesForRun,
   parseSessionCompactionPolicy,
   resolveRuntimeSessionParamsForWorkspace,
@@ -328,6 +329,35 @@ describe("parseSessionCompactionPolicy", () => {
       maxSessionRuns: 25,
       maxRawInputTokens: 500_000,
       maxSessionAgeHours: 0,
+    });
+  });
+});
+
+describe("mergeAdapterConfigWithCompanyDefaults", () => {
+  it("keeps company defaults when agent config contains null placeholders", () => {
+    expect(
+      mergeAdapterConfigWithCompanyDefaults(
+        { baseUrl: "http://100.89.177.3:1234", apiKey: "lms-secret" },
+        { model: "google/gemma-4-31b", baseUrl: null, timeoutSec: 300 },
+      ),
+    ).toEqual({
+      baseUrl: "http://100.89.177.3:1234",
+      apiKey: "lms-secret",
+      model: "google/gemma-4-31b",
+      timeoutSec: 300,
+    });
+  });
+
+  it("still lets explicit non-null agent overrides win", () => {
+    expect(
+      mergeAdapterConfigWithCompanyDefaults(
+        { baseUrl: "http://100.89.177.3:1234", apiKey: "lms-secret" },
+        { baseUrl: "http://10.0.0.5:1234", apiKey: "", model: "local-model" },
+      ),
+    ).toEqual({
+      baseUrl: "http://10.0.0.5:1234",
+      apiKey: "",
+      model: "local-model",
     });
   });
 });

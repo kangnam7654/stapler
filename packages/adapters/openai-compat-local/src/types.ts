@@ -69,6 +69,7 @@ export interface ToolExecutor {
 export interface AgentLoopOptions {
   baseUrl: string;
   model: string;
+  apiKey?: string;
   messages: ChatMessage[];
   tools: ToolExecutor[];
   enabledToolNames?: string[];
