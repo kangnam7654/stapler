@@ -667,7 +667,7 @@ function SkillPane({
             <div className="truncate font-mono text-sm">{file?.path ?? "SKILL.md"}</div>
           </div>
           <div className="flex items-center gap-2">
-            {file?.markdown && !editMode && (
+            {(file?.markdown || file?.language === "html") && !editMode && (
               <div className="flex items-center border border-border">
                 <button
                   className={cn("px-3 py-1.5 text-sm", viewMode === "preview" && "text-foreground", viewMode !== "preview" && "text-muted-foreground")}
@@ -724,6 +724,13 @@ function SkillPane({
               className="min-h-[520px] rounded-none border-0 bg-transparent px-0 py-0 font-mono text-sm shadow-none focus-visible:ring-0"
             />
           )
+        ) : file.language === "html" && viewMode === "preview" ? (
+          <iframe
+            srcDoc={file.content}
+            sandbox=""
+            className="h-[560px] w-full rounded border border-border bg-white"
+            title={file.path}
+          />
         ) : file.markdown && viewMode === "preview" ? (
           <MarkdownBody>{body}</MarkdownBody>
         ) : (

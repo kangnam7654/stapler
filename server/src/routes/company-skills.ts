@@ -42,6 +42,21 @@ function toCompanySkillListItem(s: InstanceSkill, companyId: string): CompanySki
   };
 }
 
+function inferInstanceSkillLanguage(basename: string): string | null {
+  if (basename.endsWith(".md")) return "markdown";
+  if (basename.endsWith(".html") || basename.endsWith(".htm")) return "html";
+  if (basename.endsWith(".ts")) return "typescript";
+  if (basename.endsWith(".tsx")) return "tsx";
+  if (basename.endsWith(".js") || basename.endsWith(".mjs")) return "javascript";
+  if (basename.endsWith(".jsx")) return "jsx";
+  if (basename.endsWith(".json")) return "json";
+  if (basename.endsWith(".yml") || basename.endsWith(".yaml")) return "yaml";
+  if (basename.endsWith(".sh")) return "bash";
+  if (basename.endsWith(".py")) return "python";
+  if (basename.endsWith(".css")) return "css";
+  return null;
+}
+
 function toCompanySkillDetail(s: InstanceSkill, companyId: string): CompanySkillDetail {
   return {
     id: s.id,
@@ -178,13 +193,14 @@ export function companySkillRoutes(db: Db) {
       }
       const basename = path.posix.basename(relativePath).toLowerCase();
       const isMarkdown = basename === "skill.md" || basename.endsWith(".md");
+      const language = inferInstanceSkillLanguage(basename);
       const fileEntry = instanceSkill.fileInventory.find((e) => e.path === relativePath);
       res.json({
         skillId,
         path: relativePath,
         kind: fileEntry?.kind ?? "reference",
         content,
-        language: isMarkdown ? "markdown" : null,
+        language,
         markdown: isMarkdown,
         editable: false,
       });
