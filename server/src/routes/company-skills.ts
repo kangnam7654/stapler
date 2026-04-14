@@ -14,6 +14,7 @@ import { accessService, agentService, companySkillService, logActivity } from ".
 import { forbidden } from "../errors.js";
 import { assertCompanyAccess, getActorInfo } from "./authz.js";
 import { t } from "../i18n/index.js";
+import type { CompanySkillDetail } from "@paperclipai/shared";
 import { instanceSkillsCache, type InstanceSkill } from "../services/instance-skills-cache.js";
 
 function toCompanySkillListItem(s: InstanceSkill, companyId: string): CompanySkillListItem {
@@ -34,6 +35,34 @@ function toCompanySkillListItem(s: InstanceSkill, companyId: string): CompanySki
     createdAt: new Date(0),
     updatedAt: new Date(0),
     attachedAgentCount: 0,
+    editable: false,
+    editableReason: "Claude Code 디스크 스킬은 편집할 수 없습니다",
+    sourceLabel: s.sourceLabel,
+    sourceBadge: s.sourceType,
+  };
+}
+
+function toCompanySkillDetail(s: InstanceSkill, companyId: string): CompanySkillDetail {
+  return {
+    id: s.id,
+    companyId,
+    key: s.key,
+    slug: s.slug,
+    name: s.name,
+    description: s.description,
+    markdown: s.markdown,
+    sourceType: s.sourceType,
+    sourceLocator: s.diskPath,
+    sourceRef: null,
+    sourcePath: null,
+    trustLevel: "markdown_only",
+    compatibility: "compatible",
+    fileInventory: s.fileInventory,
+    metadata: null,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    attachedAgentCount: 0,
+    usedByAgents: [],
     editable: false,
     editableReason: "Claude Code 디스크 스킬은 편집할 수 없습니다",
     sourceLabel: s.sourceLabel,
@@ -97,6 +126,13 @@ export function companySkillRoutes(db: Db) {
     const companyId = req.params.companyId as string;
     const skillId = req.params.skillId as string;
     assertCompanyAccess(req, companyId);
+
+    const instanceSkill = instanceSkillsCache.getById(skillId);
+    if (instanceSkill) {
+      res.json(toCompanySkillDetail(instanceSkill, companyId));
+      return;
+    }
+
     const result = await svc.detail(companyId, skillId);
     if (!result) {
       res.status(404).json({ error: t("error.skillNotFound") });
