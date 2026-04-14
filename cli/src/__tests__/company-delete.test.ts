@@ -18,6 +18,7 @@ function makeCompany(overrides: Partial<Company>): Company {
     brandColor: null,
     logoAssetId: null,
     logoUrl: null,
+    adapterDefaults: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

@@ -141,6 +141,8 @@ export {
 
 export type {
   Company,
+  CompanyAdapterDefaults,
+  AdapterEndpoint,
   CompanySkillSourceType,
   CompanySkillTrustLevel,
   CompanySkillCompatibility,

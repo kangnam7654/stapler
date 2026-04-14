@@ -1,5 +1,6 @@
 import type {
   Company,
+  CompanyAdapterDefaults,
   CompanyPortabilityExportRequest,
   CompanyPortabilityExportPreviewResult,
   CompanyPortabilityExportResult,
@@ -30,7 +31,7 @@ export const companiesApi = {
         Company,
         "name" | "description" | "status" | "budgetMonthlyCents" | "requireBoardApprovalForNewAgents" | "brandColor" | "logoAssetId"
       >
-    >,
+    > & { adapterDefaults?: CompanyAdapterDefaults | null },
   ) => api.patch<Company>(`/companies/${companyId}`, data),
   updateBranding: (companyId: string, data: UpdateCompanyBranding) =>
     api.patch<Company>(`/companies/${companyId}/branding`, data),

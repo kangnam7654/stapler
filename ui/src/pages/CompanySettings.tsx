@@ -41,6 +41,8 @@ export function CompanySettings() {
   const [brandColor, setBrandColor] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const [lmStudioBaseUrl, setLmStudioBaseUrl] = useState("");
+  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("");
 
   // Sync local state from selected company
   useEffect(() => {
@@ -49,6 +51,8 @@ export function CompanySettings() {
     setDescription(selectedCompany.description ?? "");
     setBrandColor(selectedCompany.brandColor ?? "");
     setLogoUrl(selectedCompany.logoUrl ?? "");
+    setLmStudioBaseUrl(selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "");
+    setOllamaBaseUrl(selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? "");
   }, [selectedCompany]);
 
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -62,6 +66,11 @@ export function CompanySettings() {
       description !== (selectedCompany.description ?? "") ||
       brandColor !== (selectedCompany.brandColor ?? ""));
 
+  const adapterDefaultsDirty =
+    !!selectedCompany &&
+    (lmStudioBaseUrl !== (selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "") ||
+     ollamaBaseUrl !== (selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? ""));
+
   const generalMutation = useMutation({
     mutationFn: (data: {
       name: string;
@@ -71,6 +80,20 @@ export function CompanySettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     }
+  });
+
+  const adapterDefaultsMutation = useMutation({
+    mutationFn: () =>
+      companiesApi.update(selectedCompanyId!, {
+        adapterDefaults: {
+          lm_studio_local: lmStudioBaseUrl ? { baseUrl: lmStudioBaseUrl } : undefined,
+          ollama_local: ollamaBaseUrl ? { baseUrl: ollamaBaseUrl } : undefined,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+      pushToast({ title: "어댑터 기본값 저장됨", tone: "success" });
+    },
   });
 
   const settingsMutation = useMutation({
@@ -412,6 +435,46 @@ export function CompanySettings() {
             checked={!!selectedCompany.requireBoardApprovalForNewAgents}
             onChange={(v) => settingsMutation.mutate(v)}
           />
+        </div>
+      </div>
+
+      {/* Adapter Defaults */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          어댑터 기본값
+        </div>
+        <div className="space-y-3 rounded-md border border-border px-4 py-4">
+          <p className="text-xs text-muted-foreground">
+            에이전트에 Base URL이 설정되지 않은 경우 여기서 지정한 값이 사용됩니다.
+          </p>
+          <div className="space-y-2">
+            <label className="text-xs font-medium">LM Studio Base URL</label>
+            <input
+              type="text"
+              className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
+              placeholder="http://192.168.x.x:1234"
+              value={lmStudioBaseUrl}
+              onChange={(e) => setLmStudioBaseUrl(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium">Ollama Base URL</label>
+            <input
+              type="text"
+              className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
+              placeholder="http://192.168.x.x:11434"
+              value={ollamaBaseUrl}
+              onChange={(e) => setOllamaBaseUrl(e.target.value)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => adapterDefaultsMutation.mutate()}
+            disabled={!adapterDefaultsDirty || adapterDefaultsMutation.isPending}
+          >
+            {adapterDefaultsMutation.isPending ? "저장 중..." : "저장"}
+          </Button>
         </div>
       </div>
 
