@@ -36,6 +36,7 @@ import {
   workspaceRuntimeServices,
 } from "@paperclipai/db";
 import { notFound, unprocessable } from "../errors.js";
+import { t } from "../i18n/index.js";
 
 export function companyService(db: Db) {
   const ISSUE_PREFIX_FALLBACK = "CMP";
@@ -262,6 +263,9 @@ export function companyService(db: Db) {
 
     remove: (id: string) =>
       db.transaction(async (tx) => {
+        // Refuse to delete the last company
+        const total = await tx.select({ count: count() }).from(companies).then((r) => r[0]?.count ?? 0);
+        if (total <= 1) throw unprocessable(t("error.cannotDeleteLastCompany"));
         // Break circular FKs: heartbeat_runs ↔ agent_wakeup_requests
         await tx.update(heartbeatRuns).set({ wakeupRequestId: null }).where(eq(heartbeatRuns.companyId, id));
         await tx.update(agentWakeupRequests).set({ runId: null }).where(eq(agentWakeupRequests.companyId, id));
