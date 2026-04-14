@@ -140,7 +140,18 @@ export function companySkillRoutes(db: Db) {
         res.status(404).json({ error: t("error.skillNotFound") });
         return;
       }
-      res.json({ path: relativePath, content });
+      const basename = path.posix.basename(relativePath).toLowerCase();
+      const isMarkdown = basename === "skill.md" || basename.endsWith(".md");
+      const fileEntry = instanceSkill.fileInventory.find((e) => e.path === relativePath);
+      res.json({
+        skillId,
+        path: relativePath,
+        kind: fileEntry?.kind ?? "reference",
+        content,
+        language: isMarkdown ? "markdown" : null,
+        markdown: isMarkdown,
+        editable: false,
+      });
       return;
     }
 
