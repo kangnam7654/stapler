@@ -6,6 +6,7 @@ import { agents as agentsTable, companies, heartbeatRuns } from "@paperclipai/db
 import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
 import {
   agentSkillSyncSchema,
+  C_LEVEL_ROLES,
   createAgentKeySchema,
   createAgentHireSchema,
   createAgentSchema,
@@ -21,6 +22,7 @@ import {
   updateAgentInstructionsPathSchema,
   wakeAgentSchema,
   updateAgentSchema,
+  type AdapterDefaults,
 } from "@paperclipai/shared";
 import {
   readPaperclipSkillSyncPreference,
@@ -32,12 +34,14 @@ import {
   agentInstructionsService,
   accessService,
   approvalService,
+  companyService,
   companySkillService,
   budgetService,
   heartbeatService,
   issueApprovalService,
   issueService,
   logActivity,
+  projectService,
   secretService,
   syncInstructionsBundleConfigFromFilePath,
   workspaceOperationService,
@@ -86,6 +90,7 @@ export function agentRoutes(db: Db) {
   const router = Router();
   const svc = agentService(db);
   const access = accessService(db);
+  const companySvc = companyService(db);
   const approvalsSvc = approvalService(db);
   const budgets = budgetService(db);
   const heartbeat = heartbeatService(db);
@@ -678,10 +683,17 @@ export function agentRoutes(db: Db) {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
     const type = req.params.type as string;
-    const baseUrl = typeof req.query.baseUrl === "string" && req.query.baseUrl.trim()
+    const queryBaseUrl = typeof req.query.baseUrl === "string" && req.query.baseUrl.trim()
       ? req.query.baseUrl.trim()
       : undefined;
-    const models = await listAdapterModels(type, baseUrl);
+    // Fall back to company-level adapter default when no baseUrl in query
+    const companyBaseUrl = queryBaseUrl === undefined
+      ? await companySvc.get(companyId).then((co) => {
+          const defaults = co?.adapterDefaults as AdapterDefaults | null;
+          return defaults?.[type as keyof AdapterDefaults]?.baseUrl ?? undefined;
+        }).catch(() => undefined)
+      : undefined;
+    const models = await listAdapterModels(type, queryBaseUrl ?? companyBaseUrl);
     res.json(models);
   });
 
@@ -1185,6 +1197,66 @@ export function agentRoutes(db: Db) {
       sourceIssueIds: _sourceIssueIds,
       ...hireInput
     } = req.body;
+
+    const hireRole = (hireInput.role ?? "general").toLowerCase();
+
+    // C-Level uniqueness: only one active agent per C-level role per company.
+    if (C_LEVEL_ROLES.has(hireRole)) {
+      const existingAgents = await svc.list(companyId);
+      const duplicate = existingAgents.find(
+        (a) => a.role?.toLowerCase() === hireRole && a.status !== "terminated",
+      );
+      if (duplicate) {
+        res.status(409).json({
+          error: t("error.conflict"),
+          details: `A ${hireRole.toUpperCase()} agent already exists in this company (id: ${duplicate.id})`,
+        });
+        return;
+      }
+    }
+
+    // CHRO delegation: if a CHRO exists and the requester is not a board actor
+    // or the CHRO itself, route the hire request to the CHRO as an issue.
+    if (req.actor.type === "agent") {
+      const actorAgent = await svc.getById(req.actor.agentId!);
+      const actorRole = actorAgent?.role?.toLowerCase();
+      if (actorRole !== "chro") {
+        const allAgents = await svc.list(companyId);
+        const chro = allAgents.find(
+          (a) => a.role?.toLowerCase() === "chro" && a.status !== "terminated",
+        );
+        if (chro) {
+          const projectSvc = projectService(db);
+          const projectList = await projectSvc.list(companyId);
+          const project = projectList[0];
+          if (!project) {
+            res.status(422).json({ error: t("error.unprocessableEntity"), details: "No project found to delegate hire to CHRO" });
+            return;
+          }
+          const issueSvc = issueService(db);
+          const hireDescription = [
+            `Hire request delegated from **${actorAgent?.name ?? req.actor.agentId}**.`,
+            "",
+            "Requested configuration:",
+            "```json",
+            JSON.stringify(hireInput, null, 2),
+            "```",
+          ].join("\n");
+          const issue = await issueSvc.create(companyId, {
+            title: `Hire ${hireRole}: ${hireInput.name ?? hireRole}`,
+            description: hireDescription,
+            assigneeAgentId: chro.id,
+            status: "todo",
+            projectId: project.id,
+            originKind: "manual",
+            requestDepth: 1,
+            createdByAgentId: req.actor.agentId ?? null,
+          });
+          res.status(202).json({ delegated: true, chroId: chro.id, issue });
+          return;
+        }
+      }
+    }
     const requestedAdapterConfig = applyCreateDefaultsByAdapterType(
       hireInput.adapterType,
       ((hireInput.adapterConfig ?? {}) as Record<string, unknown>),
