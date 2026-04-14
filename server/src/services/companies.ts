@@ -3,6 +3,7 @@ import type { Db } from "@paperclipai/db";
 import {
   companies,
   companyLogos,
+  companySkills,
   assets,
   agents,
   agentApiKeys,
@@ -11,14 +12,19 @@ import {
   agentWakeupRequests,
   issues,
   issueComments,
+  issueReadStates,
+  issueInboxArchives,
   projects,
   goals,
+  documents,
   heartbeatRuns,
   heartbeatRunEvents,
   costEvents,
   financeEvents,
   approvalComments,
   approvals,
+  budgetPolicies,
+  budgetIncidents,
   activityLog,
   companySecrets,
   joinRequests,
@@ -26,6 +32,8 @@ import {
   principalPermissionGrants,
   companyMemberships,
   agentMessages,
+  workspaceOperations,
+  workspaceRuntimeServices,
 } from "@paperclipai/db";
 import { notFound, unprocessable } from "../errors.js";
 
@@ -269,19 +277,32 @@ export function companyService(db: Db) {
         await tx.delete(issueComments).where(eq(issueComments.companyId, id));
         await tx.delete(financeEvents).where(eq(financeEvents.companyId, id));
         await tx.delete(approvalComments).where(eq(approvalComments.companyId, id));
+        // budgetIncidents.approvalId → approvals (RESTRICT when non-null): must delete before approvals
+        await tx.delete(budgetIncidents).where(eq(budgetIncidents.companyId, id));
         await tx.delete(approvals).where(eq(approvals.companyId, id));
         await tx.delete(companySecrets).where(eq(companySecrets.companyId, id));
         await tx.delete(joinRequests).where(eq(joinRequests.companyId, id));
         await tx.delete(invites).where(eq(invites.companyId, id));
         await tx.delete(principalPermissionGrants).where(eq(principalPermissionGrants.companyId, id));
         await tx.delete(companyMemberships).where(eq(companyMemberships.companyId, id));
+        // issueReadStates.issueId and issueInboxArchives.issueId reference issues with no onDelete (RESTRICT)
+        await tx.delete(issueReadStates).where(eq(issueReadStates.companyId, id));
+        await tx.delete(issueInboxArchives).where(eq(issueInboxArchives.companyId, id));
         await tx.delete(issues).where(eq(issues.companyId, id));
         await tx.delete(companyLogos).where(eq(companyLogos.companyId, id));
         await tx.delete(assets).where(eq(assets.companyId, id));
+        // documents.companyId has no cascade; delete after issues so issueDocuments are already gone
+        await tx.delete(documents).where(eq(documents.companyId, id));
         await tx.delete(goals).where(eq(goals.companyId, id));
         await tx.delete(projects).where(eq(projects.companyId, id));
         await tx.delete(agents).where(eq(agents.companyId, id));
         await tx.delete(activityLog).where(eq(activityLog.companyId, id));
+        // workspace tables: companyId has no cascade; projectId/executionWorkspaceId are set null (cleared above)
+        await tx.delete(workspaceOperations).where(eq(workspaceOperations.companyId, id));
+        await tx.delete(workspaceRuntimeServices).where(eq(workspaceRuntimeServices.companyId, id));
+        // budgetPolicies.companyId has no cascade; delete after budgetIncidents (already deleted above)
+        await tx.delete(budgetPolicies).where(eq(budgetPolicies.companyId, id));
+        await tx.delete(companySkills).where(eq(companySkills.companyId, id));
         const rows = await tx
           .delete(companies)
           .where(eq(companies.id, id))
