@@ -4,7 +4,7 @@ import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import type { BillingType } from "@paperclipai/shared";
+import type { BillingType, AdapterDefaults } from "@paperclipai/shared";
 import {
   agents,
   agentRuntimeState,
@@ -26,6 +26,7 @@ import { createLocalAgentJwt } from "../agent-auth-jwt.js";
 import { parseObject, asBoolean, asNumber, appendWithCap, MAX_EXCERPT_BYTES } from "../adapters/utils.js";
 import { costService } from "./costs.js";
 import { companySkillService } from "./company-skills.js";
+import { companyService } from "./companies.js";
 import { budgetService, type BudgetEnforcementScope } from "./budgets.js";
 import { secretService } from "./secrets.js";
 import { resolveDefaultAgentWorkspaceDir, resolveManagedProjectWorkspaceDir } from "../home-paths.js";
@@ -773,6 +774,7 @@ export function heartbeatService(db: Db) {
 
   const runLogStore = getRunLogStore();
   const secretsSvc = secretService(db);
+  const companySvc = companyService(db);
   const companySkills = companySkillService(db);
   const issuesSvc = issueService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
@@ -2535,11 +2537,23 @@ export function heartbeatService(db: Db) {
           "local agent jwt secret missing or invalid; running without injected PAPERCLIP_API_KEY",
         );
       }
+      // Merge company adapter defaults — agent-level config wins
+      const companyAdapterDefaults = await companySvc
+        .getById(agent.companyId)
+        .then((co) => {
+          if (!co?.adapterDefaults) return {};
+          const key = agent.adapterType as keyof AdapterDefaults;
+          return (co.adapterDefaults as AdapterDefaults)[key] ?? {};
+        })
+        .catch(() => ({}));
+
+      const mergedAdapterConfig = { ...companyAdapterDefaults, ...(runtimeConfig as Record<string, unknown>) };
+
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
         runtime: runtimeForAdapter,
-        config: runtimeConfig,
+        config: mergedAdapterConfig,
         context,
         onLog,
         onMeta: onAdapterMeta,
