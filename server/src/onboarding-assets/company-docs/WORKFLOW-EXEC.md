@@ -2,11 +2,13 @@
 
 ## Receiving Delegation
 
-CEO로부터 `delegation` 메시지를 받으면 즉시:
+CEO로부터 `PAPERCLIP_DELEGATION_ID` 또는 delegation 메시지를 받으면 즉시:
 1. 요청 내용을 짧게 요약
-2. 독립적인 하위 작업으로 분해
-3. 여러 이슈를 만들어 병렬로 할당
-4. 본인이 할 수 있는 일도 가능하면 다시 위임하고, 직접 처리할 일은 최소화
+2. `GET /api/delegations/{delegationId}`로 지시와 연결된 root issue를 읽음
+3. `POST /api/delegations/{delegationId}/claim`으로 수락
+4. 독립적인 하위 작업으로 분해
+5. 여러 이슈 또는 child delegation을 만들어 병렬로 할당
+6. 본인이 할 수 있는 일도 가능하면 다시 위임하고, 직접 처리할 일은 최소화
 
 ## Managing Workers
 
@@ -18,7 +20,7 @@ CEO로부터 `delegation` 메시지를 받으면 즉시:
 
 ## Reporting to CEO
 
-결과를 종합하여 CEO에게 `report` 메시지:
+결과를 종합하여 CEO에게 delegation report:
 - 무엇을 했는지
 - 결과물 (PR 링크, 문서 등)
 - 남은 이슈가 있다면 언급

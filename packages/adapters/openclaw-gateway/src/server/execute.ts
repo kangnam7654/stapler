@@ -19,6 +19,9 @@ type WakePayload = {
   wakeCommentId: string | null;
   approvalId: string | null;
   approvalStatus: string | null;
+  delegationId: string | null;
+  rootIssueId: string | null;
+  linkedIssueId: string | null;
   issueIds: string[];
 };
 
@@ -293,6 +296,9 @@ function buildWakePayload(ctx: AdapterExecutionContext): WakePayload {
     wakeCommentId: nonEmpty(context.wakeCommentId) ?? nonEmpty(context.commentId),
     approvalId: nonEmpty(context.approvalId),
     approvalStatus: nonEmpty(context.approvalStatus),
+    delegationId: nonEmpty(context.delegationId),
+    rootIssueId: nonEmpty(context.rootIssueId),
+    linkedIssueId: nonEmpty(context.linkedIssueId),
     issueIds: Array.isArray(context.issueIds)
       ? context.issueIds.filter(
           (value): value is string => typeof value === "string" && value.trim().length > 0,
@@ -328,6 +334,9 @@ function buildPaperclipEnvForWake(ctx: AdapterExecutionContext, wakePayload: Wak
   if (wakePayload.wakeCommentId) paperclipEnv.PAPERCLIP_WAKE_COMMENT_ID = wakePayload.wakeCommentId;
   if (wakePayload.approvalId) paperclipEnv.PAPERCLIP_APPROVAL_ID = wakePayload.approvalId;
   if (wakePayload.approvalStatus) paperclipEnv.PAPERCLIP_APPROVAL_STATUS = wakePayload.approvalStatus;
+  if (wakePayload.delegationId) paperclipEnv.PAPERCLIP_DELEGATION_ID = wakePayload.delegationId;
+  if (wakePayload.rootIssueId) paperclipEnv.PAPERCLIP_ROOT_ISSUE_ID = wakePayload.rootIssueId;
+  if (wakePayload.linkedIssueId) paperclipEnv.PAPERCLIP_LINKED_ISSUE_ID = wakePayload.linkedIssueId;
   if (wakePayload.issueIds.length > 0) {
     paperclipEnv.PAPERCLIP_LINKED_ISSUE_IDS = wakePayload.issueIds.join(",");
   }
@@ -347,6 +356,9 @@ function buildWakeText(payload: WakePayload, paperclipEnv: Record<string, string
     "PAPERCLIP_WAKE_COMMENT_ID",
     "PAPERCLIP_APPROVAL_ID",
     "PAPERCLIP_APPROVAL_STATUS",
+    "PAPERCLIP_DELEGATION_ID",
+    "PAPERCLIP_ROOT_ISSUE_ID",
+    "PAPERCLIP_LINKED_ISSUE_ID",
     "PAPERCLIP_LINKED_ISSUE_IDS",
   ];
 
@@ -378,6 +390,9 @@ function buildWakeText(payload: WakePayload, paperclipEnv: Record<string, string
     `wake_comment_id=${payload.wakeCommentId ?? ""}`,
     `approval_id=${payload.approvalId ?? ""}`,
     `approval_status=${payload.approvalStatus ?? ""}`,
+    `delegation_id=${payload.delegationId ?? ""}`,
+    `root_issue_id=${payload.rootIssueId ?? ""}`,
+    `linked_issue_id=${payload.linkedIssueId ?? ""}`,
     `linked_issue_ids=${payload.issueIds.join(",")}`,
     "",
     "HTTP rules:",
@@ -389,20 +404,24 @@ function buildWakeText(payload: WakePayload, paperclipEnv: Record<string, string
     "Workflow:",
     "1) GET /api/agents/me",
     `2) Determine issueId: PAPERCLIP_TASK_ID if present, otherwise issue_id (${issueIdHint}).`,
-    "3) If issueId exists:",
+    "3) If PAPERCLIP_DELEGATION_ID exists, GET /api/delegations/{delegationId} first and follow the delegation brief. If it has linkedIssueId, also read that issue.",
+    "4) If issueId exists:",
     "   - POST /api/issues/{issueId}/checkout with {\"agentId\":\"$PAPERCLIP_AGENT_ID\",\"expectedStatuses\":[\"todo\",\"backlog\",\"blocked\"]}",
     "   - GET /api/issues/{issueId}",
     "   - GET /api/issues/{issueId}/comments",
     "   - Execute the issue instructions exactly.",
     "   - If instructions require a comment, POST /api/issues/{issueId}/comments with {\"body\":\"...\"}.",
     "   - PATCH /api/issues/{issueId} with {\"status\":\"done\",\"comment\":\"what changed and why\"}.",
-    "4) If issueId does not exist:",
+    "5) If issueId does not exist:",
     "   - GET /api/companies/$PAPERCLIP_COMPANY_ID/issues?assigneeAgentId=$PAPERCLIP_AGENT_ID&status=todo,in_progress,blocked",
-    "   - Pick in_progress first, then todo, then blocked, then execute step 3.",
+    "   - Pick in_progress first, then todo, then blocked, then execute step 4.",
     "",
     "Useful endpoints for issue work:",
     "- POST /api/issues/{issueId}/comments",
     "- PATCH /api/issues/{issueId}",
+    "- GET /api/delegations/{delegationId}",
+    "- POST /api/delegations/{delegationId}/claim",
+    "- POST /api/delegations/{delegationId}/report",
     "- POST /api/companies/{companyId}/issues (when asked to create a new issue)",
     "",
     "Complete the workflow in this run.",

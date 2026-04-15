@@ -365,6 +365,13 @@
       "when": 1776235587641,
       "tag": "0051_flaky_warstar",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1776258709917,
+      "tag": "0052_perpetual_xorn",
+      "breakpoints": true
     }
   ]
 }

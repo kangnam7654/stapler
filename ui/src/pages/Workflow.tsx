@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { EmptyState } from "../components/EmptyState";
+import { AgentDelegationsPanel } from "../components/AgentDelegationsPanel";
 import { WorkflowInbox } from "../components/WorkflowInbox";
 import { WorkflowRouteRulesPanel } from "../components/WorkflowRouteRulesPanel";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,8 @@ export function Workflow() {
           </div>
         </div>
       </div>
+
+      <AgentDelegationsPanel companyId={selectedCompanyId} />
 
       <details className="rounded-2xl border border-border bg-card p-4">
         <summary className="cursor-pointer list-none text-sm font-medium text-muted-foreground">

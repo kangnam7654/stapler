@@ -31,18 +31,21 @@ You have access to the \`paperclip_request\` tool which lets you call the Paperc
 
 Key API endpoints:
 - Read your assigned tasks: GET /api/companies/{{agent.companyId}}/issues?assigneeAgentId={{agent.id}}&status=in_progress
+- Read an assigned delegation: GET /api/delegations/{delegationId}
+- Report a delegation: POST /api/delegations/{delegationId}/report  { "result": "...", "status": "reported" }
 - List existing agents: GET /api/companies/{{agent.companyId}}/agents
 - Comment on issues: POST /api/issues/{issueId}/comments  { "body": "..." }
 - Hire new agents: POST /api/companies/{{agent.companyId}}/agent-hires  { "name": "...", "role": "...", "adapterType": "lm_studio_local", "adapterConfig": { "model": "...", "baseUrlMode": "company" } }
 - Mark issue done: PATCH /api/issues/{issueId}  { "status": "done" }
 
 Work loop — follow these steps exactly:
-1. Call GET /api/companies/{{agent.companyId}}/issues?assigneeAgentId={{agent.id}}&status=in_progress to get your current tasks.
-2. For each task, FIRST check whether the work is already done (e.g. if the task is to hire a role, call GET /api/companies/{{agent.companyId}}/agents and check if that role already exists).
-3. If the work is already done, skip to step 4 immediately — do NOT redo it.
-4. If the work is not done, perform it now using paperclip_request.
-5. IMPORTANT: Call PATCH /api/issues/{issueId} with { "status": "done" } to mark the task complete. You MUST do this for every task before ending your session.
-6. Delegation discipline: if you already delegated or hired someone for an objective in this run, do NOT create a second issue, task, or hire for the same objective. Reuse the existing issue or comment on the existing thread instead of inventing a follow-up task.
+1. If PAPERCLIP_DELEGATION_ID is set, first read GET /api/delegations/{delegationId}, then claim/report it as you work.
+2. Call GET /api/companies/{{agent.companyId}}/issues?assigneeAgentId={{agent.id}}&status=in_progress to get your current tasks.
+3. For each task, FIRST check whether the work is already done (e.g. if the task is to hire a role, call GET /api/companies/{{agent.companyId}}/agents and check if that role already exists).
+4. If the work is already done, skip to step 5 immediately — do NOT redo it.
+5. If the work is not done, perform it now using paperclip_request.
+6. IMPORTANT: Call PATCH /api/issues/{issueId} with { "status": "done" } to mark the task complete. You MUST do this for every task before ending your session.
+7. Delegation discipline: if you already delegated or hired someone for an objective in this run, do NOT create a second issue, task, or hire for the same objective. Reuse the existing issue or comment on the existing thread instead of inventing a follow-up task.
 
 Start now by reading your assignments.`;
 
@@ -150,18 +153,29 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     (typeof context.taskId === "string" && context.taskId) ||
     null;
   const wakeReason = typeof context.wakeReason === "string" ? context.wakeReason : null;
+  const delegationId = typeof context.delegationId === "string" ? context.delegationId : null;
+  const rootIssueId = typeof context.rootIssueId === "string" ? context.rootIssueId : null;
+  const linkedIssueId = typeof context.linkedIssueId === "string" ? context.linkedIssueId : null;
+  if (delegationId) {
+    env.PAPERCLIP_DELEGATION_ID = delegationId;
+  }
+  if (rootIssueId) env.PAPERCLIP_ROOT_ISSUE_ID = rootIssueId;
+  if (linkedIssueId) env.PAPERCLIP_LINKED_ISSUE_ID = linkedIssueId;
 
   let taskNote = "";
+  if (delegationId) {
+    taskNote = `## Current Delegation\nDelegation ID: ${delegationId}${wakeReason ? `\nWake reason: ${wakeReason}` : ""}\n\nRead it first: GET /api/delegations/${delegationId}`;
+  }
   if (issueId) {
     const apiUrl = env.PAPERCLIP_API_URL ?? "";
     const apiKey = env.PAPERCLIP_API_KEY ?? "";
     const issueData = apiUrl ? await fetchIssueContext(issueId, apiUrl, apiKey) : null;
     if (issueData) {
-      taskNote = `## Current Task\n**${issueData.title}** (ID: ${issueId})`;
+      taskNote += `${taskNote ? "\n\n" : ""}## Current Task\n**${issueData.title}** (ID: ${issueId})`;
       if (issueData.description) taskNote += `\n\n${issueData.description}`;
       if (wakeReason) taskNote += `\n\nWake reason: ${wakeReason}`;
     } else {
-      taskNote = `## Current Task\nTask ID: ${issueId}${wakeReason ? `\nWake reason: ${wakeReason}` : ""}`;
+      taskNote += `${taskNote ? "\n\n" : ""}## Current Task\nTask ID: ${issueId}${wakeReason ? `\nWake reason: ${wakeReason}` : ""}`;
     }
   }
 

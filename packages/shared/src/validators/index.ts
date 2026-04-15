@@ -105,6 +105,16 @@ export {
 } from "./agent.js";
 
 export {
+  agentDelegationStatusSchema,
+  createAgentDelegationSchema,
+  updateAgentDelegationSchema,
+  reportAgentDelegationSchema,
+  type CreateAgentDelegation,
+  type UpdateAgentDelegation,
+  type ReportAgentDelegation,
+} from "./agent-delegation.js";
+
+export {
   draftPromptTemplateRequestSchema,
   type DraftPromptTemplateRequest,
   type DraftPromptTemplateEvent,

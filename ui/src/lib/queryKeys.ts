@@ -143,6 +143,10 @@ export const queryKeys = {
     artifacts: (caseId: string) => ["workflow-cases", caseId, "artifacts"] as const,
     reviews: (caseId: string) => ["workflow-cases", caseId, "reviews"] as const,
     routeRules: (companyId: string) => ["workflow-route-rules", companyId] as const,
+    delegations: (companyId: string, filters?: Record<string, unknown>) =>
+      ["agent-delegations", companyId, filters ?? {}] as const,
+    delegationDetail: (companyId: string, delegationId: string) =>
+      ["agent-delegations", companyId, delegationId] as const,
   },
   simulation: {
     state: (companyId: string) => ["simulation", companyId] as const,

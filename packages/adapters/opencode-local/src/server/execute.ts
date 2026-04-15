@@ -142,6 +142,18 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     (typeof context.wakeCommentId === "string" && context.wakeCommentId.trim().length > 0 && context.wakeCommentId.trim()) ||
     (typeof context.commentId === "string" && context.commentId.trim().length > 0 && context.commentId.trim()) ||
     null;
+  const delegationId =
+    typeof context.delegationId === "string" && context.delegationId.trim().length > 0
+      ? context.delegationId.trim()
+      : null;
+  const rootIssueId =
+    typeof context.rootIssueId === "string" && context.rootIssueId.trim().length > 0
+      ? context.rootIssueId.trim()
+      : null;
+  const linkedIssueId =
+    typeof context.linkedIssueId === "string" && context.linkedIssueId.trim().length > 0
+      ? context.linkedIssueId.trim()
+      : null;
   const approvalId =
     typeof context.approvalId === "string" && context.approvalId.trim().length > 0
       ? context.approvalId.trim()
@@ -156,6 +168,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   if (wakeTaskId) env.PAPERCLIP_TASK_ID = wakeTaskId;
   if (wakeReason) env.PAPERCLIP_WAKE_REASON = wakeReason;
   if (wakeCommentId) env.PAPERCLIP_WAKE_COMMENT_ID = wakeCommentId;
+  if (delegationId) env.PAPERCLIP_DELEGATION_ID = delegationId;
+  if (rootIssueId) env.PAPERCLIP_ROOT_ISSUE_ID = rootIssueId;
+  if (linkedIssueId) env.PAPERCLIP_LINKED_ISSUE_ID = linkedIssueId;
   if (approvalId) env.PAPERCLIP_APPROVAL_ID = approvalId;
   if (approvalStatus) env.PAPERCLIP_APPROVAL_STATUS = approvalStatus;
   if (linkedIssueIds.length > 0) env.PAPERCLIP_LINKED_ISSUE_IDS = linkedIssueIds.join(",");

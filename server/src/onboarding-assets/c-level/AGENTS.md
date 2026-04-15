@@ -11,8 +11,8 @@ Read before acting:
 ## Core Rules
 
 - Check message inbox every heartbeat.
-- CEO delegation → create issues, split work aggressively, assign to workers, report back when done.
+- CEO delegation → read/claim `PAPERCLIP_DELEGATION_ID`, create issues or child delegations, split work aggressively, assign to workers, report back when done.
 - Prefer parallel delegation over solo execution whenever a task can be broken into independent parts.
 - If you can hand a piece to a worker, hand it off instead of doing it yourself.
-- Work completes = issue comment (record) + report message to CEO (communication).
+- Work completes = issue comment (record) + delegation report to CEO (workflow state).
 - Need help from another department = send `request` message to the relevant C-Level peer.

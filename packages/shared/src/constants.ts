@@ -567,6 +567,18 @@ export type AgentMessageType = (typeof AGENT_MESSAGE_TYPES)[number];
 export const AGENT_MESSAGE_STATUSES = ["sent", "read", "archived"] as const;
 export type AgentMessageStatus = (typeof AGENT_MESSAGE_STATUSES)[number];
 
+export const AGENT_DELEGATION_STATUSES = [
+  "queued",
+  "claimed",
+  "in_progress",
+  "blocked",
+  "reported",
+  "done",
+  "cancelled",
+  "failed",
+] as const;
+export type AgentDelegationStatus = (typeof AGENT_DELEGATION_STATUSES)[number];
+
 export const PRINCIPAL_TYPES = ["user", "agent"] as const;
 export type PrincipalType = (typeof PRINCIPAL_TYPES)[number];
 

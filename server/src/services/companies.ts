@@ -6,6 +6,7 @@ import {
   companySkills,
   assets,
   agents,
+  agentDelegations,
   agentApiKeys,
   agentRuntimeState,
   agentTaskSessions,
@@ -270,6 +271,7 @@ export function companyService(db: Db) {
         // activityLog.runId → heartbeat_runs (RESTRICT) and activityLog.agentId → agents (RESTRICT):
         // delete first so nothing references heartbeat_runs or agents
         await tx.delete(activityLog).where(eq(activityLog.companyId, id));
+        await tx.delete(agentDelegations).where(eq(agentDelegations.companyId, id));
         // Break circular FKs: heartbeat_runs ↔ agent_wakeup_requests
         await tx.update(heartbeatRuns).set({ wakeupRequestId: null }).where(eq(heartbeatRuns.companyId, id));
         await tx.update(agentWakeupRequests).set({ runId: null }).where(eq(agentWakeupRequests.companyId, id));
