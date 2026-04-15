@@ -71,11 +71,13 @@ import {
   ArrowLeft,
   HelpCircle,
   FolderOpen,
+  MessageSquare,
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { AgentIcon, AgentIconPicker } from "../components/AgentIconPicker";
+import { WorkflowInbox } from "../components/WorkflowInbox";
 import { RunTranscriptView, type TranscriptMode } from "../components/transcript/RunTranscriptView";
 import {
   isUuidLike,
@@ -223,12 +225,13 @@ function scrollToContainerBottom(container: ScrollContainer, behavior: ScrollBeh
   container.scrollTo({ top: container.scrollHeight, behavior });
 }
 
-type AgentDetailView = "dashboard" | "instructions" | "configuration" | "skills" | "runs" | "budget";
+type AgentDetailView = "dashboard" | "instructions" | "configuration" | "skills" | "runs" | "workflow" | "budget";
 
 function parseAgentDetailView(value: string | null): AgentDetailView {
   if (value === "instructions" || value === "prompts") return "instructions";
   if (value === "configure" || value === "configuration") return "configuration";
   if (value === "skills") return "skills";
+  if (value === "messages" || value === "conversation" || value === "workflow") return "workflow";
   if (value === "budget") return "budget";
   if (value === "runs") return value;
   return "dashboard";
@@ -651,6 +654,8 @@ export function AgentDetail() {
             ? "skills"
             : activeView === "runs"
               ? "runs"
+              : activeView === "workflow"
+                ? "workflow"
               : activeView === "budget"
                 ? "budget"
               : "dashboard";
@@ -772,6 +777,8 @@ export function AgentDetail() {
         crumbs.push({ label: t("projects.configuration") });
       // } else if (activeView === "skills") { // TODO: bring back later
       //   crumbs.push({ label: t("nav.skills") });
+      } else if (activeView === "workflow") {
+        crumbs.push({ label: "Workflow" });
       } else if (activeView === "runs") {
         crumbs.push({ label: "실행 기록" });
       } else if (activeView === "budget") {
@@ -834,6 +841,12 @@ export function AgentDetail() {
           >
             <Plus className="h-3.5 w-3.5 sm:mr-1" />
             <span className="hidden sm:inline">작업 배정</span>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/agents/${canonicalAgentRef}/workflow`}>
+              <MessageSquare className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Workflow</span>
+            </Link>
           </Button>
           <RunButton
             onClick={() => agentAction.mutate("invoke")}
@@ -914,6 +927,7 @@ export function AgentDetail() {
               { value: "instructions", label: "지시사항" },
               { value: "skills", label: t("nav.skills") },
               { value: "configuration", label: t("projects.configuration") },
+              { value: "workflow", label: "Workflow" },
               { value: "runs", label: "실행 기록" },
               { value: "budget", label: t("projects.budget") },
             ]}
@@ -1028,6 +1042,13 @@ export function AgentDetail() {
           companyId={resolvedCompanyId ?? undefined}
         />
       )}
+
+      {activeView === "workflow" && resolvedCompanyId ? (
+        <WorkflowInbox
+          companyId={resolvedCompanyId}
+          agentId={agent.id}
+        />
+      ) : null}
 
       {activeView === "runs" && (
         <RunsTab
@@ -3864,6 +3885,7 @@ function LogViewer({ run, adapterType }: { run: HeartbeatRun; adapterType: strin
           entries={transcript}
           mode={transcriptMode}
           streaming={isLive}
+          collapseStdout={transcriptMode === "nice"}
           emptyMessage={run.logRef ? "트랜스크립트 대기 중..." : "이 실행의 저장된 트랜스크립트가 없습니다."}
         />
         {logError && (

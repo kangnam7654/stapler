@@ -97,6 +97,27 @@ export function agentMessageRoutes(db: Db) {
     res.json(messages);
   });
 
+  // PATCH /api/companies/:companyId/messages/threads/:threadId/read
+  router.patch("/companies/:companyId/messages/threads/:threadId/read", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    const threadId = req.params.threadId as string;
+    assertCompanyAccess(req, companyId);
+
+    let agentId: string;
+    if (req.actor.type === "agent") {
+      agentId = req.actor.agentId!;
+    } else {
+      agentId = req.query.agentId as string;
+      if (!agentId) {
+        res.status(400).json({ error: "agentId query parameter required for board users" });
+        return;
+      }
+    }
+
+    const updated = await messaging.markThreadRead(threadId, agentId);
+    res.json({ updated });
+  });
+
   // PATCH /api/companies/:companyId/messages/:messageId/read
   router.patch("/companies/:companyId/messages/:messageId/read", async (req, res) => {
     const companyId = req.params.companyId as string;

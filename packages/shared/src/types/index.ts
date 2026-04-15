@@ -90,6 +90,16 @@ export type {
 export type { Goal } from "./goal.js";
 export type { Approval, ApprovalComment } from "./approval.js";
 export type {
+  WorkflowRouteRule,
+  WorkflowIntake,
+  WorkflowCase,
+  WorkflowBrief,
+  WorkflowArtifact,
+  WorkflowReview,
+  WorkflowDecision,
+  WorkflowHandoff,
+} from "./workflow.js";
+export type {
   BudgetPolicy,
   BudgetPolicySummary,
   BudgetIncident,

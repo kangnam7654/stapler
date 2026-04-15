@@ -22,9 +22,13 @@ function parseEnvLines(text: string): Record<string, string> {
 
 export function buildLmStudioLocalConfig(values: CreateConfigValues): Record<string, unknown> {
   const config: Record<string, unknown> = {
-    baseUrl: asString(values.url, DEFAULT_LM_STUDIO_BASE_URL),
+    baseUrlMode: values.lmStudioBaseUrlMode ?? "company",
     model: asString(values.model, DEFAULT_LM_STUDIO_MODEL),
   };
+
+  if (values.lmStudioBaseUrlMode === "custom") {
+    config.baseUrl = asString(values.url, DEFAULT_LM_STUDIO_BASE_URL);
+  }
 
   const cwd = typeof values.cwd === "string" ? values.cwd.trim() : "";
   if (cwd.length > 0) config.cwd = cwd;

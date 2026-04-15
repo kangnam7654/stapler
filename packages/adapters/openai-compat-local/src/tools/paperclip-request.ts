@@ -5,6 +5,16 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function compactWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function summarizeResponse(text: string): string {
+  const compact = compactWhitespace(text);
+  if (!compact) return "<empty>";
+  return compact.length > 160 ? `${compact.slice(0, 159)}…` : compact;
+}
+
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE", "PUT"]);
 
 export const paperclipRequestTool: ToolExecutor = {
@@ -68,6 +78,12 @@ export const paperclipRequestTool: ToolExecutor = {
 
     const response = await fetch(url, init);
     const text = await response.text();
+    const summary = summarizeResponse(text);
+    const resultLabel = `${method} ${url} -> ${response.status}${summary ? ` ${summary}` : ""}`;
+    await ctx.onLog(
+      response.ok ? "stdout" : "stderr",
+      `[paperclip_request result] ${resultLabel}\n`,
+    );
     if (!response.ok) {
       return `HTTP ${response.status}\n${text.slice(0, 4096)}`;
     }

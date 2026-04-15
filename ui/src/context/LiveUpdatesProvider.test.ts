@@ -36,6 +36,26 @@ describe("LiveUpdatesProvider issue invalidation", () => {
   });
 });
 
+describe("LiveUpdatesProvider agent message invalidation", () => {
+  it("refreshes agent message queries when a new message arrives", () => {
+    const invalidations: unknown[] = [];
+    const queryClient = {
+      invalidateQueries: (input: unknown) => {
+        invalidations.push(input);
+      },
+      getQueryData: () => undefined,
+    };
+
+    __liveUpdatesTestUtils.invalidateAgentMessageQueries(
+      queryClient as never,
+    );
+
+    expect(invalidations).toContainEqual({
+      queryKey: ["agent-messages"],
+    });
+  });
+});
+
 describe("LiveUpdatesProvider visible issue toast suppression", () => {
   it("suppresses activity toasts for the issue page currently in view", () => {
     const queryClient = {

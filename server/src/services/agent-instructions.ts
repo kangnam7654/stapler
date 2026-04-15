@@ -281,17 +281,19 @@ async function recoverManagedBundleState(agent: AgentLike, state: BundleState): 
   const files = await listFilesRecursive(managedRootPath);
   if (files.length === 0) return state;
 
+  const recoverEntryFileFromDisk = () => {
+    if (files.includes(state.entryFile)) return state.entryFile;
+    if (files.includes(ENTRY_FILE_DEFAULT)) return ENTRY_FILE_DEFAULT;
+    return files[0]!;
+  };
+
   // For an unconfigured bundle (no rootPath), pick a sensible entry from disk.
   // For a CONFIGURED bundle, never auto-promote another file as the entry just
   // because the configured entry happens to be missing on disk — that hides the
   // user's intended entry file (e.g., AGENTS.md) and silently retitles a
   // newly-created reference file as the main entry.
   if (!state.rootPath) {
-    const recoveredEntryFile = files.includes(state.entryFile)
-      ? state.entryFile
-      : files.includes(ENTRY_FILE_DEFAULT)
-        ? ENTRY_FILE_DEFAULT
-        : files[0]!;
+    const recoveredEntryFile = recoverEntryFileFromDisk();
     return {
       ...state,
       mode: "managed",
@@ -308,15 +310,23 @@ async function recoverManagedBundleState(agent: AgentLike, state: BundleState): 
 
   if (configuredRootMatchesManaged) return state;
 
+  const recoveredEntryFile = recoverEntryFileFromDisk();
+
   const warnings = [
     ...state.warnings,
     `Recovered managed instructions from disk at ${managedRootPath}; ignoring stale configured root ${state.rootPath}.`,
   ];
+  if (recoveredEntryFile !== state.entryFile) {
+    warnings.push(
+      `Recovered managed instructions entry file from disk as ${recoveredEntryFile}; previous entry ${state.entryFile} was missing.`,
+    );
+  }
   return {
     ...state,
     mode: "managed",
     rootPath: managedRootPath,
-    resolvedEntryPath: path.resolve(managedRootPath, state.entryFile),
+    entryFile: recoveredEntryFile,
+    resolvedEntryPath: path.resolve(managedRootPath, recoveredEntryFile),
     warnings,
   };
 }

@@ -133,7 +133,16 @@ export const queryKeys = {
     inbox: (companyId: string, agentId: string) => ["agent-messages", "inbox", companyId, agentId] as const,
     sent: (companyId: string, agentId: string) => ["agent-messages", "sent", companyId, agentId] as const,
     thread: (companyId: string, threadId: string) => ["agent-messages", "thread", companyId, threadId] as const,
+    timeline: (companyId: string) => ["agent-messages", "timeline", companyId] as const,
     unreadCount: (companyId: string, agentId: string) => ["agent-messages", "unread", companyId, agentId] as const,
+  },
+  workflows: {
+    cases: (companyId: string, filters?: Record<string, string | undefined>) =>
+      ["workflow-cases", companyId, filters ?? {}] as const,
+    caseDetail: (companyId: string, caseId: string) => ["workflow-cases", companyId, caseId] as const,
+    artifacts: (caseId: string) => ["workflow-cases", caseId, "artifacts"] as const,
+    reviews: (caseId: string) => ["workflow-cases", caseId, "reviews"] as const,
+    routeRules: (companyId: string) => ["workflow-route-rules", companyId] as const,
   },
   simulation: {
     state: (companyId: string) => ["simulation", companyId] as const,

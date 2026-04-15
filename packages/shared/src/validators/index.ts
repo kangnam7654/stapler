@@ -184,6 +184,29 @@ export {
 } from "./approval.js";
 
 export {
+  workflowCaseKindSchema,
+  workflowCategorySchema,
+  workflowCaseStatusSchema,
+  workflowArtifactKindSchema,
+  workflowReviewStatusSchema,
+  workflowExecutionTargetSchema,
+  createWorkflowRouteRuleSchema,
+  updateWorkflowRouteRuleSchema,
+  createWorkflowCaseSchema,
+  updateWorkflowCaseSchema,
+  createWorkflowArtifactSchema,
+  submitWorkflowReviewSchema,
+  resolveWorkflowCaseSchema,
+  type CreateWorkflowRouteRule,
+  type UpdateWorkflowRouteRule,
+  type CreateWorkflowCase,
+  type UpdateWorkflowCase,
+  type CreateWorkflowArtifact,
+  type SubmitWorkflowReview,
+  type ResolveWorkflowCase,
+} from "./workflow.js";
+
+export {
   envBindingPlainSchema,
   envBindingSecretRefSchema,
   envBindingSchema,

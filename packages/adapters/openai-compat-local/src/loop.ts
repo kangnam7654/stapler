@@ -6,7 +6,7 @@ import type {
   ToolCall,
   ToolExecutor,
 } from "./types.js";
-import { chatCompletion } from "./client.js";
+import { chatCompletionStream } from "./client.js";
 
 function findTool(tools: ToolExecutor[], name: string): ToolExecutor | undefined {
   return tools.find((t) => t.name === name);
@@ -81,9 +81,10 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
       };
     }
 
+    let loggedModelPrefix = false;
     let response;
     try {
-      response = await chatCompletion({
+      response = await chatCompletionStream({
         baseUrl,
         apiKey,
         request: {
@@ -92,6 +93,13 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
           ...(toolDefs.length > 0 ? { tools: toolDefs, tool_choice: "auto" as const } : {}),
         },
         timeoutMs: remaining,
+        onDelta: async (delta) => {
+          if (!loggedModelPrefix) {
+            loggedModelPrefix = true;
+            await onLog("stdout", "[model] ");
+          }
+          await onLog("stdout", delta);
+        },
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -123,10 +131,8 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
 
     const toolCalls = assistantMsg.tool_calls ?? [];
     if (toolCalls.length === 0) {
-      // Log the model's text response so we can diagnose tool-calling issues
-      const textContent = typeof assistantMsg.content === "string" ? assistantMsg.content : "";
-      if (textContent) {
-        await onLog("stdout", `[model] ${textContent}\n`);
+      if (loggedModelPrefix) {
+        await onLog("stdout", "\n");
       }
       await onLog(
         "stdout",

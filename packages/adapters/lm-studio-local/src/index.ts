@@ -23,7 +23,8 @@ Don't use when:
 - Your model does not support tool calls (the agent will not be able to act)
 
 Core fields:
-- baseUrl (string, optional): LM Studio server URL. Defaults to http://localhost:1234
+- baseUrl (string, optional): LM Studio server URL. When omitted, the agent inherits the company LM Studio setting.
+- lmStudioBaseUrlMode (string, optional): "company" to inherit the company setting, or "custom" to use the agent's own baseUrl.
 - model (string, optional): Model id as shown in LM Studio. Defaults to local-model
 - cwd (string, optional): working directory for bash/file tools
 - systemPrompt (string, optional): system message prepended to every run

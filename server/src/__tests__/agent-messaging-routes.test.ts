@@ -14,6 +14,7 @@ const mockListInbox = vi.fn();
 const mockListSent = vi.fn();
 const mockListThread = vi.fn();
 const mockMarkRead = vi.fn();
+const mockMarkThreadRead = vi.fn();
 const mockCountUnread = vi.fn();
 const mockWakeup = vi.fn();
 
@@ -24,7 +25,7 @@ vi.mock("../services/index.js", () => ({
     listSent: mockListSent,
     listThread: mockListThread,
     markRead: mockMarkRead,
-    markThreadRead: vi.fn(),
+    markThreadRead: mockMarkThreadRead,
     countUnread: mockCountUnread,
   }),
   heartbeatService: () => ({
@@ -190,6 +191,21 @@ describe("agent message routes", () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(2);
+    });
+  });
+
+  describe("PATCH /api/companies/:companyId/messages/threads/:threadId/read", () => {
+    it("marks thread as read for board users", async () => {
+      mockMarkThreadRead.mockResolvedValue(2);
+
+      const app = createApp(boardActor);
+      const res = await request(app)
+        .patch(`/api/companies/${companyId}/messages/threads/${messageId}/read`)
+        .query({ agentId: recipientAgentId });
+
+      expect(res.status).toBe(200);
+      expect(res.body.updated).toBe(2);
+      expect(mockMarkThreadRead).toHaveBeenCalledWith(messageId, recipientAgentId);
     });
   });
 

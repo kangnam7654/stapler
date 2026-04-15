@@ -1131,6 +1131,7 @@ function TranscriptStdoutRow({
   collapseByDefault: boolean;
 }) {
   const [open, setOpen] = useState(!collapseByDefault);
+  const preview = truncate(compactWhitespace(block.text.replace(/\r?\n+/g, " ")), density === "compact" ? 120 : 180);
 
   return (
     <div>
@@ -1138,6 +1139,11 @@ function TranscriptStdoutRow({
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           stdout
         </span>
+        {!open && preview && (
+          <span className="min-w-0 flex-1 break-words text-[11px] text-foreground/70">
+            {preview}
+          </span>
+        )}
         <button
           type="button"
           className="inline-flex h-5 w-5 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"

@@ -65,6 +65,8 @@ const HEARTBEAT_MAX_CONCURRENT_RUNS_MAX = 10;
 const DEFERRED_WAKE_CONTEXT_KEY = "_paperclipWakeContext";
 const DETACHED_PROCESS_ERROR_CODE = "process_detached";
 const startLocksByAgent = new Map<string, Promise<void>>();
+const activeRunExecutions = new Set<string>();
+export const heartbeatActiveRunExecutionsForTesting = activeRunExecutions;
 const REPO_ONLY_CWD_SENTINEL = "/__paperclip_repo_only__";
 const MANAGED_WORKSPACE_GIT_CLONE_TIMEOUT_MS = 10 * 60 * 1000;
 const execFile = promisify(execFileCallback);
@@ -88,6 +90,18 @@ export function mergeAdapterConfigWithCompanyDefaults(
     ...companyAdapterDefaults,
     ...explicitOverrides,
   };
+}
+
+export function normalizeAdapterConfigForAdapterType(
+  adapterType: string,
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  if (adapterType !== "lm_studio_local") return config;
+  const baseUrlMode = config.baseUrlMode;
+  if (baseUrlMode === "custom") return config;
+  const normalized = { ...config };
+  delete normalized.baseUrl;
+  return normalized;
 }
 
 function deriveRepoNameFromRepoUrl(repoUrl: string | null): string | null {
@@ -792,7 +806,6 @@ export function heartbeatService(db: Db) {
   const issuesSvc = issueService(db);
   const executionWorkspacesSvc = executionWorkspaceService(db);
   const workspaceOperationsSvc = workspaceOperationService(db);
-  const activeRunExecutions = new Set<string>();
   const budgetHooks = {
     cancelWorkForScope: cancelBudgetScopeWork,
   };
@@ -2564,12 +2577,16 @@ export function heartbeatService(db: Db) {
         companyAdapterDefaults,
         runtimeConfig as Record<string, unknown>,
       );
+      const normalizedAdapterConfig = normalizeAdapterConfigForAdapterType(
+        agent.adapterType,
+        mergedAdapterConfig,
+      );
 
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
         runtime: runtimeForAdapter,
-        config: mergedAdapterConfig,
+        config: normalizedAdapterConfig,
         context,
         onLog,
         onMeta: onAdapterMeta,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { agentMessagesApi, type AgentMessage, type SendMessageInput } from "../api/agentMessages";
@@ -19,9 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, Send, ArrowLeft, Mail, MailOpen } from "lucide-react";
+import { MessageSquare, Send, ArrowLeft, Mail, MailOpen, Inbox } from "lucide-react";
 import type { Agent } from "@paperclipai/shared";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "@/lib/router";
 
 function formatTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -52,6 +53,46 @@ function MessageTypeBadge({ type }: { type: string }) {
     <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium", MESSAGE_TYPE_COLORS[type] ?? "bg-muted text-muted-foreground")}>
       {MESSAGE_TYPE_LABELS[type] ?? type}
     </span>
+  );
+}
+
+function agentNameFor(agentMap: Map<string, Agent>, agentId: string, currentAgentId: string) {
+  if (agentId === currentAgentId) return "You";
+  return agentMap.get(agentId)?.name ?? "Unknown";
+}
+
+interface ThreadSummary {
+  threadId: string;
+  latestMessage: AgentMessage;
+  messageCount: number;
+  unreadCount: number;
+}
+
+function buildThreadSummaries(messages: AgentMessage[], currentAgentId: string) {
+  const summaries = new Map<string, ThreadSummary>();
+  for (const message of messages) {
+    const threadId = message.threadId ?? message.id;
+    const summary = summaries.get(threadId);
+    if (!summary) {
+      summaries.set(threadId, {
+        threadId,
+        latestMessage: message,
+        messageCount: 1,
+        unreadCount: message.recipientAgentId === currentAgentId && message.status === "sent" ? 1 : 0,
+      });
+      continue;
+    }
+
+    summary.messageCount += 1;
+    if (message.recipientAgentId === currentAgentId && message.status === "sent") {
+      summary.unreadCount += 1;
+    }
+    if (new Date(message.createdAt).getTime() > new Date(summary.latestMessage.createdAt).getTime()) {
+      summary.latestMessage = message;
+    }
+  }
+  return Array.from(summaries.values()).sort(
+    (a, b) => new Date(b.latestMessage.createdAt).getTime() - new Date(a.latestMessage.createdAt).getTime(),
   );
 }
 
@@ -152,16 +193,34 @@ function ThreadView({
   onBack: () => void;
 }) {
   const agentMap = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents]);
+  const queryClient = useQueryClient();
+  const markedThreadKeyRef = useRef<string | null>(null);
   const { data: messages, isLoading } = useQuery({
     queryKey: queryKeys.agentMessages.thread(companyId, threadId),
     queryFn: () => agentMessagesApi.thread(companyId, threadId),
     refetchInterval: 5000,
+  });
+  const markThreadRead = useMutation({
+    mutationFn: () => agentMessagesApi.markThreadRead(companyId, threadId, currentAgentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agent-messages"] });
+    },
   });
 
   const rootMessage = messages?.[0];
   const otherAgentId = rootMessage
     ? (rootMessage.senderAgentId === currentAgentId ? rootMessage.recipientAgentId : rootMessage.senderAgentId)
     : "";
+
+  useEffect(() => {
+    if (!currentAgentId) return;
+    const threadKey = `${threadId}:${currentAgentId}`;
+    if (markedThreadKeyRef.current === threadKey) return;
+    markedThreadKeyRef.current = threadKey;
+    markThreadRead.mutate();
+    // We intentionally mark as read whenever the thread becomes active for the current agent view.
+    // This keeps unread badges and inbox state aligned with what the user is actually reading.
+  }, [currentAgentId, markThreadRead, threadId]);
 
   if (isLoading) return <PageSkeleton />;
 
@@ -201,6 +260,76 @@ function ThreadView({
         defaultRecipient={otherAgentId}
         onSent={() => {}}
       />
+    </div>
+  );
+}
+
+function ConversationTimeline({
+  messages,
+  agents,
+  currentAgentId,
+  onSelectThread,
+}: {
+  messages: AgentMessage[];
+  agents: Agent[];
+  currentAgentId: string;
+  onSelectThread: (threadId: string) => void;
+}) {
+  const agentMap = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents]);
+  const summaries = useMemo(() => buildThreadSummaries(messages, currentAgentId), [currentAgentId, messages]);
+
+  if (summaries.length === 0) {
+    return (
+      <EmptyState
+        icon={Inbox}
+        message="No conversations yet"
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {summaries.map((summary) => {
+        const latest = summary.latestMessage;
+        const senderName = agentNameFor(agentMap, latest.senderAgentId, currentAgentId);
+        const recipientName = agentNameFor(agentMap, latest.recipientAgentId, currentAgentId);
+        const isUnread = summary.unreadCount > 0;
+        return (
+          <button
+            key={summary.threadId}
+            className={cn(
+              "flex w-full items-start gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-muted/50",
+              isUnread && "ring-1 ring-blue-500/30",
+            )}
+            onClick={() => onSelectThread(summary.threadId)}
+          >
+            <div className="mt-0.5">
+              {isUnread ? (
+                <Mail className="h-4 w-4 text-blue-500" />
+              ) : (
+                <MailOpen className="h-4 w-4 text-muted-foreground" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {senderName} → {recipientName}
+                </span>
+                <MessageTypeBadge type={latest.messageType} />
+                <span className="ml-auto text-xs text-muted-foreground">{formatTime(latest.createdAt)}</span>
+              </div>
+              <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground whitespace-pre-wrap">
+                {latest.body}
+              </p>
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{summary.messageCount} message{summary.messageCount === 1 ? "" : "s"}</span>
+                {isUnread && <span className="text-blue-500">{summary.unreadCount} unread</span>}
+                <span className="font-mono">thread {summary.threadId.slice(0, 8)}</span>
+              </div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -273,9 +402,14 @@ export function AgentMessages() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const { t } = useTranslation();
-  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<string>("inbox");
-  const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const initialAgentId = searchParams.get("agentId") ?? "";
+  const initialThreadId = searchParams.get("threadId");
+  const initialTab = searchParams.get("tab") ?? "inbox";
+  const initialActiveTab = initialTab === "inbox" || initialTab === "sent" || initialTab === "timeline" ? initialTab : "inbox";
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(initialAgentId);
+  const [activeTab, setActiveTab] = useState<string>(initialActiveTab);
+  const [selectedThread, setSelectedThread] = useState<string | null>(initialThreadId);
   const [showCompose, setShowCompose] = useState(false);
 
   useEffect(() => {
@@ -290,11 +424,16 @@ export function AgentMessages() {
 
   // Auto-select first agent
   useEffect(() => {
-    if (agents.length > 0 && !selectedAgentId) {
-      const active = agents.filter((a: Agent) => a.status !== "terminated");
-      if (active.length > 0) setSelectedAgentId(active[0].id);
+    if (agents.length === 0) return;
+    if (agents.some((agent) => agent.id === selectedAgentId)) return;
+
+    const active = agents.filter((a: Agent) => a.status !== "terminated");
+    if (initialAgentId && agents.some((agent) => agent.id === initialAgentId)) {
+      setSelectedAgentId(initialAgentId);
+    } else if (active.length > 0) {
+      setSelectedAgentId(active[0].id);
     }
-  }, [agents, selectedAgentId]);
+  }, [agents, initialAgentId, selectedAgentId]);
 
   const { data: inboxMessages = [] } = useQuery({
     queryKey: queryKeys.agentMessages.inbox(selectedCompanyId!, selectedAgentId),
@@ -308,6 +447,14 @@ export function AgentMessages() {
     queryFn: () => agentMessagesApi.sent(selectedCompanyId!, selectedAgentId),
     enabled: !!selectedCompanyId && !!selectedAgentId && activeTab === "sent",
     refetchInterval: 5000,
+  });
+
+  const { data: timelineMessages = [], error: timelineError } = useQuery({
+    queryKey: queryKeys.agentMessages.timeline(selectedCompanyId!),
+    queryFn: () => agentMessagesApi.timeline(selectedCompanyId!, { limit: 200 }),
+    enabled: !!selectedCompanyId && activeTab === "timeline",
+    refetchInterval: 5000,
+    retry: false,
   });
 
   const { data: unread } = useQuery({
@@ -380,6 +527,7 @@ export function AgentMessages() {
             )}
           </TabsTrigger>
           <TabsTrigger value="sent">Sent</TabsTrigger>
+          <TabsTrigger value="timeline">Conversations</TabsTrigger>
         </TabsList>
         <TabsContent value="inbox" className="mt-3">
           <MessageList
@@ -398,6 +546,20 @@ export function AgentMessages() {
             mode="sent"
             onSelectThread={setSelectedThread}
           />
+        </TabsContent>
+        <TabsContent value="timeline" className="mt-3">
+          {timelineError ? (
+            <div className="rounded-lg border border-border bg-card p-4 text-sm text-destructive">
+              {timelineError instanceof Error ? timelineError.message : "Failed to load conversations"}
+            </div>
+          ) : (
+            <ConversationTimeline
+              messages={timelineMessages}
+              agents={agents}
+              currentAgentId={selectedAgentId}
+              onSelectThread={setSelectedThread}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

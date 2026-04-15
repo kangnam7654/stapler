@@ -344,6 +344,27 @@
       "when": 1776163270612,
       "tag": "0048_right_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1776228683153,
+      "tag": "0049_busy_electro",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1776232741969,
+      "tag": "0050_sour_korath",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1776235587641,
+      "tag": "0051_flaky_warstar",
+      "breakpoints": true
     }
   ]
 }

@@ -201,6 +201,241 @@ export const APPROVAL_STATUSES = [
 ] as const;
 export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
 
+export const WORKFLOW_CATEGORIES = [
+  "engineering",
+  "hiring",
+  "budget",
+  "product_planning",
+  "strategy_planning",
+  "execution_planning",
+  "tech_planning",
+  "marketing",
+  "operations",
+  "governance",
+  "general",
+] as const;
+export type WorkflowCategory = (typeof WORKFLOW_CATEGORIES)[number];
+
+export const WORKFLOW_LAYER_KINDS = [
+  "intake",
+  "brief",
+  "review",
+  "decision",
+  "handoff",
+] as const;
+export type WorkflowLayerKind = (typeof WORKFLOW_LAYER_KINDS)[number];
+
+export const WORKFLOW_LAYER_LABELS: Record<WorkflowLayerKind, string> = {
+  intake: "Intake",
+  brief: "Brief",
+  review: "Review",
+  decision: "Decision",
+  handoff: "Handoff",
+};
+
+export const WORKFLOW_CASE_KINDS = [
+  "general_request",
+  "engineering_change",
+  "hiring_request",
+  "budget_request",
+  "strategy_review",
+  "process_change",
+  "incident_review",
+  "product_planning",
+  "tech_planning",
+  "execution_planning",
+  "marketing_request",
+] as const;
+export type WorkflowCaseKind = (typeof WORKFLOW_CASE_KINDS)[number];
+
+export const WORKFLOW_CASE_KIND_LABELS: Record<WorkflowCaseKind, string> = {
+  general_request: "General request",
+  engineering_change: "Engineering change",
+  hiring_request: "Hiring request",
+  budget_request: "Budget request",
+  strategy_review: "Strategy review",
+  process_change: "Process change",
+  incident_review: "Incident review",
+  product_planning: "Product planning",
+  tech_planning: "Tech planning",
+  execution_planning: "Execution planning",
+  marketing_request: "Marketing request",
+};
+
+export interface WorkflowCaseKindField {
+  key: string;
+  label: string;
+  placeholder: string;
+  multiline?: boolean;
+  inputType?: "text" | "number";
+}
+
+export interface WorkflowCaseKindPreset {
+  label: string;
+  description: string;
+  defaultCategory: WorkflowCategory;
+  defaultExecutionTarget: WorkflowExecutionTarget;
+  fields: readonly WorkflowCaseKindField[];
+}
+
+export const WORKFLOW_CASE_KIND_PRESETS = {
+  general_request: {
+    label: WORKFLOW_CASE_KIND_LABELS.general_request,
+    description: "A general request with no special routing needs.",
+    defaultCategory: "general",
+    defaultExecutionTarget: "issue",
+    fields: [
+      { key: "notes", label: "Notes", placeholder: "What should happen?" , multiline: true },
+    ],
+  },
+  engineering_change: {
+    label: WORKFLOW_CASE_KIND_LABELS.engineering_change,
+    description: "A code, architecture, or implementation change.",
+    defaultCategory: "engineering",
+    defaultExecutionTarget: "issue",
+    fields: [
+      { key: "component", label: "Component", placeholder: "Which area is affected?" },
+      { key: "risk", label: "Risk", placeholder: "What could go wrong?", multiline: true },
+      { key: "rollbackPlan", label: "Rollback plan", placeholder: "How do we revert safely?", multiline: true },
+    ],
+  },
+  hiring_request: {
+    label: WORKFLOW_CASE_KIND_LABELS.hiring_request,
+    description: "A request to hire or open a role.",
+    defaultCategory: "hiring",
+    defaultExecutionTarget: "agent_hire",
+    fields: [
+      { key: "role", label: "Role", placeholder: "Backend Engineer" },
+      { key: "headcount", label: "Headcount", placeholder: "1", inputType: "number" },
+      { key: "level", label: "Level", placeholder: "Senior / Staff" },
+    ],
+  },
+  budget_request: {
+    label: WORKFLOW_CASE_KIND_LABELS.budget_request,
+    description: "A request to spend, expand, or override budget.",
+    defaultCategory: "budget",
+    defaultExecutionTarget: "approval",
+    fields: [
+      { key: "amount", label: "Amount", placeholder: "10000", inputType: "number" },
+      { key: "currency", label: "Currency", placeholder: "USD" },
+      { key: "period", label: "Period", placeholder: "Monthly / quarterly / one-time" },
+      { key: "justification", label: "Justification", placeholder: "Why is this needed?", multiline: true },
+    ],
+  },
+  strategy_review: {
+    label: WORKFLOW_CASE_KIND_LABELS.strategy_review,
+    description: "A higher-level decision or direction review.",
+    defaultCategory: "strategy_planning",
+    defaultExecutionTarget: "approval",
+    fields: [
+      { key: "decisionNeeded", label: "Decision needed", placeholder: "What decision should be made?", multiline: true },
+      { key: "options", label: "Options", placeholder: "What are the alternatives?", multiline: true },
+    ],
+  },
+  process_change: {
+    label: WORKFLOW_CASE_KIND_LABELS.process_change,
+    description: "A change to an operational process or workflow.",
+    defaultCategory: "operations",
+    defaultExecutionTarget: "issue",
+    fields: [
+      { key: "currentProcess", label: "Current process", placeholder: "How does it work today?", multiline: true },
+      { key: "proposedProcess", label: "Proposed process", placeholder: "What should change?", multiline: true },
+      { key: "impact", label: "Impact", placeholder: "Who is affected and how?", multiline: true },
+    ],
+  },
+  incident_review: {
+    label: WORKFLOW_CASE_KIND_LABELS.incident_review,
+    description: "A review of an incident, outage, or failure.",
+    defaultCategory: "governance",
+    defaultExecutionTarget: "approval",
+    fields: [
+      { key: "incident", label: "Incident", placeholder: "What happened?", multiline: true },
+      { key: "severity", label: "Severity", placeholder: "Low / medium / high" },
+      { key: "remediation", label: "Remediation", placeholder: "What will prevent repeats?", multiline: true },
+    ],
+  },
+  product_planning: {
+    label: WORKFLOW_CASE_KIND_LABELS.product_planning,
+    description: "A product roadmap or feature planning request.",
+    defaultCategory: "product_planning",
+    defaultExecutionTarget: "issue",
+    fields: [
+      { key: "goal", label: "Goal", placeholder: "What outcome are we aiming for?", multiline: true },
+      { key: "scope", label: "Scope", placeholder: "What is in and out of scope?", multiline: true },
+      { key: "successMetric", label: "Success metric", placeholder: "How will we measure success?" },
+    ],
+  },
+  tech_planning: {
+    label: WORKFLOW_CASE_KIND_LABELS.tech_planning,
+    description: "A technical plan, design, or infrastructure proposal.",
+    defaultCategory: "tech_planning",
+    defaultExecutionTarget: "issue",
+    fields: [
+      { key: "system", label: "System", placeholder: "Which system is affected?" },
+      { key: "constraints", label: "Constraints", placeholder: "What constraints do we have?", multiline: true },
+      { key: "tradeoffs", label: "Tradeoffs", placeholder: "What are we trading off?", multiline: true },
+    ],
+  },
+  execution_planning: {
+    label: WORKFLOW_CASE_KIND_LABELS.execution_planning,
+    description: "A schedule, rollout, or execution plan.",
+    defaultCategory: "execution_planning",
+    defaultExecutionTarget: "issue",
+    fields: [
+      { key: "milestones", label: "Milestones", placeholder: "What are the steps?", multiline: true },
+      { key: "dependencies", label: "Dependencies", placeholder: "What needs to happen first?", multiline: true },
+      { key: "owner", label: "Owner", placeholder: "Who drives this?" },
+    ],
+  },
+  marketing_request: {
+    label: WORKFLOW_CASE_KIND_LABELS.marketing_request,
+    description: "A marketing, messaging, or growth request.",
+    defaultCategory: "marketing",
+    defaultExecutionTarget: "issue",
+    fields: [
+      { key: "channel", label: "Channel", placeholder: "Email / social / web / launch" },
+      { key: "audience", label: "Audience", placeholder: "Who is this for?" },
+      { key: "objective", label: "Objective", placeholder: "What should this achieve?", multiline: true },
+    ],
+  },
+} as const satisfies Record<WorkflowCaseKind, WorkflowCaseKindPreset>;
+
+export const WORKFLOW_CASE_STATUSES = [
+  "draft",
+  "in_review",
+  "revision_requested",
+  "approved",
+  "rejected",
+  "executing",
+  "done",
+  "cancelled",
+] as const;
+export type WorkflowCaseStatus = (typeof WORKFLOW_CASE_STATUSES)[number];
+
+export const WORKFLOW_ARTIFACT_KINDS = [
+  "draft",
+  "review",
+  "revision",
+  "decision",
+  "attachment_ref",
+] as const;
+export type WorkflowArtifactKind = (typeof WORKFLOW_ARTIFACT_KINDS)[number];
+
+export const WORKFLOW_REVIEW_STATUSES = [
+  "approved",
+  "revision_requested",
+  "rejected",
+] as const;
+export type WorkflowReviewStatus = (typeof WORKFLOW_REVIEW_STATUSES)[number];
+
+export const WORKFLOW_EXECUTION_TARGETS = [
+  "issue",
+  "agent_hire",
+  "approval",
+  "config_update",
+] as const;
+export type WorkflowExecutionTarget = (typeof WORKFLOW_EXECUTION_TARGETS)[number];
+
 export const SECRET_PROVIDERS = [
   "local_encrypted",
   "aws_secrets_manager",

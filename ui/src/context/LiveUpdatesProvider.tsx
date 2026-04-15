@@ -551,6 +551,10 @@ function invalidateActivityQueries(
   }
 }
 
+function invalidateAgentMessageQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ["agent-messages"] });
+}
+
 interface ToastGate {
   cooldownHits: Map<string, number[]>;
   suppressUntil: number;
@@ -600,6 +604,11 @@ function handleLiveEvent(
   const nameOf = (id: string) => resolveAgentName(queryClient, expectedCompanyId, id);
   const payload = event.payload ?? {};
   if (event.type === "heartbeat.run.log") {
+    return;
+  }
+
+  if (event.type === "agent.message.received") {
+    invalidateAgentMessageQueries(queryClient);
     return;
   }
 
@@ -654,6 +663,7 @@ function handleLiveEvent(
 
 export const __liveUpdatesTestUtils = {
   invalidateActivityQueries,
+  invalidateAgentMessageQueries,
   shouldSuppressActivityToastForVisibleIssue,
   shouldSuppressRunStatusToastForVisibleIssue,
   shouldSuppressAgentStatusToastForVisibleIssue,

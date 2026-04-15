@@ -13,6 +13,7 @@ import {
   Settings,
   MessageSquare,
   Gamepad2,
+  Workflow,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -103,6 +104,7 @@ export function Sidebar() {
 
         <SidebarSection label="업무">
           <SidebarNavItem to="/issues" label={t("nav.issues")} icon={CircleDot} />
+          <SidebarNavItem to="/workflow" label="Workflow" icon={Workflow} />
           <SidebarNavItem to="/routines" label={t("nav.routines")} icon={Repeat} textBadge={t("routines.beta")} textBadgeTone="amber" />
           <SidebarNavItem to="/goals" label={t("nav.goals")} icon={Target} />
         </SidebarSection>
@@ -111,7 +113,7 @@ export function Sidebar() {
 
         <SidebarAgents />
 
-        <SidebarSection label="회사">
+        <SidebarSection label="관리">
           <SidebarNavItem to="/org" label={t("nav.org")} icon={Network} />
           <SidebarNavItem to="/skills" label={t("nav.skills")} icon={Boxes} />
           <SidebarNavItem to="/costs" label={t("nav.costs")} icon={DollarSign} />

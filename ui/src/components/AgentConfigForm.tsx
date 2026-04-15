@@ -32,6 +32,11 @@ import { extractModelName, extractProviderId } from "../lib/model-utils";
 import { queryKeys } from "../lib/queryKeys";
 import { useCompany } from "../context/CompanyContext";
 import {
+  resolveLmStudioBaseUrlMode,
+  resolveLmStudioCompanyBaseUrl,
+  resolveLmStudioEffectiveBaseUrl,
+} from "../adapters/lm-studio-local/base-url";
+import {
   Field,
   ToggleField,
   ToggleWithNumber,
@@ -189,7 +194,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const showAdapterTestEnvironmentButton = props.showAdapterTestEnvironmentButton ?? true;
   const showCreateRunPolicySection = props.showCreateRunPolicySection ?? true;
   const hideInstructionsFile = props.hideInstructionsFile ?? false;
-  const { selectedCompanyId } = useCompany();
+  const { selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
 
   const { data: availableSecrets = [] } = useQuery({
@@ -252,6 +257,28 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     setOverlay({ ...emptyOverlay });
   }, []);
 
+  // ---- Resolve values ----
+  const config = !isCreate ? ((props.agent.adapterConfig ?? {}) as Record<string, unknown>) : {};
+  const runtimeConfig = !isCreate ? ((props.agent.runtimeConfig ?? {}) as Record<string, unknown>) : {};
+  const heartbeat = !isCreate ? ((runtimeConfig.heartbeat ?? {}) as Record<string, unknown>) : {};
+
+  const adapterType = isCreate
+    ? props.values.adapterType
+    : overlay.adapterType ?? props.agent.adapterType;
+  const isLocal =
+    adapterType === "claude_local" ||
+    adapterType === "codex_local" ||
+    adapterType === "gemini_local" ||
+    adapterType === "hermes_local" ||
+    adapterType === "opencode_local" ||
+    adapterType === "pi_local" ||
+    adapterType === "cursor";
+  const isHermesLocal = adapterType === "hermes_local";
+  const showLegacyWorkingDirectoryField =
+    isLocal && shouldShowLegacyWorkingDirectoryField({ isCreate, adapterConfig: config });
+  const uiAdapter = useMemo(() => getUIAdapter(adapterType), [adapterType]);
+  const lmStudioCompanyBaseUrl = resolveLmStudioCompanyBaseUrl(selectedCompany);
+
   const handleSave = useCallback(() => {
     if (isCreate || !isDirty) return;
     const agent = props.agent;
@@ -295,8 +322,27 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
       Object.assign(patch, overlay.runtime);
     }
 
+    const nextAdapterType = (patch.adapterType as string | undefined) ?? agent.adapterType;
+    const nextAdapterConfig = patch.adapterConfig as Record<string, unknown> | undefined;
+    if (nextAdapterType === "lm_studio_local" && nextAdapterConfig) {
+      const baseUrlMode = resolveLmStudioBaseUrlMode(
+        nextAdapterConfig.baseUrlMode ?? config.baseUrlMode,
+        nextAdapterConfig.baseUrl ?? config.baseUrl,
+      );
+      nextAdapterConfig.baseUrlMode = baseUrlMode;
+      if (baseUrlMode !== "custom") {
+        delete nextAdapterConfig.baseUrl;
+      } else if (
+        typeof nextAdapterConfig.baseUrl !== "string" ||
+        String(nextAdapterConfig.baseUrl).trim().length === 0
+      ) {
+        nextAdapterConfig.baseUrl = lmStudioCompanyBaseUrl;
+      }
+      patch.adapterConfig = nextAdapterConfig;
+    }
+
     props.onSave(patch);
-  }, [isCreate, isDirty, overlay, props]);
+  }, [config.baseUrl, config.baseUrlMode, isCreate, isDirty, lmStudioCompanyBaseUrl, overlay, props]);
 
   useEffect(() => {
     if (!isCreate) {
@@ -315,35 +361,31 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     };
   }, [isCreate, props.onDirtyChange, props.onSaveActionChange, props.onCancelActionChange]);
 
-  // ---- Resolve values ----
-  const config = !isCreate ? ((props.agent.adapterConfig ?? {}) as Record<string, unknown>) : {};
-  const runtimeConfig = !isCreate ? ((props.agent.runtimeConfig ?? {}) as Record<string, unknown>) : {};
-  const heartbeat = !isCreate ? ((runtimeConfig.heartbeat ?? {}) as Record<string, unknown>) : {};
-
-  const adapterType = isCreate
-    ? props.values.adapterType
-    : overlay.adapterType ?? props.agent.adapterType;
-  const isLocal =
-    adapterType === "claude_local" ||
-    adapterType === "codex_local" ||
-    adapterType === "gemini_local" ||
-    adapterType === "hermes_local" ||
-    adapterType === "opencode_local" ||
-    adapterType === "pi_local" ||
-    adapterType === "cursor";
-  const isHermesLocal = adapterType === "hermes_local";
-  const showLegacyWorkingDirectoryField =
-    isLocal && shouldShowLegacyWorkingDirectoryField({ isCreate, adapterConfig: config });
-  const uiAdapter = useMemo(() => getUIAdapter(adapterType), [adapterType]);
-
   // Fetch adapter models for the effective adapter type
   // For local adapters with a configurable baseUrl (LM Studio, Ollama), pass the current
   // baseUrl from config so the server fetches from the right endpoint.
   const hasRemoteModelList = adapterType === "lm_studio_local" || adapterType === "ollama_local";
-  // lm_studio_local and ollama_local both store the server URL in values.url (create) / config.baseUrl (edit)
   const configBaseUrl = isCreate
-    ? (props.mode === "create" && props.values.url.trim() ? props.values.url.trim() : undefined)
-    : (eff("adapterConfig", "baseUrl", String(config.baseUrl ?? "")).trim() || undefined);
+    ? adapterType === "lm_studio_local"
+      ? resolveLmStudioEffectiveBaseUrl({
+          company: selectedCompany,
+          mode: resolveLmStudioBaseUrlMode(
+            props.values.lmStudioBaseUrlMode,
+            props.values.url,
+          ),
+          baseUrl: props.values.url,
+        })
+      : (props.values.url.trim() ? props.values.url.trim() : undefined)
+    : adapterType === "lm_studio_local"
+      ? resolveLmStudioEffectiveBaseUrl({
+          company: selectedCompany,
+          mode: resolveLmStudioBaseUrlMode(
+            eff("adapterConfig", "baseUrlMode", config.baseUrlMode),
+            eff("adapterConfig", "baseUrl", String(config.baseUrl ?? "")),
+          ),
+          baseUrl: eff("adapterConfig", "baseUrl", String(config.baseUrl ?? "")),
+        })
+      : (eff("adapterConfig", "baseUrl", String(config.baseUrl ?? "")).trim() || undefined);
   const effectiveBaseUrl = hasRemoteModelList ? configBaseUrl : undefined;
 
   const {
@@ -415,10 +457,33 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
 
   function buildAdapterConfigForTest(): Record<string, unknown> {
     if (isCreate) {
-      return uiAdapter.buildAdapterConfig(val!);
+      const nextConfig = uiAdapter.buildAdapterConfig(val!);
+      if (adapterType === "lm_studio_local") {
+        const mode = resolveLmStudioBaseUrlMode(
+          val!.lmStudioBaseUrlMode,
+          val!.url,
+        );
+        nextConfig.baseUrlMode = mode;
+        nextConfig.baseUrl = resolveLmStudioEffectiveBaseUrl({
+          company: selectedCompany,
+          mode,
+          baseUrl: val!.url,
+        });
+      }
+      return nextConfig;
     }
     const base = config as Record<string, unknown>;
-    return { ...base, ...overlay.adapterConfig };
+    const nextConfig = { ...base, ...overlay.adapterConfig };
+    if (adapterType === "lm_studio_local") {
+      const mode = resolveLmStudioBaseUrlMode(nextConfig.baseUrlMode, nextConfig.baseUrl);
+      nextConfig.baseUrlMode = mode;
+      nextConfig.baseUrl = resolveLmStudioEffectiveBaseUrl({
+        company: selectedCompany,
+        mode,
+        baseUrl: typeof nextConfig.baseUrl === "string" ? nextConfig.baseUrl : undefined,
+      });
+    }
+    return nextConfig;
   }
 
   const testEnvironment = useMutation({
@@ -641,6 +706,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                       nextValues.model = DEFAULT_CURSOR_LOCAL_MODEL;
                     } else if (t === "opencode_local") {
                       nextValues.model = "";
+                    } else if (t === "lm_studio_local") {
+                      nextValues.lmStudioBaseUrlMode = "company";
                     }
                     set!(nextValues);
                   } else {
@@ -662,6 +729,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                         modelReasoningEffort: "",
                         variant: "",
                         mode: "",
+                        baseUrlMode: t === "lm_studio_local" ? "company" : undefined,
                         ...(t === "codex_local"
                           ? {
                               dangerouslyBypassApprovalsAndSandbox:

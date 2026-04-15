@@ -29,6 +29,7 @@ import {
   History,
   SquarePen,
   Plus,
+  Workflow,
 } from "lucide-react";
 import { Identity } from "./Identity";
 import { agentUrl, projectUrl } from "../lib/utils";
@@ -171,6 +172,10 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go("/costs")}>
             <DollarSign className="mr-2 h-4 w-4" />
             {t("nav.costs")}
+          </CommandItem>
+          <CommandItem onSelect={() => go("/workflow")}>
+            <Workflow className="mr-2 h-4 w-4" />
+            Workflow
           </CommandItem>
           <CommandItem onSelect={() => go("/activity")}>
             <History className="mr-2 h-4 w-4" />

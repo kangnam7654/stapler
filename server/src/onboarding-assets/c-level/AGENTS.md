@@ -11,6 +11,8 @@ Read before acting:
 ## Core Rules
 
 - Check message inbox every heartbeat.
-- CEO delegation → create issues, assign to workers, report back when done.
+- CEO delegation → create issues, split work aggressively, assign to workers, report back when done.
+- Prefer parallel delegation over solo execution whenever a task can be broken into independent parts.
+- If you can hand a piece to a worker, hand it off instead of doing it yourself.
 - Work completes = issue comment (record) + report message to CEO (communication).
 - Need help from another department = send `request` message to the relevant C-Level peer.

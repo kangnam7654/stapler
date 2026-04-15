@@ -725,8 +725,22 @@ export function agentRoutes(db: Db) {
         return;
       }
 
+      const company = type === "lm_studio_local"
+        ? await companySvc.getById(companyId).catch(() => null) as { adapterDefaults: AdapterDefaults | null } | null
+        : null;
       const inputAdapterConfig =
         (req.body?.adapterConfig ?? {}) as Record<string, unknown>;
+      if (
+        type === "lm_studio_local"
+        && inputAdapterConfig.baseUrlMode !== "custom"
+        && (typeof inputAdapterConfig.baseUrl !== "string" || inputAdapterConfig.baseUrl.trim().length === 0)
+      ) {
+        const companyAdapterDefaults = company?.adapterDefaults;
+        const companyBaseUrl = companyAdapterDefaults?.lm_studio_local?.baseUrl;
+        if (companyBaseUrl) {
+          inputAdapterConfig.baseUrl = companyBaseUrl;
+        }
+      }
       const normalizedAdapterConfig = await secretsSvc.normalizeAdapterConfigForPersistence(
         companyId,
         inputAdapterConfig,

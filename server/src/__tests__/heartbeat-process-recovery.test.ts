@@ -16,7 +16,7 @@ import {
   startEmbeddedPostgresTestDatabase,
 } from "./helpers/embedded-postgres.js";
 import { runningProcesses } from "../adapters/index.ts";
-import { heartbeatService } from "../services/heartbeat.ts";
+import { heartbeatActiveRunExecutionsForTesting, heartbeatService } from "../services/heartbeat.ts";
 const embeddedPostgresSupport = await getEmbeddedPostgresTestSupport();
 const describeEmbeddedPostgres = embeddedPostgresSupport.supported ? describe : describe.skip;
 
@@ -44,6 +44,7 @@ describeEmbeddedPostgres("heartbeat orphaned process recovery", () => {
 
   afterEach(async () => {
     runningProcesses.clear();
+    heartbeatActiveRunExecutionsForTesting.clear();
     for (const child of childProcesses) {
       child.kill("SIGKILL");
     }
@@ -62,6 +63,7 @@ describeEmbeddedPostgres("heartbeat orphaned process recovery", () => {
     }
     childProcesses.clear();
     runningProcesses.clear();
+    heartbeatActiveRunExecutionsForTesting.clear();
     await tempDb?.cleanup();
   });
 
@@ -251,5 +253,25 @@ describeEmbeddedPostgres("heartbeat orphaned process recovery", () => {
     const run = await heartbeat.getRun(runId);
     expect(run?.errorCode).toBeNull();
     expect(run?.error).toBeNull();
+  });
+
+  it("does not reap runs that are actively executing in another heartbeat service instance", async () => {
+    const { runId } = await seedRunFixture({
+      adapterType: "lm_studio_local",
+      includeIssue: false,
+    });
+
+    heartbeatActiveRunExecutionsForTesting.add(runId);
+    try {
+      const reaper = heartbeatService(db);
+      const result = await reaper.reapOrphanedRuns({ staleThresholdMs: 5 * 60 * 1000 });
+      expect(result.reaped).toBe(0);
+
+      const run = await reaper.getRun(runId);
+      expect(run?.status).toBe("running");
+      expect(run?.errorCode).toBeNull();
+    } finally {
+      heartbeatActiveRunExecutionsForTesting.delete(runId);
+    }
   });
 });

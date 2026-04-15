@@ -37,7 +37,7 @@ export interface ChatCompletionRequest {
   tools?: ToolDefinition[];
   tool_choice?: "auto" | "none";
   temperature?: number;
-  stream?: false;
+  stream?: boolean;
 }
 
 export interface ChatCompletionResponse {

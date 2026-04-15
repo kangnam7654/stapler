@@ -81,4 +81,24 @@ describe("RunTranscriptView", () => {
       text: "Working on the task.",
     });
   });
+
+  it("shows a compact preview for collapsed stdout rows", () => {
+    const html = renderToStaticMarkup(
+      <ThemeProvider>
+        <RunTranscriptView
+          entries={[
+            {
+              kind: "stdout",
+              ts: "2026-03-12T00:00:00.000Z",
+              text: "[paperclip_request] GET http://localhost:3100/api/companies/co-1/issues\n[paperclip_request result] GET http://localhost:3100/api/companies/co-1/issues -> 200 []",
+            },
+          ]}
+          collapseStdout
+        />
+      </ThemeProvider>,
+    );
+
+    expect(html).toContain("[paperclip_request] GET http://localhost:3100/api/companies/co-1/issues");
+    expect(html).toContain("Expand stdout");
+  });
 });
