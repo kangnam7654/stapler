@@ -1,3 +1,5 @@
+import sharedNative from "@paperclipai/shared-native";
+
 /**
  * Shared attachment content-type configuration.
  *
@@ -34,6 +36,14 @@ export const DEFAULT_ALLOWED_TYPES: readonly string[] = [
  * Returns the default image-only list when the input is empty or undefined.
  */
 export function parseAllowedTypes(raw: string | undefined): string[] {
+  if (sharedNative) {
+    try {
+      return sharedNative.parseAllowedTypes(raw);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   if (!raw) return [...DEFAULT_ALLOWED_TYPES];
   const parsed = raw
     .split(",")
@@ -49,6 +59,14 @@ export function parseAllowedTypes(raw: string | undefined): string[] {
  * patterns ("image/*", "application/vnd.openxmlformats-officedocument.*").
  */
 export function matchesContentType(contentType: string, allowedPatterns: string[]): boolean {
+  if (sharedNative) {
+    try {
+      return sharedNative.matchesContentType(contentType, allowedPatterns);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   const ct = contentType.toLowerCase();
   return allowedPatterns.some((pattern) => {
     if (pattern === "*") return true;
