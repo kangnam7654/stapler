@@ -18,6 +18,9 @@ pub mod mentions;
 /// Attachment content-type utilities.
 pub mod attachments;
 
+/// Path utilities.
+pub mod paths;
+
 #[cfg(test)]
 mod tests {
     #[test]
