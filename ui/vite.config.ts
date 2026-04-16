@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@paperclipai/shared-native": path.resolve(__dirname, "./src/stubs/shared-native.ts"),
       lexical: path.resolve(__dirname, "./node_modules/lexical/Lexical.mjs"),
     },
   },
