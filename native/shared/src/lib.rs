@@ -25,3 +25,20 @@ pub fn is_uuid_like(value: Option<String>) -> bool {
     };
     stapler_shared::validators::is_uuid_like(&v)
 }
+
+/// Redacts a username by masking it with asterisks, preserving the first character.
+#[napi(js_name = "maskUserNameForLogs")]
+pub fn mask_user_name_for_logs(value: String, fallback: String) -> String {
+    stapler_shared::redaction::mask_user_name_for_logs(&value, &fallback)
+}
+
+/// Redacts user-specific text (usernames and home directories) from a string.
+#[napi(js_name = "redactCurrentUserText")]
+pub fn redact_current_user_text(
+    input: String,
+    user_names: Vec<String>,
+    home_dirs: Vec<String>,
+    replacement: String,
+) -> String {
+    stapler_shared::redaction::redact_current_user_text(&input, &user_names, &home_dirs, &replacement)
+}

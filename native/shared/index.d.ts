@@ -14,6 +14,21 @@ declare const native: {
    * Checks if a string looks like a UUID (v1-v5).
    */
   isUuidLike(value: string | null | undefined): boolean;
+
+  /**
+   * Redacts a username by masking it with asterisks, preserving the first character.
+   */
+  maskUserNameForLogs(value: string, fallback: string): string;
+
+  /**
+   * Redacts user-specific text (usernames and home directories) from a string.
+   */
+  redactCurrentUserText(
+    input: string,
+    userNames: string[],
+    homeDirs: string[],
+    replacement: string
+  ): string;
 } | null;
 
 export = native;
