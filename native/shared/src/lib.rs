@@ -118,11 +118,39 @@ pub fn expand_home_prefix(path: String, home_dir: String) -> String {
 }
 
 /// Returns the full hex-encoded SHA-256 hash of a string.
-///
-/// Mirrors `createHash("sha256").update(value).digest("hex")` in TypeScript.
 #[napi(js_name = "sha256Hex")]
 pub fn sha256_hex(value: String) -> String {
     stapler_shared::crypto::sha256_hex(&value)
+}
+
+/// Computes HMAC-SHA256 and returns the hex digest.
+#[napi(js_name = "hmacSha256Hex")]
+pub fn hmac_sha256_hex(key: napi::bindgen_prelude::Buffer, data: napi::bindgen_prelude::Buffer) -> String {
+    stapler_shared::crypto::hmac_sha256_hex(&key, &data)
+}
+
+/// Computes HMAC-SHA256 and returns the base64url (no padding) digest.
+#[napi(js_name = "hmacSha256Base64Url")]
+pub fn hmac_sha256_base64url(key: napi::bindgen_prelude::Buffer, data: napi::bindgen_prelude::Buffer) -> String {
+    stapler_shared::crypto::hmac_sha256_base64url(&key, &data)
+}
+
+/// Constant-time equality comparison for two buffers.
+#[napi(js_name = "timingSafeEqual")]
+pub fn timing_safe_equal(a: napi::bindgen_prelude::Buffer, b: napi::bindgen_prelude::Buffer) -> bool {
+    stapler_shared::crypto::timing_safe_equal(&a, &b)
+}
+
+/// Encodes bytes to base64url (no padding).
+#[napi(js_name = "base64UrlEncode")]
+pub fn base64url_encode(data: napi::bindgen_prelude::Buffer) -> String {
+    stapler_shared::crypto::base64url_encode(&data)
+}
+
+/// Decodes a base64url (no padding) string to bytes.
+#[napi(js_name = "base64UrlDecode")]
+pub fn base64url_decode(encoded: String) -> Option<napi::bindgen_prelude::Buffer> {
+    stapler_shared::crypto::base64url_decode(&encoded).map(|v| v.into())
 }
 
 #[napi(js_name = "normalizeCurrency")]

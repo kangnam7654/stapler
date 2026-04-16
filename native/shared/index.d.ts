@@ -87,9 +87,33 @@ declare const native: {
 
   /**
    * Returns the full hex-encoded SHA-256 hash of a string.
-   * Mirrors `createHash("sha256").update(value).digest("hex")`.
    */
   sha256Hex(value: string): string;
+
+  /**
+   * Computes HMAC-SHA256 and returns the hex digest.
+   */
+  hmacSha256Hex(key: Buffer, data: Buffer): string;
+
+  /**
+   * Computes HMAC-SHA256 and returns the base64url (no padding) digest.
+   */
+  hmacSha256Base64Url(key: Buffer, data: Buffer): string;
+
+  /**
+   * Constant-time equality comparison for two buffers.
+   */
+  timingSafeEqual(a: Buffer, b: Buffer): boolean;
+
+  /**
+   * Encodes bytes to base64url (no padding).
+   */
+  base64UrlEncode(data: Buffer): string;
+
+  /**
+   * Decodes a base64url (no padding) string to bytes. Returns null on invalid input.
+   */
+  base64UrlDecode(encoded: string): Buffer | null;
 
   /**
    * Normalizes a currency code to uppercase.

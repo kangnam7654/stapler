@@ -1,4 +1,9 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  hmacSha256Base64Url,
+  timingSafeEqual,
+  base64UrlEncode,
+  base64UrlDecode,
+} from "@paperclipai/shared/crypto";
 
 interface JwtHeader {
   alg: string;
@@ -37,16 +42,12 @@ function jwtConfig() {
   };
 }
 
-function base64UrlEncode(value: string) {
-  return Buffer.from(value, "utf8").toString("base64url");
-}
-
-function base64UrlDecode(value: string) {
-  return Buffer.from(value, "base64url").toString("utf8");
-}
-
 function signPayload(secret: string, signingInput: string) {
-  return createHmac("sha256", secret).update(signingInput).digest("base64url");
+  return hmacSha256Base64Url(Buffer.from(secret, "utf8"), Buffer.from(signingInput, "utf8"));
+}
+
+function safeCompare(a: string, b: string) {
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
 function parseJson(value: string): Record<string, unknown> | null {
@@ -56,13 +57,6 @@ function parseJson(value: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
-}
-
-function safeCompare(a: string, b: string) {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
 }
 
 export function createLocalAgentJwt(agentId: string, companyId: string, adapterType: string, runId: string) {
@@ -86,7 +80,9 @@ export function createLocalAgentJwt(agentId: string, companyId: string, adapterT
     typ: "JWT",
   };
 
-  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(claims))}`;
+  const headerB64 = base64UrlEncode(Buffer.from(JSON.stringify(header), "utf8"));
+  const claimsB64 = base64UrlEncode(Buffer.from(JSON.stringify(claims), "utf8"));
+  const signingInput = `${headerB64}.${claimsB64}`;
   const signature = signPayload(config.secret, signingInput);
 
   return `${signingInput}.${signature}`;
@@ -101,14 +97,18 @@ export function verifyLocalAgentJwt(token: string): LocalAgentJwtClaims | null {
   if (parts.length !== 3) return null;
   const [headerB64, claimsB64, signature] = parts;
 
-  const header = parseJson(base64UrlDecode(headerB64));
+  const headerBuf = base64UrlDecode(headerB64);
+  if (!headerBuf) return null;
+  const header = parseJson(headerBuf.toString("utf8"));
   if (!header || header.alg !== JWT_ALGORITHM) return null;
 
   const signingInput = `${headerB64}.${claimsB64}`;
   const expectedSig = signPayload(config.secret, signingInput);
   if (!safeCompare(signature, expectedSig)) return null;
 
-  const claims = parseJson(base64UrlDecode(claimsB64));
+  const claimsBuf = base64UrlDecode(claimsB64);
+  if (!claimsBuf) return null;
+  const claims = parseJson(claimsBuf.toString("utf8"));
   if (!claims) return null;
 
   const sub = typeof claims.sub === "string" ? claims.sub : null;

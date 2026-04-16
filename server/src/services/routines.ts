@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { hmacSha256Hex, timingSafeEqual } from "@paperclipai/shared/crypto";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
@@ -1065,7 +1066,7 @@ export function routineService(db: Db, deps: { heartbeat?: IssueAssignmentWakeup
         providedBuf.write(provided.slice(0, expectedBuf.length));
         const valid =
           provided.length === expected.length &&
-          crypto.timingSafeEqual(providedBuf, expectedBuf);
+          timingSafeEqual(providedBuf, expectedBuf);
         if (!valid) {
           throw unauthorized();
         }
@@ -1080,15 +1081,12 @@ export function routineService(db: Db, deps: { heartbeat?: IssueAssignmentWakeup
         if (Math.abs(Date.now() - tsMillis) > replayWindowSec * 1000) {
           throw unauthorized();
         }
-        const expectedHmac = crypto
-          .createHmac("sha256", secretValue)
-          .update(`${providedTimestamp}.`)
-          .update(rawBody)
-          .digest("hex");
+        const hmacData = Buffer.concat([Buffer.from(`${providedTimestamp}.`), rawBody]);
+        const expectedHmac = hmacSha256Hex(Buffer.from(secretValue), hmacData);
         const normalizedSignature = providedSignature.replace(/^sha256=/, "");
         const valid =
           normalizedSignature.length === expectedHmac.length &&
-          crypto.timingSafeEqual(Buffer.from(normalizedSignature), Buffer.from(expectedHmac));
+          timingSafeEqual(Buffer.from(normalizedSignature), Buffer.from(expectedHmac));
         if (!valid) throw unauthorized();
       }
 
