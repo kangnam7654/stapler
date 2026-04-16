@@ -1,4 +1,5 @@
 import { z } from "zod";
+import sharedNative from "@paperclipai/shared-native";
 import { BILLING_TYPES } from "../constants.js";
 
 export const createCostEventSchema = z.object({
@@ -17,10 +18,24 @@ export const createCostEventSchema = z.object({
   outputTokens: z.number().int().nonnegative().optional().default(0),
   costCents: z.number().int().nonnegative(),
   occurredAt: z.string().datetime(),
-}).transform((value) => ({
-  ...value,
-  biller: value.biller ?? value.provider,
-}));
+}).transform((value) => {
+  let derivedBiller = value.biller;
+
+  if (sharedNative) {
+    try {
+      derivedBiller = sharedNative.deriveBiller(value.biller, value.provider);
+    } catch (_err) {
+      derivedBiller = value.biller ?? value.provider;
+    }
+  } else {
+    derivedBiller = value.biller ?? value.provider;
+  }
+
+  return {
+    ...value,
+    biller: derivedBiller,
+  };
+});
 
 export type CreateCostEvent = z.infer<typeof createCostEventSchema>;
 

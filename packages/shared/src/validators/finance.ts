@@ -1,4 +1,5 @@
 import { z } from "zod";
+import sharedNative from "@paperclipai/shared-native";
 import { AGENT_ADAPTER_TYPES, FINANCE_DIRECTIONS, FINANCE_EVENT_KINDS, FINANCE_UNITS } from "../constants.js";
 
 export const createFinanceEventSchema = z.object({
@@ -26,9 +27,23 @@ export const createFinanceEventSchema = z.object({
   externalInvoiceId: z.string().optional().nullable(),
   metadataJson: z.record(z.string(), z.unknown()).optional().nullable(),
   occurredAt: z.string().datetime(),
-}).transform((value) => ({
-  ...value,
-  currency: value.currency.toUpperCase(),
-}));
+}).transform((value) => {
+  let normalizedCurrency = value.currency;
+  
+  if (sharedNative) {
+    try {
+      normalizedCurrency = sharedNative.normalizeCurrency(value.currency);
+    } catch (_err) {
+      normalizedCurrency = value.currency.toUpperCase();
+    }
+  } else {
+    normalizedCurrency = value.currency.toUpperCase();
+  }
+
+  return {
+    ...value,
+    currency: normalizedCurrency,
+  };
+});
 
 export type CreateFinanceEvent = z.infer<typeof createFinanceEventSchema>;
