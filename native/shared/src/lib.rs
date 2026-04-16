@@ -106,3 +106,13 @@ pub fn parse_allowed_types(raw: Option<String>) -> Vec<String> {
 pub fn matches_content_type(content_type: String, allowed_patterns: Vec<String>) -> bool {
     stapler_shared::attachments::matches_content_type(&content_type, &allowed_patterns)
 }
+
+#[napi(js_name = "sanitizeFriendlyPathSegment")]
+pub fn sanitize_friendly_path_segment(value: Option<String>, fallback: String) -> String {
+    stapler_shared::paths::sanitize_friendly_path_segment(value, &fallback)
+}
+
+#[napi(js_name = "expandHomePrefix")]
+pub fn expand_home_prefix(path: String, home_dir: String) -> String {
+    stapler_shared::paths::expand_home_prefix(&path, &home_dir)
+}

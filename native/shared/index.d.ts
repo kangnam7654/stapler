@@ -74,6 +74,16 @@ declare const native: {
    * Check whether `contentType` matches any entry in `allowedPatterns`.
    */
   matchesContentType(contentType: string, allowedPatterns: string[]): boolean;
+
+  /**
+   * Sanitizes a string for use as a "friendly" path segment.
+   */
+  sanitizeFriendlyPathSegment(value: string | null | undefined, fallback: string): string;
+
+  /**
+   * Expands a home directory prefix (~) in a path string.
+   */
+  expandHomePrefix(path: string, homeDir: string): string;
 } | null;
 
 export = native;
