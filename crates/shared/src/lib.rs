@@ -12,6 +12,9 @@ pub mod validators;
 /// Log redaction utilities.
 pub mod redaction;
 
+/// Project and agent mention processing.
+pub mod mentions;
+
 #[cfg(test)]
 mod tests {
     #[test]
