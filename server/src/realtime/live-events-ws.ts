@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { IncomingMessage, Server as HttpServer } from "node:http";
 import { createRequire } from "node:module";
 import type { Duplex } from "node:stream";
@@ -6,6 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { agentApiKeys, companyMemberships, instanceUserRoles } from "@paperclipai/db";
 import type { DeploymentMode } from "@paperclipai/shared";
+import { sha256Hex } from "@paperclipai/shared/crypto";
 import type { BetterAuthSessionResult } from "../auth/better-auth.js";
 import { logger } from "../middleware/logger.js";
 import { subscribeCompanyLiveEvents } from "../services/live-events.js";
@@ -48,10 +48,6 @@ interface UpgradeContext {
 
 interface IncomingMessageWithContext extends IncomingMessage {
   paperclipUpgradeContext?: UpgradeContext;
-}
-
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
 }
 
 function rejectUpgrade(socket: Duplex, statusLine: string, message: string) {
@@ -152,7 +148,7 @@ async function authorizeUpgrade(
     };
   }
 
-  const tokenHash = hashToken(token);
+  const tokenHash = sha256Hex(token);
   const key = await db
     .select()
     .from(agentApiKeys)

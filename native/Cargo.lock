@@ -615,9 +615,11 @@ dependencies = [
 name = "stapler-shared"
 version = "0.1.0"
 dependencies = [
+ "hex",
  "regex",
  "serde",
  "serde_json",
+ "sha2",
  "url",
  "urlencoding",
 ]

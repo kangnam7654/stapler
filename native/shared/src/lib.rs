@@ -117,6 +117,14 @@ pub fn expand_home_prefix(path: String, home_dir: String) -> String {
     stapler_shared::paths::expand_home_prefix(&path, &home_dir)
 }
 
+/// Returns the full hex-encoded SHA-256 hash of a string.
+///
+/// Mirrors `createHash("sha256").update(value).digest("hex")` in TypeScript.
+#[napi(js_name = "sha256Hex")]
+pub fn sha256_hex(value: String) -> String {
+    stapler_shared::crypto::sha256_hex(&value)
+}
+
 #[napi(js_name = "normalizeCurrency")]
 pub fn normalize_currency(code: String) -> String {
     stapler_shared::finance::normalize_currency(&code)

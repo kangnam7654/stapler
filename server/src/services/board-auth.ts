@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
@@ -9,6 +9,7 @@ import {
   companyMemberships,
   instanceUserRoles,
 } from "@paperclipai/db";
+import { sha256Hex } from "@paperclipai/shared/crypto";
 import { conflict, forbidden, notFound } from "../errors.js";
 
 export const BOARD_API_KEY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -17,7 +18,7 @@ export const CLI_AUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 export type CliAuthChallengeStatus = "pending" | "approved" | "cancelled" | "expired";
 
 export function hashBearerToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
+  return sha256Hex(token);
 }
 
 export function tokenHashesMatch(left: string, right: string) {

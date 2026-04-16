@@ -86,6 +86,12 @@ declare const native: {
   expandHomePrefix(path: string, homeDir: string): string;
 
   /**
+   * Returns the full hex-encoded SHA-256 hash of a string.
+   * Mirrors `createHash("sha256").update(value).digest("hex")`.
+   */
+  sha256Hex(value: string): string;
+
+  /**
    * Normalizes a currency code to uppercase.
    */
   normalizeCurrency(code: string): string;

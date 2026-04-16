@@ -1,17 +1,13 @@
-import { createHash } from "node:crypto";
 import type { Request, RequestHandler } from "express";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { agentApiKeys, agents, companyMemberships, instanceUserRoles } from "@paperclipai/db";
-import { verifyLocalAgentJwt } from "../agent-auth-jwt.js";
 import type { DeploymentMode } from "@paperclipai/shared";
+import { sha256Hex } from "@paperclipai/shared/crypto";
+import { verifyLocalAgentJwt } from "../agent-auth-jwt.js";
 import type { BetterAuthSessionResult } from "../auth/better-auth.js";
 import { logger } from "./logger.js";
 import { boardAuthService } from "../services/board-auth.js";
-
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
 
 interface ActorMiddlewareOptions {
   deploymentMode: DeploymentMode;
@@ -101,7 +97,7 @@ export function actorMiddleware(db: Db, opts: ActorMiddlewareOptions): RequestHa
       }
     }
 
-    const tokenHash = hashToken(token);
+    const tokenHash = sha256Hex(token);
     const key = await db
       .select()
       .from(agentApiKeys)

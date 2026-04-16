@@ -10,3 +10,5 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }

@@ -656,6 +656,8 @@ export {
   type ParsedAgentMention,
   type ParsedProjectMention,
 } from "./project-mentions.js";
+// sha256Hex is server-only (depends on node:crypto fallback).
+// Import via subpath: @paperclipai/shared/crypto
 
 export {
   paperclipConfigSchema,
