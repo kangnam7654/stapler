@@ -96,3 +96,13 @@ pub fn extract_project_mention_ids(markdown: String) -> Vec<String> {
 pub fn extract_agent_mention_ids(markdown: String) -> Vec<String> {
     stapler_shared::mentions::extract_agent_mention_ids(&markdown)
 }
+
+#[napi(js_name = "parseAllowedTypes")]
+pub fn parse_allowed_types(raw: Option<String>) -> Vec<String> {
+    stapler_shared::attachments::parse_allowed_types(raw)
+}
+
+#[napi(js_name = "matchesContentType")]
+pub fn matches_content_type(content_type: String, allowed_patterns: Vec<String>) -> bool {
+    stapler_shared::attachments::matches_content_type(&content_type, &allowed_patterns)
+}

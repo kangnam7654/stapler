@@ -64,6 +64,16 @@ declare const native: {
    * Extracts agent IDs from markdown mentions.
    */
   extractAgentMentionIds(markdown: string): string[];
+
+  /**
+   * Parse a comma-separated list of MIME type patterns into a normalised array.
+   */
+  parseAllowedTypes(raw: string | null | undefined): string[];
+
+  /**
+   * Check whether `contentType` matches any entry in `allowedPatterns`.
+   */
+  matchesContentType(contentType: string, allowedPatterns: string[]): boolean;
 } | null;
 
 export = native;
