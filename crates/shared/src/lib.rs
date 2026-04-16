@@ -15,6 +15,9 @@ pub mod redaction;
 /// Project and agent mention processing.
 pub mod mentions;
 
+/// Attachment content-type utilities.
+pub mod attachments;
+
 #[cfg(test)]
 mod tests {
     #[test]
