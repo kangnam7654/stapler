@@ -84,6 +84,16 @@ declare const native: {
    * Expands a home directory prefix (~) in a path string.
    */
   expandHomePrefix(path: string, homeDir: string): string;
+
+  /**
+   * Normalizes a currency code to uppercase.
+   */
+  normalizeCurrency(code: string): string;
+
+  /**
+   * Derives the biller name, falling back to the provider if not explicitly provided.
+   */
+  deriveBiller(biller: string | null | undefined, provider: string): string;
 } | null;
 
 export = native;

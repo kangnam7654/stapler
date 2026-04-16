@@ -116,3 +116,13 @@ pub fn sanitize_friendly_path_segment(value: Option<String>, fallback: String) -
 pub fn expand_home_prefix(path: String, home_dir: String) -> String {
     stapler_shared::paths::expand_home_prefix(&path, &home_dir)
 }
+
+#[napi(js_name = "normalizeCurrency")]
+pub fn normalize_currency(code: String) -> String {
+    stapler_shared::finance::normalize_currency(&code)
+}
+
+#[napi(js_name = "deriveBiller")]
+pub fn derive_biller(biller: Option<String>, provider: String) -> String {
+    stapler_shared::finance::derive_biller(biller, &provider)
+}
