@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/lib/router";
 import type { Issue, ExecutionWorkspace } from "@paperclipai/shared";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { executionWorkspacesApi } from "../api/execution-workspaces";
 import { instanceSettingsApi } from "../api/instanceSettings";
 import { useCompany } from "../context/CompanyContext";
+import { useToast } from "../context/ToastContext";
 import { queryKeys } from "../lib/queryKeys";
 import { cn } from "../lib/utils";
 import { Button } from "@/components/ui/button";
@@ -140,6 +141,7 @@ interface IssueWorkspaceCardProps {
 
 export function IssueWorkspaceCard({ issue, project, onUpdate }: IssueWorkspaceCardProps) {
   const { selectedCompanyId } = useCompany();
+  const { pushToast } = useToast();
   const companyId = issue.companyId ?? selectedCompanyId;
   const [editing, setEditing] = useState(false);
 
@@ -204,12 +206,31 @@ export function IssueWorkspaceCard({ issue, project, onUpdate }: IssueWorkspaceC
   }, [currentSelection, editing, issue.executionWorkspaceId]);
 
   const activeNonDefaultWorkspace = Boolean(workspace && workspace.mode !== "shared_workspace");
+  const workspaceLocalPath = workspace?.providerRef ?? workspace?.cwd ?? null;
 
   const configuredReusableWorkspace =
     deduplicatedReusableWorkspaces.find((w) => w.id === draftExecutionWorkspaceId)
     ?? (draftExecutionWorkspaceId === issue.executionWorkspaceId ? selectedReusableExecutionWorkspace : null);
 
   const canSaveWorkspaceConfig = draftSelection !== "reuse_existing" || draftExecutionWorkspaceId.length > 0;
+
+  const openWorkspace = useMutation({
+    mutationFn: (workspaceId: string) => executionWorkspacesApi.open(workspaceId),
+    onSuccess: (result) => {
+      pushToast({
+        title: "Workspace opened",
+        body: result.path,
+        tone: "success",
+      });
+    },
+    onError: (error) => {
+      pushToast({
+        title: "Could not open workspace",
+        body: error instanceof Error ? error.message : "Failed to open workspace files.",
+        tone: "error",
+      });
+    },
+  });
 
   const handleSave = useCallback(() => {
     if (!canSaveWorkspaceConfig) return;
@@ -272,14 +293,28 @@ export function IssueWorkspaceCard({ issue, project, onUpdate }: IssueWorkspaceC
               </Button>
             </>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs text-muted-foreground"
-              onClick={() => setEditing(true)}
-            >
-              <Pencil className="h-3 w-3 mr-1" />Edit
-            </Button>
+            <>
+              {workspace && workspaceLocalPath && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground"
+                  onClick={() => openWorkspace.mutate(workspace.id)}
+                  disabled={openWorkspace.isPending}
+                  title="Open the workspace folder on this computer"
+                >
+                  <FolderOpen className="h-3 w-3 mr-1" />Open files
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="h-3 w-3 mr-1" />Edit
+              </Button>
+            </>
           )}
         </div>
       </div>

@@ -31,5 +31,6 @@ export { notifyHireApproved, type NotifyHireApprovedInput } from "./hire-hook.js
 export { publishLiveEvent, subscribeCompanyLiveEvents } from "./live-events.js";
 export { agentMessagingService } from "./agent-messaging.js";
 export { agentDelegationService } from "./agent-delegations.js";
+export { teamService } from "./teams.js";
 export { reconcilePersistedRuntimeServicesOnStartup } from "./workspace-runtime.js";
 export { createStorageServiceFromConfig, getStorageService } from "../storage/index.js";

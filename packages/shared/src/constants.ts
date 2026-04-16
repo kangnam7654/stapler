@@ -68,6 +68,29 @@ export const AGENT_ROLE_LABELS: Record<AgentRole, string> = {
   general: "General",
 };
 
+export const TEAM_KINDS = [
+  "product_squad",
+  "functional",
+  "platform",
+  "ops",
+  "division",
+] as const;
+export type TeamKind = (typeof TEAM_KINDS)[number];
+
+export const TEAM_KIND_LABELS: Record<TeamKind, string> = {
+  product_squad: "Product Squad",
+  functional: "Functional Team",
+  platform: "Platform Team",
+  ops: "Ops Team",
+  division: "Division",
+};
+
+export const TEAM_STATUSES = ["active", "archived"] as const;
+export type TeamStatus = (typeof TEAM_STATUSES)[number];
+
+export const AGENT_TEAM_MEMBERSHIP_ROLES = ["lead", "member", "reviewer", "owner"] as const;
+export type AgentTeamMembershipRole = (typeof AGENT_TEAM_MEMBERSHIP_ROLES)[number];
+
 export const AGENT_ICON_NAMES = [
   "bot",
   "cpu",

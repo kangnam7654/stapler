@@ -115,6 +115,20 @@ export {
 } from "./agent-delegation.js";
 
 export {
+  teamKindSchema,
+  teamStatusSchema,
+  agentTeamMembershipRoleSchema,
+  createTeamSchema,
+  updateTeamSchema,
+  upsertAgentTeamMembershipSchema,
+  updateAgentTeamMembershipSchema,
+  type CreateTeam,
+  type UpdateTeam,
+  type UpsertAgentTeamMembership,
+  type UpdateAgentTeamMembership,
+} from "./team.js";
+
+export {
   draftPromptTemplateRequestSchema,
   type DraftPromptTemplateRequest,
   type DraftPromptTemplateEvent,

@@ -40,6 +40,10 @@ const mockAgentService = vi.hoisted(() => ({
   resolveByReference: vi.fn(),
 }));
 
+const mockCompanyService = vi.hoisted(() => ({
+  getById: vi.fn(),
+}));
+
 const mockAccessService = vi.hoisted(() => ({
   canUser: vi.fn(),
   hasPermission: vi.fn(),
@@ -91,6 +95,7 @@ vi.mock("../services/index.js", () => ({
   agentInstructionsService: () => mockAgentInstructionsService,
   accessService: () => mockAccessService,
   approvalService: () => mockApprovalService,
+  companyService: () => mockCompanyService,
   companySkillService: () => mockCompanySkillService,
   budgetService: () => mockBudgetService,
   heartbeatService: () => mockHeartbeatService,
@@ -133,6 +138,7 @@ function createApp(actor: Record<string, unknown>) {
 describe("agent permission routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCompanyService.getById.mockResolvedValue({ id: companyId, adapterDefaults: null });
     mockAgentService.getById.mockResolvedValue(baseAgent);
     mockAgentService.getChainOfCommand.mockResolvedValue([]);
     mockAgentService.resolveByReference.mockResolvedValue({ ambiguous: false, agent: baseAgent });

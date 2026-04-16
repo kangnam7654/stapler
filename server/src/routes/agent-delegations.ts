@@ -127,8 +127,9 @@ export function agentDelegationRoutes(db: Db) {
     assertCompanyAccess(req, current.companyId);
     assertCanClaimOrReport(req, current);
     const updated = await delegations.report(current.id, req.body, getActorInfo(req));
-    void wakeAgentForDelegation(updated.delegatorAgentId, updated, "delegation_reported", req).catch(() => {});
-    res.json(updated);
+    const withMessage = await delegations.createReportMessage(updated.id);
+    void wakeAgentForDelegation(withMessage.delegatorAgentId, withMessage, "delegation_reported", req).catch(() => {});
+    res.json(withMessage);
   });
 
   router.post("/delegations/:delegationId/cancel", async (req, res) => {

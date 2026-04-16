@@ -1,6 +1,10 @@
 import type { ExecutionWorkspace } from "@paperclipai/shared";
 import { api } from "./client";
 
+export interface OpenExecutionWorkspaceResult {
+  path: string;
+}
+
 export const executionWorkspacesApi = {
   list: (
     companyId: string,
@@ -22,5 +26,6 @@ export const executionWorkspacesApi = {
     return api.get<ExecutionWorkspace[]>(`/companies/${companyId}/execution-workspaces${qs ? `?${qs}` : ""}`);
   },
   get: (id: string) => api.get<ExecutionWorkspace>(`/execution-workspaces/${id}`),
+  open: (id: string) => api.post<OpenExecutionWorkspaceResult>(`/execution-workspaces/${id}/open`, {}),
   update: (id: string, data: Record<string, unknown>) => api.patch<ExecutionWorkspace>(`/execution-workspaces/${id}`, data),
 };

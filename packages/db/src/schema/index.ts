@@ -4,6 +4,7 @@ export { authUsers, authSessions, authAccounts, authVerifications } from "./auth
 export { instanceSettings } from "./instance_settings.js";
 export { instanceUserRoles } from "./instance_user_roles.js";
 export { agents } from "./agents.js";
+export { teams, agentTeamMemberships } from "./teams.js";
 export { agentDelegations } from "./agent_delegations.js";
 export { agentMessages } from "./agent_messages.js";
 export { boardApiKeys } from "./board_api_keys.js";

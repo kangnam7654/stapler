@@ -149,6 +149,39 @@ Invariants:
 - no cycles in reporting tree
 - `terminated` agents cannot be resumed
 
+## 7.2.1 `teams` and `agent_team_memberships`
+
+Teams are optional delivery groups layered on top of the strict reporting tree.
+They support product-squad / pod operation without replacing `agents.reports_to`.
+
+`teams`:
+
+- `id` uuid pk
+- `company_id` uuid fk `companies.id` not null
+- `name` text not null
+- `kind` text not null default `product_squad`
+  - expected values: `product_squad | functional | platform | ops | division`
+- `parent_team_id` uuid fk `teams.id` null
+- `lead_agent_id` uuid fk `agents.id` null
+- `status` text not null default `active`
+
+`agent_team_memberships`:
+
+- `id` uuid pk
+- `company_id` uuid fk `companies.id` not null
+- `team_id` uuid fk `teams.id` not null
+- `agent_id` uuid fk `agents.id` not null
+- `role_in_team` text not null default `member`
+  - expected values: `lead | member | reviewer | owner`
+- `is_primary` boolean not null default false
+
+Invariants:
+
+- team, lead, and member agents must belong to the same company
+- `parent_team_id` must not create a cycle
+- team membership is a soft routing signal; `reports_to` remains the authority for management hierarchy
+- delegation routing uses team membership first in matrix/product-squad mode, then reporting line, then role fallback
+
 ## 7.3 `agent_api_keys`
 
 - `id` uuid pk

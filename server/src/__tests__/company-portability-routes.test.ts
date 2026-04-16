@@ -86,7 +86,7 @@ describe("company portability routes", () => {
       .send({ include: { company: true, agents: true, projects: true } });
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toContain("Only CEO agents");
+    expect(res.body.error).toMatch(/Only CEO agents|CEO 에이전트만/);
     expect(mockCompanyPortabilityService.previewExport).not.toHaveBeenCalled();
   });
 
@@ -147,7 +147,7 @@ describe("company portability routes", () => {
       });
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toContain("does not allow replace");
+    expect(res.body.error).toMatch(/does not allow replace|교체 충돌 전략을 허용하지 않습니다/);
     expect(mockCompanyPortabilityService.previewImport).not.toHaveBeenCalled();
   });
 
@@ -170,6 +170,6 @@ describe("company portability routes", () => {
       });
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toContain("Board access required");
+    expect(res.body.error).toMatch(/Board access required|이사회 접근 권한이 필요합니다/);
   });
 });

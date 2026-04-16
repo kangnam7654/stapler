@@ -11,6 +11,10 @@ const mockAgentService = vi.hoisted(() => ({
   resolveByReference: vi.fn(),
 }));
 
+const mockCompanyService = vi.hoisted(() => ({
+  getById: vi.fn(),
+}));
+
 const mockAccessService = vi.hoisted(() => ({
   canUser: vi.fn(),
   hasPermission: vi.fn(),
@@ -62,6 +66,7 @@ vi.mock("../services/index.js", () => ({
   agentInstructionsService: () => mockAgentInstructionsService,
   accessService: () => mockAccessService,
   approvalService: () => mockApprovalService,
+  companyService: () => mockCompanyService,
   companySkillService: () => mockCompanySkillService,
   budgetService: () => mockBudgetService,
   heartbeatService: () => mockHeartbeatService,
@@ -132,6 +137,7 @@ function makeAgent(adapterType: string) {
 describe("agent skill routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCompanyService.getById.mockResolvedValue({ id: "company-1", adapterDefaults: null });
     mockAgentService.resolveByReference.mockResolvedValue({
       ambiguous: false,
       agent: makeAgent("claude_local"),
@@ -395,7 +401,7 @@ describe("agent skill routes", () => {
         adapterType: "claude_local",
       }),
       expect.objectContaining({
-        "AGENTS.md": expect.stringContaining("Keep the work moving until it's done."),
+        "AGENTS.md": expect.stringContaining("Keep work moving."),
       }),
       { entryFile: "AGENTS.md", replaceExisting: false },
     );

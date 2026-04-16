@@ -28,6 +28,9 @@ export const queryKeys = {
     detectModel: (companyId: string, adapterType: string) =>
       ["agents", companyId, "detect-model", adapterType] as const,
   },
+  teams: {
+    list: (companyId: string) => ["teams", companyId] as const,
+  },
   issues: {
     list: (companyId: string) => ["issues", companyId] as const,
     search: (companyId: string, q: string, projectId?: string) =>

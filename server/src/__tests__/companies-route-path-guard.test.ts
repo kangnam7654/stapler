@@ -49,8 +49,8 @@ describe("company routes malformed issue path guard", () => {
     const res = await request(app).get("/api/companies/issues");
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({
-      error: "Missing companyId in path. Use /api/companies/{companyId}/issues.",
-    });
+    expect(res.body.error).toMatch(
+      /Missing companyId in path|경로에 companyId가 없습니다/,
+    );
   });
 });

@@ -144,7 +144,7 @@ describe("cost routes", () => {
       .get("/api/companies/company-1/costs/summary")
       .query({ from: "not-a-date" });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/invalid 'from' date/i);
+    expect(res.body.error).toMatch(/invalid 'from' date|유효하지 않은 'from' 날짜/i);
   });
 
   it("returns 400 for an invalid 'to' date string", async () => {
@@ -153,7 +153,7 @@ describe("cost routes", () => {
       .get("/api/companies/company-1/costs/summary")
       .query({ to: "banana" });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/invalid 'to' date/i);
+    expect(res.body.error).toMatch(/invalid 'to' date|유효하지 않은 'to' 날짜/i);
   });
 
   it("returns finance summary rows for valid requests", async () => {
@@ -171,7 +171,7 @@ describe("cost routes", () => {
       .get("/api/companies/company-1/costs/finance-events")
       .query({ limit: "0" });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/invalid 'limit'/i);
+    expect(res.body.error).toMatch(/invalid 'limit'|유효하지 않은 'limit' 값/i);
   });
 
   it("accepts valid finance event list limits", async () => {
