@@ -21,6 +21,9 @@ pub mod attachments;
 /// Path utilities.
 pub mod paths;
 
+/// Finance and cost utilities.
+pub mod finance;
+
 #[cfg(test)]
 mod tests {
     #[test]
