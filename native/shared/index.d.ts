@@ -1,0 +1,19 @@
+/**
+ * Native shared utilities (napi-rs).
+ * 
+ * Returns null if the native binding failed to load.
+ */
+declare const native: {
+  /**
+   * Normalizes a string to be used as a URL key (slug).
+   * Returns null if result is empty or input is null.
+   */
+  normalizeUrlKey(value: string | null | undefined): string | null;
+
+  /**
+   * Checks if a string looks like a UUID (v1-v5).
+   */
+  isUuidLike(value: string | null | undefined): boolean;
+} | null;
+
+export = native;
