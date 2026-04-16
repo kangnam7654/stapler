@@ -1,3 +1,5 @@
+import sharedNative from "@paperclipai/shared-native";
+
 export const PROJECT_MENTION_SCHEME = "project://";
 export const AGENT_MENTION_SCHEME = "agent://";
 
@@ -42,6 +44,14 @@ function normalizeHexColor(input: string | null | undefined): string | null {
 }
 
 export function buildProjectMentionHref(projectId: string, color?: string | null): string {
+  if (sharedNative) {
+    try {
+      return sharedNative.buildProjectMentionHref(projectId, color);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   const trimmedProjectId = projectId.trim();
   const normalizedColor = normalizeHexColor(color ?? null);
   if (!normalizedColor) {
@@ -51,6 +61,15 @@ export function buildProjectMentionHref(projectId: string, color?: string | null
 }
 
 export function parseProjectMentionHref(href: string): ParsedProjectMention | null {
+  if (sharedNative) {
+    try {
+      const parsed = sharedNative.parseProjectMentionHref(href);
+      if (parsed) return parsed;
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   if (!href.startsWith(PROJECT_MENTION_SCHEME)) return null;
 
   let url: URL;
@@ -74,6 +93,14 @@ export function parseProjectMentionHref(href: string): ParsedProjectMention | nu
 }
 
 export function buildAgentMentionHref(agentId: string, icon?: string | null): string {
+  if (sharedNative) {
+    try {
+      return sharedNative.buildAgentMentionHref(agentId, icon);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   const trimmedAgentId = agentId.trim();
   const normalizedIcon = normalizeAgentIcon(icon ?? null);
   if (!normalizedIcon) {
@@ -83,6 +110,15 @@ export function buildAgentMentionHref(agentId: string, icon?: string | null): st
 }
 
 export function parseAgentMentionHref(href: string): ParsedAgentMention | null {
+  if (sharedNative) {
+    try {
+      const parsed = sharedNative.parseAgentMentionHref(href);
+      if (parsed) return parsed;
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   if (!href.startsWith(AGENT_MENTION_SCHEME)) return null;
 
   let url: URL;
@@ -104,6 +140,14 @@ export function parseAgentMentionHref(href: string): ParsedAgentMention | null {
 }
 
 export function extractProjectMentionIds(markdown: string): string[] {
+  if (sharedNative) {
+    try {
+      return sharedNative.extractProjectMentionIds(markdown);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   if (!markdown) return [];
   const ids = new Set<string>();
   const re = new RegExp(PROJECT_MENTION_LINK_RE);
@@ -116,6 +160,14 @@ export function extractProjectMentionIds(markdown: string): string[] {
 }
 
 export function extractAgentMentionIds(markdown: string): string[] {
+  if (sharedNative) {
+    try {
+      return sharedNative.extractAgentMentionIds(markdown);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   if (!markdown) return [];
   const ids = new Set<string>();
   const re = new RegExp(AGENT_MENTION_LINK_RE);
