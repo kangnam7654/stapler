@@ -1,0 +1,16 @@
+[package]
+name = "stapler-native-shared"
+version = "0.1.0"
+edition = "2021"
+description = "Native shared utilities for Paperclip (napi-rs)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+stapler-shared = { path = "../../crates/shared" }
+napi = { version = "2", default-features = false, features = ["napi4"] }
+napi-derive = "2"
+
+[build-dependencies]
+napi-build = "2"

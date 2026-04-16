@@ -7,3 +7,4 @@ packages:
   - ui
   - cli
   - native/skills-scanner
+  - native/shared

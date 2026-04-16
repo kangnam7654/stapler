@@ -1,0 +1,18 @@
+{
+  "name": "@paperclipai/shared-native",
+  "version": "0.1.0",
+  "description": "Native shared utilities for Paperclip (napi-rs)",
+  "license": "Apache-2.0",
+  "private": true,
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "*.node"
+  ],
+  "scripts": {
+    "build": "node scripts/build-native.mjs",
+    "build:debug": "node scripts/build-native.mjs --debug"
+  }
+}
