@@ -29,6 +29,11 @@ declare const native: {
     homeDirs: string[],
     replacement: string
   ): string;
+
+  /**
+   * Redacts sensitive information from an event payload.
+   */
+  redactEventPayload(payload: Record<string, any> | null | undefined): Record<string, any> | null;
 } | null;
 
 export = native;

@@ -42,3 +42,9 @@ pub fn redact_current_user_text(
 ) -> String {
     stapler_shared::redaction::redact_current_user_text(&input, &user_names, &home_dirs, &replacement)
 }
+
+/// Redacts sensitive information from an event payload.
+#[napi(js_name = "redactEventPayload")]
+pub fn redact_event_payload(payload: Option<serde_json::Value>) -> Option<serde_json::Value> {
+    stapler_shared::redaction::redact_event_payload(payload)
+}
