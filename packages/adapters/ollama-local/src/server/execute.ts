@@ -236,6 +236,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     resultJson: {
       finishReason: loopResult.finishReason,
       messageCount: loopResult.messages.length,
+      ...(loopResult.errorMessage ? { errorMessage: loopResult.errorMessage } : {}),
     },
   };
 }

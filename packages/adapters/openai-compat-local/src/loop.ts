@@ -1,4 +1,30 @@
 // src/loop.ts
+function formatErrorChain(err: unknown): string {
+  const parts: string[] = [];
+  const visited = new WeakSet<object>();
+
+  function collect(current: unknown): void {
+    if (current == null) return;
+    if (typeof current === "object" && visited.has(current)) return;
+    if (typeof current === "object") visited.add(current);
+
+    if (current instanceof AggregateError && current.errors.length > 0) {
+      if (current.message) parts.push(current.message);
+      for (const inner of current.errors) collect(inner);
+      return;
+    }
+    if (current instanceof Error) {
+      parts.push(current.message);
+      collect((current as Error & { cause?: unknown }).cause);
+      return;
+    }
+    parts.push(String(current));
+  }
+
+  collect(err);
+  return parts.filter(Boolean).join(" → ");
+}
+
 import type {
   AgentLoopOptions,
   AgentLoopResult,
@@ -102,7 +128,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
         },
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = formatErrorChain(err);
       return {
         messages,
         finishReason: "error",

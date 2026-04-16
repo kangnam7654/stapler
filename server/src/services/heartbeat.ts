@@ -98,7 +98,7 @@ export function normalizeAdapterConfigForAdapterType(
 ): Record<string, unknown> {
   if (adapterType !== "lm_studio_local") return config;
   const baseUrlMode = config.baseUrlMode;
-  if (baseUrlMode === "custom") return config;
+  if (baseUrlMode === "custom" || baseUrlMode === "company") return config;
   const normalized = { ...config };
   delete normalized.baseUrl;
   return normalized;
