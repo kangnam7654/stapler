@@ -1,5 +1,6 @@
 import os from "node:os";
 import path from "node:path";
+import sharedNative from "@paperclipai/shared-native";
 
 const DEFAULT_INSTANCE_ID = "default";
 const INSTANCE_ID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -7,6 +8,14 @@ const PATH_SEGMENT_RE = /^[a-zA-Z0-9_-]+$/;
 const FRIENDLY_PATH_SEGMENT_RE = /[^a-zA-Z0-9._-]+/g;
 
 function expandHomePrefix(value: string): string {
+  if (sharedNative) {
+    try {
+      return sharedNative.expandHomePrefix(value, os.homedir());
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   if (value === "~") return os.homedir();
   if (value.startsWith("~/")) return path.resolve(os.homedir(), value.slice(2));
   return value;
@@ -63,6 +72,14 @@ export function resolveDefaultAgentWorkspaceDir(agentId: string): string {
 }
 
 function sanitizeFriendlyPathSegment(value: string | null | undefined, fallback = "_default"): string {
+  if (sharedNative) {
+    try {
+      return sharedNative.sanitizeFriendlyPathSegment(value, fallback);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return fallback;
   const sanitized = trimmed
