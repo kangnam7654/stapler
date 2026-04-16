@@ -15,6 +15,7 @@ const mockGetDelegation = vi.fn();
 const mockGetCompanyDelegation = vi.fn();
 const mockCreate = vi.fn();
 const mockCreateSourceMessage = vi.fn();
+const mockCreateReportMessage = vi.fn();
 const mockUpdate = vi.fn();
 const mockClaim = vi.fn();
 const mockReport = vi.fn();
@@ -28,6 +29,7 @@ vi.mock("../services/index.js", () => ({
     getCompanyDelegation: mockGetCompanyDelegation,
     create: mockCreate,
     createSourceMessage: mockCreateSourceMessage,
+    createReportMessage: mockCreateReportMessage,
     update: mockUpdate,
     claim: mockClaim,
     report: mockReport,
@@ -146,6 +148,7 @@ describe("agent delegation routes", () => {
   it("reports a delegation and wakes the delegator", async () => {
     mockGetDelegation.mockResolvedValue({ ...baseDelegation, status: "in_progress" });
     mockReport.mockResolvedValue({ ...baseDelegation, status: "reported", result: "Done with split." });
+    mockCreateReportMessage.mockResolvedValue({ ...baseDelegation, status: "reported", result: "Done with split." });
 
     const app = createApp(delegateActor);
     const res = await request(app)
@@ -156,6 +159,7 @@ describe("agent delegation routes", () => {
     expect(mockReport).toHaveBeenCalledWith(delegationId, expect.objectContaining({
       result: "Done with split.",
     }), expect.objectContaining({ actorType: "agent", agentId: delegateAgentId }));
+    expect(mockCreateReportMessage).toHaveBeenCalledWith(delegationId);
     expect(mockWakeup).toHaveBeenCalledWith(delegatorAgentId, expect.objectContaining({
       reason: "delegation_reported",
       contextSnapshot: expect.objectContaining({ delegationId }),

@@ -4,14 +4,18 @@ import type { Db } from "@paperclipai/db";
 import { issues, projects, projectWorkspaces } from "@paperclipai/db";
 import { updateExecutionWorkspaceSchema } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
-import { executionWorkspaceService, logActivity, workspaceOperationService } from "../services/index.js";
+import { logActivity } from "../services/activity-log.js";
+import { executionWorkspaceService } from "../services/execution-workspaces.js";
+import { openLocalDirectory } from "../services/local-path-opener.js";
+import { workspaceOperationService } from "../services/workspace-operations.js";
 import { parseProjectExecutionWorkspacePolicy } from "../services/execution-workspace-policy.js";
 import {
   cleanupExecutionWorkspaceArtifacts,
   stopRuntimeServicesForExecutionWorkspace,
 } from "../services/workspace-runtime.js";
-import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { t } from "../i18n/index.js";
+import { unprocessable } from "../errors.js";
 
 const TERMINAL_ISSUE_STATUSES = new Set(["done", "cancelled"]);
 
@@ -42,6 +46,25 @@ export function executionWorkspaceRoutes(db: Db) {
     }
     assertCompanyAccess(req, workspace.companyId);
     res.json(workspace);
+  });
+
+  router.post("/execution-workspaces/:id/open", async (req, res) => {
+    assertBoard(req);
+    const id = req.params.id as string;
+    const workspace = await svc.getById(id);
+    if (!workspace) {
+      res.status(404).json({ error: t("error.executionWorkspaceNotFound") });
+      return;
+    }
+    assertCompanyAccess(req, workspace.companyId);
+
+    const workspacePath = workspace.providerRef ?? workspace.cwd;
+    if (!workspacePath) {
+      throw unprocessable("Execution workspace does not have a local path to open");
+    }
+
+    await openLocalDirectory(workspacePath);
+    res.json({ path: workspacePath });
   });
 
   router.patch("/execution-workspaces/:id", validate(updateExecutionWorkspaceSchema), async (req, res) => {

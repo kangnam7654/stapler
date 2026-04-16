@@ -2,6 +2,7 @@ export { healthRoutes } from "./health.js";
 export { companyRoutes } from "./companies.js";
 export { companySkillRoutes } from "./company-skills.js";
 export { agentRoutes } from "./agents.js";
+export { teamRoutes } from "./teams.js";
 export { agentPromptGeneratorRoutes } from "./agent-prompt-generator.js";
 export { agentDelegationRoutes } from "./agent-delegations.js";
 export { projectRoutes } from "./projects.js";

@@ -6,6 +6,7 @@ describe("extractCompanyPrefixFromPath", () => {
     expect(extractCompanyPrefixFromPath("/dashboard")).toBeNull();
     expect(extractCompanyPrefixFromPath("/issues")).toBeNull();
     expect(extractCompanyPrefixFromPath("/messages")).toBeNull();
+    expect(extractCompanyPrefixFromPath("/teams")).toBeNull();
     expect(extractCompanyPrefixFromPath("/simulation")).toBeNull();
   });
 
@@ -20,6 +21,7 @@ describe("applyCompanyPrefix", () => {
     expect(applyCompanyPrefix("/dashboard", "CMPAA")).toBe("/CMPAA/dashboard");
     expect(applyCompanyPrefix("/issues", "CMPAA")).toBe("/CMPAA/issues");
     expect(applyCompanyPrefix("/messages", "CMPAA")).toBe("/CMPAA/messages");
+    expect(applyCompanyPrefix("/teams", "CMPAA")).toBe("/CMPAA/teams");
     expect(applyCompanyPrefix("/simulation", "CMPAA")).toBe("/CMPAA/simulation");
   });
 

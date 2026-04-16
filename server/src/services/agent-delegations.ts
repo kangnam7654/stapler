@@ -1,15 +1,21 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import { agentDelegations, agents, issues } from "@paperclipai/db";
+import { agentDelegations, agents, agentTeamMemberships, issues, teams } from "@paperclipai/db";
 import type {
   AgentDelegation,
   AgentDelegationStatus,
+  AgentRole,
+  AgentStatus,
+  AgentTeamMembershipRole,
   CreateAgentDelegation,
+  DelegationRouteDecision,
   IssuePriority,
   ReportAgentDelegation,
+  TeamKind,
+  TeamStatus,
   UpdateAgentDelegation,
 } from "@paperclipai/shared";
-import { AGENT_DELEGATION_STATUSES } from "@paperclipai/shared";
+import { AGENT_DELEGATION_STATUSES, evaluateDelegationRoute } from "@paperclipai/shared";
 import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
 import { logActivity } from "./activity-log.js";
 import { agentMessagingService } from "./agent-messaging.js";
@@ -43,6 +49,16 @@ function normalizeOptionalDate(value: string | null | undefined) {
 
 function isAgentDelegationStatus(value: string): value is AgentDelegationStatus {
   return (AGENT_DELEGATION_STATUSES as readonly string[]).includes(value);
+}
+
+function withRoutingDecisionContext(
+  context: Record<string, unknown> | undefined,
+  routingDecision: DelegationRouteDecision,
+) {
+  return {
+    ...(context ?? {}),
+    routingDecision,
+  };
 }
 
 export function agentDelegationService(db: Db) {
@@ -99,6 +115,62 @@ export function agentDelegationService(db: Db) {
       throw conflict("Cannot create child delegations under a terminal delegation");
     }
     return parent;
+  }
+
+  async function evaluateRoute(companyId: string, delegatorAgentId: string, delegateAgentId: string) {
+    const [agentRows, teamRows, membershipRows] = await Promise.all([
+      db
+        .select({
+          id: agents.id,
+          name: agents.name,
+          role: agents.role,
+          status: agents.status,
+          reportsTo: agents.reportsTo,
+        })
+        .from(agents)
+        .where(eq(agents.companyId, companyId)),
+      db
+        .select({
+          id: teams.id,
+          name: teams.name,
+          kind: teams.kind,
+          parentTeamId: teams.parentTeamId,
+          leadAgentId: teams.leadAgentId,
+          status: teams.status,
+        })
+        .from(teams)
+        .where(eq(teams.companyId, companyId)),
+      db
+        .select({
+          id: agentTeamMemberships.id,
+          teamId: agentTeamMemberships.teamId,
+          agentId: agentTeamMemberships.agentId,
+          roleInTeam: agentTeamMemberships.roleInTeam,
+          isPrimary: agentTeamMemberships.isPrimary,
+        })
+        .from(agentTeamMemberships)
+        .where(eq(agentTeamMemberships.companyId, companyId)),
+    ]);
+
+    return evaluateDelegationRoute({
+      agents: agentRows.map((agent) => ({
+        ...agent,
+        role: agent.role as AgentRole,
+        status: agent.status as AgentStatus,
+      })),
+      teams: teamRows.map((team) => ({
+        ...team,
+        kind: team.kind as TeamKind,
+        status: team.status as TeamStatus,
+      })),
+      memberships: membershipRows.map((membership) => ({
+        ...membership,
+        roleInTeam: membership.roleInTeam as AgentTeamMembershipRole,
+      })),
+      delegatorAgentId,
+      delegateAgentId,
+      policy: { operatingModel: "matrix" },
+    });
   }
 
   async function listDelegations(
@@ -184,6 +256,7 @@ export function agentDelegationService(db: Db) {
       linkedIssueId ? assertIssueBelongsToCompany(companyId, linkedIssueId, "Linked") : Promise.resolve(),
     ]);
 
+    const routingDecision = await evaluateRoute(companyId, delegatorAgentId, input.delegateAgentId);
     const now = new Date();
     const [created] = await db
       .insert(agentDelegations)
@@ -199,7 +272,7 @@ export function agentDelegationService(db: Db) {
         title: input.title.trim(),
         brief: normalizeOptionalText(input.brief),
         acceptanceCriteria: normalizeOptionalText(input.acceptanceCriteria),
-        context: input.context ?? {},
+        context: withRoutingDecisionContext(input.context, routingDecision),
         result: null,
         priority: input.priority ?? "medium",
         dueAt: normalizeOptionalDate(input.dueAt),
@@ -227,6 +300,7 @@ export function agentDelegationService(db: Db) {
         parentDelegationId: input.parentDelegationId ?? null,
         rootIssueId,
         linkedIssueId,
+        routingDecision,
       },
     });
 
@@ -266,6 +340,38 @@ export function agentDelegationService(db: Db) {
       .where(eq(agentDelegations.id, delegation.id))
       .returning();
     return normalizeDelegationRow(updated ?? delegation);
+  }
+
+  async function createReportMessage(delegationId: string) {
+    const delegation = await getDelegationRowOrThrow(delegationId);
+    if (!delegation.result) return normalizeDelegationRow(delegation);
+
+    const body = [
+      `Delegation report: ${delegation.title}`,
+      delegation.result,
+      `Status: ${delegation.status}`,
+      delegation.linkedIssueId ? `Linked issue: ${delegation.linkedIssueId}` : null,
+      delegation.rootIssueId && delegation.rootIssueId !== delegation.linkedIssueId
+        ? `Root issue: ${delegation.rootIssueId}`
+        : null,
+    ].filter(Boolean).join("\n\n");
+
+    await messaging.send(delegation.companyId, {
+      senderAgentId: delegation.delegateAgentId,
+      recipientAgentId: delegation.delegatorAgentId,
+      messageType: "report",
+      body,
+      threadId: delegation.sourceMessageId,
+      payload: {
+        delegationId: delegation.id,
+        parentDelegationId: delegation.parentDelegationId,
+        rootIssueId: delegation.rootIssueId,
+        linkedIssueId: delegation.linkedIssueId,
+        status: delegation.status,
+      },
+    });
+
+    return normalizeDelegationRow(delegation);
   }
 
   async function update(delegationId: string, input: UpdateAgentDelegation, actor: AgentDelegationActor) {
@@ -422,6 +528,7 @@ export function agentDelegationService(db: Db) {
     getCompanyDelegation,
     create,
     createSourceMessage,
+    createReportMessage,
     update,
     claim,
     report,

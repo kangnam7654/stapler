@@ -102,7 +102,7 @@ describe("PATCH /api/companies/:companyId/branding", () => {
       .send({ logoAssetId: "11111111-1111-4111-8111-111111111111" });
 
     expect(res.status).toBe(403);
-    expect(res.body.error).toContain("Only CEO agents");
+    expect(res.body.error).toMatch(/Only CEO agents|CEO 에이전트만/);
     expect(mockCompanyService.update).not.toHaveBeenCalled();
   });
 

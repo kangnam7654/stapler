@@ -3,6 +3,25 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { runAgentLoop } from "@paperclipai/adapter-openai-compat-local/loop";
 import type { ToolExecutor, ChatMessage } from "@paperclipai/adapter-openai-compat-local/types";
 
+function makeSseResponse(events: unknown[]) {
+  const encoder = new TextEncoder();
+  const chunks = events.map((event) => `data: ${JSON.stringify(event)}\n\n`);
+  chunks.push("data: [DONE]\n\n");
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
+}
+
 function makeMockTool(name: string, output: string): ToolExecutor {
   return {
     name,
@@ -32,15 +51,14 @@ describe("runAgentLoop", () => {
   it("returns 'done' when model replies without tool calls", async () => {
     const mockFetch = globalThis.fetch as ReturnType<typeof vi.fn>;
     mockFetch.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          choices: [
-            { index: 0, message: { role: "assistant", content: "ok, I'm done" }, finish_reason: "stop" },
-          ],
+      makeSseResponse([
+        { choices: [{ delta: { role: "assistant" } }] },
+        { choices: [{ delta: { content: "ok, I'm done" } }] },
+        {
+          choices: [{ finish_reason: "stop" }],
           usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
+        },
+      ]),
     );
 
     const result = await runAgentLoop({
@@ -64,44 +82,39 @@ describe("runAgentLoop", () => {
     const mockFetch = globalThis.fetch as ReturnType<typeof vi.fn>;
     mockFetch
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
+        makeSseResponse([
+          { choices: [{ delta: { role: "assistant" } }] },
+          {
             choices: [
               {
-                index: 0,
-                message: {
-                  role: "assistant",
-                  content: null,
+                delta: {
                   tool_calls: [
                     {
+                      index: 0,
                       id: "call_1",
                       type: "function",
                       function: { name: "mock_tool", arguments: "{}" },
                     },
                   ],
                 },
-                finish_reason: "tool_calls",
               },
             ],
+          },
+          {
+            choices: [{ finish_reason: "tool_calls" }],
             usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+          },
+        ]),
       )
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            choices: [
-              {
-                index: 0,
-                message: { role: "assistant", content: "all done" },
-                finish_reason: "stop",
-              },
-            ],
+        makeSseResponse([
+          { choices: [{ delta: { role: "assistant" } }] },
+          { choices: [{ delta: { content: "all done" } }] },
+          {
+            choices: [{ finish_reason: "stop" }],
             usage: { prompt_tokens: 20, completion_tokens: 3, total_tokens: 23 },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+          },
+        ]),
       );
 
     const tool = makeMockTool("mock_tool", "mock output");
@@ -151,32 +164,33 @@ describe("runAgentLoop", () => {
     const mockFetch = globalThis.fetch as ReturnType<typeof vi.fn>;
     mockFetch
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
+        makeSseResponse([
+          { choices: [{ delta: { role: "assistant" } }] },
+          {
             choices: [
               {
-                index: 0,
-                message: {
-                  role: "assistant",
-                  content: null,
+                delta: {
                   tool_calls: [
-                    { id: "c1", type: "function", function: { name: "broken", arguments: "{}" } },
+                    {
+                      index: 0,
+                      id: "c1",
+                      type: "function",
+                      function: { name: "broken", arguments: "{}" },
+                    },
                   ],
                 },
-                finish_reason: "tool_calls",
               },
             ],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+          },
+          { choices: [{ finish_reason: "tool_calls" }] },
+        ]),
       )
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            choices: [{ index: 0, message: { role: "assistant", content: "done" }, finish_reason: "stop" }],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        ),
+        makeSseResponse([
+          { choices: [{ delta: { role: "assistant" } }] },
+          { choices: [{ delta: { content: "done" } }] },
+          { choices: [{ finish_reason: "stop" }] },
+        ]),
       );
 
     const broken: ToolExecutor = {
