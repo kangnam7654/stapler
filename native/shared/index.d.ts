@@ -34,6 +34,36 @@ declare const native: {
    * Redacts sensitive information from an event payload.
    */
   redactEventPayload(payload: Record<string, any> | null | undefined): Record<string, any> | null;
+
+  /**
+   * Builds a project mention href.
+   */
+  buildProjectMentionHref(projectId: string, color?: string | null): string;
+
+  /**
+   * Parses a project mention href.
+   */
+  parseProjectMentionHref(href: string): { projectId: string; color: string | null } | null;
+
+  /**
+   * Builds an agent mention href.
+   */
+  buildAgentMentionHref(agentId: string, icon?: string | null): string;
+
+  /**
+   * Parses an agent mention href.
+   */
+  parseAgentMentionHref(href: string): { agentId: string; icon: string | null } | null;
+
+  /**
+   * Extracts project IDs from markdown mentions.
+   */
+  extractProjectMentionIds(markdown: string): string[];
+
+  /**
+   * Extracts agent IDs from markdown mentions.
+   */
+  extractAgentMentionIds(markdown: string): string[];
 } | null;
 
 export = native;
