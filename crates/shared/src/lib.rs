@@ -6,6 +6,9 @@
 /// Placeholder — will hold domain types (Company, Agent, Task, etc.)
 pub mod types {}
 
+/// Validators and normalization utilities.
+pub mod validators;
+
 #[cfg(test)]
 mod tests {
     #[test]
