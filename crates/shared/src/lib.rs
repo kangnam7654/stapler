@@ -9,6 +9,9 @@ pub mod types {}
 /// Validators and normalization utilities.
 pub mod validators;
 
+/// Log redaction utilities.
+pub mod redaction;
+
 #[cfg(test)]
 mod tests {
     #[test]
