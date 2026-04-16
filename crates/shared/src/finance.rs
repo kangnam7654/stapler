@@ -1,15 +1,17 @@
 //! Finance and cost calculation utilities ported from TypeScript.
 
 /// Normalizes a currency code to uppercase.
-/// 
+///
 /// Mirrors the transform logic in `finance.ts`.
+#[must_use]
 pub fn normalize_currency(code: &str) -> String {
     code.trim().to_uppercase()
 }
 
 /// Derives the biller name, falling back to the provider if not explicitly provided.
-/// 
+///
 /// Mirrors the transform logic in `cost.ts`.
+#[must_use]
 pub fn derive_biller(biller: Option<String>, provider: &str) -> String {
     match biller {
         Some(b) => {

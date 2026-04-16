@@ -35,7 +35,7 @@ pub fn normalize_agent_url_key(value: &str) -> Option<String> {
 
 /// Mirrors `normalizeSkillSlug` (company-skills.ts:180).
 pub fn normalize_skill_slug(value: Option<&str>) -> Option<String> {
-    value.and_then(|v| normalize_agent_url_key(v))
+    value.and_then(normalize_agent_url_key)
 }
 
 /// Mirrors `normalizeSkillKey` (company-skills.ts:184).

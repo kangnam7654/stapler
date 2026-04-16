@@ -24,10 +24,16 @@ pub mod paths;
 /// Finance and cost utilities.
 pub mod finance;
 
+/// Cryptographic hashing utilities.
+pub mod crypto;
+
 #[cfg(test)]
 mod tests {
     #[test]
     fn shared_crate_compiles() {
-        assert!(true);
+        assert_eq!(
+            crate::validators::normalize_url_key("smoke test"),
+            Some("smoke-test".to_string())
+        );
     }
 }

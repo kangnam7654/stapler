@@ -10,6 +10,7 @@
 /// 3. Replace any sequence of non-alphanumeric characters with a single dash.
 /// 4. Trim leading and trailing dashes.
 /// 5. Return None if the result is empty.
+#[must_use]
 pub fn normalize_url_key(value: &str) -> Option<String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -43,26 +44,38 @@ pub fn normalize_url_key(value: &str) -> Option<String> {
 
 /// Checks if a string looks like a UUID (v1-v5).
 ///
-/// Mirrors `isUuidLike` from TypeScript.
-///
-/// Logic:
-/// 1. Trim whitespace.
-/// 2. Check for 8-4-4-4-12 hex digit format.
+/// Mirrors the TypeScript `UUID_RE` which validates:
+/// - 8-4-4-4-12 hex digit format
+/// - Version digit at position 14 must be 1-5
+/// - Variant nibble at position 19 must be 8, 9, a, or b
+#[must_use]
 pub fn is_uuid_like(value: &str) -> bool {
     let s = value.trim();
     if s.len() != 36 {
         return false;
     }
     let bytes = s.as_bytes();
-    for i in 0..36 {
+    for (i, &byte) in bytes.iter().enumerate().take(36) {
         match i {
             8 | 13 | 18 | 23 => {
-                if bytes[i] != b'-' {
+                if byte != b'-' {
+                    return false;
+                }
+            }
+            // Version digit: must be 1-5 (matching TS regex [1-5])
+            14 => {
+                if !matches!(byte, b'1'..=b'5') {
+                    return false;
+                }
+            }
+            // Variant nibble: must be 8, 9, a, or b (matching TS regex [89ab])
+            19 => {
+                if !matches!(byte, b'8' | b'9' | b'a' | b'b' | b'A' | b'B') {
                     return false;
                 }
             }
             _ => {
-                if !bytes[i].is_ascii_hexdigit() {
+                if !byte.is_ascii_hexdigit() {
                     return false;
                 }
             }
@@ -95,5 +108,34 @@ mod tests {
         assert!(!is_uuid_like("550e8400-e29b-41d4-a716-4466554400001")); // too long
         assert!(!is_uuid_like("z50e8400-e29b-41d4-a716-446655440000")); // invalid hex
         assert!(!is_uuid_like("550e8400_e29b_41d4_a716_446655440000")); // invalid separator
+    }
+
+    #[test]
+    fn test_uuid_version_check() {
+        // Version 0 (invalid) at position 14
+        assert!(!is_uuid_like("550e8400-e29b-01d4-a716-446655440000"));
+        // Version 6+ (invalid) at position 14
+        assert!(!is_uuid_like("550e8400-e29b-61d4-a716-446655440000"));
+        // Versions 1-5 are valid
+        assert!(is_uuid_like("550e8400-e29b-11d4-a716-446655440000")); // v1
+        assert!(is_uuid_like("550e8400-e29b-21d4-a716-446655440000")); // v2
+        assert!(is_uuid_like("550e8400-e29b-31d4-a716-446655440000")); // v3
+        assert!(is_uuid_like("550e8400-e29b-41d4-a716-446655440000")); // v4
+        assert!(is_uuid_like("550e8400-e29b-51d4-a716-446655440000")); // v5
+    }
+
+    #[test]
+    fn test_uuid_variant_check() {
+        // Variant 0 (invalid) at position 19
+        assert!(!is_uuid_like("550e8400-e29b-41d4-0716-446655440000"));
+        // Variant 7 (invalid)
+        assert!(!is_uuid_like("550e8400-e29b-41d4-7716-446655440000"));
+        // Valid variants: 8, 9, a, b
+        assert!(is_uuid_like("550e8400-e29b-41d4-8716-446655440000"));
+        assert!(is_uuid_like("550e8400-e29b-41d4-9716-446655440000"));
+        assert!(is_uuid_like("550e8400-e29b-41d4-a716-446655440000"));
+        assert!(is_uuid_like("550e8400-e29b-41d4-b716-446655440000"));
+        assert!(is_uuid_like("550e8400-e29b-41d4-A716-446655440000")); // uppercase variant
+        assert!(is_uuid_like("550e8400-e29b-41d4-B716-446655440000"));
     }
 }

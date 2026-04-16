@@ -16,6 +16,7 @@ pub const DEFAULT_ALLOWED_TYPES: &[&str] = &[
 
 /// Parse a comma-separated list of MIME type patterns into a normalized array.
 /// Returns the default allowed types when the input is empty or None.
+#[must_use]
 pub fn parse_allowed_types(raw: Option<String>) -> Vec<String> {
     let s = match raw {
         Some(val) => val,
@@ -36,8 +37,13 @@ pub fn parse_allowed_types(raw: Option<String>) -> Vec<String> {
 }
 
 /// Check whether `content_type` matches any entry in `allowed_patterns`.
-/// 
+///
 /// Supports exact matches and wildcard / prefix patterns ("*", "image/*", "text.*").
+///
+/// **Note**: The `"*"` wildcard accepts all MIME types. Callers accepting
+/// user-supplied patterns should validate or reject `"*"` at the API layer
+/// if unrestricted content types are not desired.
+#[must_use]
 pub fn matches_content_type(content_type: &str, allowed_patterns: &[String]) -> bool {
     let ct = content_type.to_lowercase();
     allowed_patterns.iter().any(|pattern| {
@@ -66,12 +72,12 @@ mod tests {
     #[test]
     fn test_matches_content_type() {
         let patterns = vec!["image/*".to_string(), "application/pdf".to_string(), "text.*".to_string()];
-        
+
         assert!(matches_content_type("image/png", &patterns));
         assert!(matches_content_type("image/JPEG", &patterns));
         assert!(matches_content_type("application/pdf", &patterns));
         assert!(matches_content_type("text.plain", &patterns));
-        
+
         assert!(!matches_content_type("application/json", &patterns));
         assert!(!matches_content_type("text/markdown", &patterns)); // Note: text.* only matches with dot
     }

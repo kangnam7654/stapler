@@ -17,6 +17,12 @@ use napi_derive::napi;
 
 use crate::scan::scan_workspace_skills;
 
+/// Blocked system directory prefixes that should never be scanned.
+#[cfg(unix)]
+const BLOCKED_PREFIXES: &[&str] = &["/etc", "/proc", "/sys", "/dev", "/var/run"];
+#[cfg(not(unix))]
+const BLOCKED_PREFIXES: &[&str] = &[];
+
 /// Blocking scan wrapped as an `AsyncTask` — runs on the libuv thread pool.
 pub struct ScanWorkspaceTask {
     company_id: String,
@@ -47,13 +53,38 @@ impl Task for ScanWorkspaceTask {
 /// The string is JSON of the Rust `WorkspaceScanResult` struct
 /// (snake_case field names). The TS adapter parses and remaps to
 /// camelCase `ImportedSkill`.
+///
+/// Validates that `workspace_cwd` is a real directory and not a
+/// restricted system path before starting the scan.
 #[napi(js_name = "scanWorkspaceSkillsAsync")]
 pub fn scan_workspace_skills_async(
     company_id: String,
     workspace_cwd: String,
-) -> AsyncTask<ScanWorkspaceTask> {
-    AsyncTask::new(ScanWorkspaceTask {
+) -> Result<AsyncTask<ScanWorkspaceTask>> {
+    let path = PathBuf::from(&workspace_cwd);
+
+    // Must be an existing directory
+    if !path.is_dir() {
+        return Err(Error::new(
+            Status::InvalidArg,
+            format!("workspace_cwd is not a directory: {workspace_cwd}"),
+        ));
+    }
+
+    // Reject sensitive system directories
+    let canonical = std::fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+    let canon_str = canonical.to_string_lossy();
+    for prefix in BLOCKED_PREFIXES {
+        if canon_str.starts_with(prefix) {
+            return Err(Error::new(
+                Status::InvalidArg,
+                "workspace_cwd points to a restricted system directory".to_string(),
+            ));
+        }
+    }
+
+    Ok(AsyncTask::new(ScanWorkspaceTask {
         company_id,
-        workspace_cwd: PathBuf::from(workspace_cwd),
-    })
+        workspace_cwd: canonical,
+    }))
 }

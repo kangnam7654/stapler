@@ -86,4 +86,7 @@ pub struct ImportedSkill {
 pub struct WorkspaceScanResult {
     pub workspace_cwd: String,
     pub skills: Vec<ImportedSkill>,
+    /// Warnings for skills that were discovered but could not be imported.
+    #[serde(default)]
+    pub warnings: Vec<String>,
 }

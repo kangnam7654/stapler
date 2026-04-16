@@ -17,25 +17,39 @@ static AGENT_MENTION_LINK_RE: OnceLock<Regex> = OnceLock::new();
 static AGENT_ICON_NAME_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_hex_color_re() -> &'static Regex {
-    HEX_COLOR_RE.get_or_init(|| Regex::new(r"^[0-9a-f]{6}$").unwrap())
+    HEX_COLOR_RE.get_or_init(|| {
+        Regex::new(r"^[0-9a-f]{6}$").expect("invariant: static HEX_COLOR regex literal")
+    })
 }
 fn get_hex_color_short_re() -> &'static Regex {
-    HEX_COLOR_SHORT_RE.get_or_init(|| Regex::new(r"^[0-9a-f]{3}$").unwrap())
+    HEX_COLOR_SHORT_RE.get_or_init(|| {
+        Regex::new(r"^[0-9a-f]{3}$").expect("invariant: static HEX_COLOR_SHORT regex literal")
+    })
 }
 fn get_hex_color_with_hash_re() -> &'static Regex {
-    HEX_COLOR_WITH_HASH_RE.get_or_init(|| Regex::new(r"^#[0-9a-f]{6}$").unwrap())
+    HEX_COLOR_WITH_HASH_RE.get_or_init(|| {
+        Regex::new(r"^#[0-9a-f]{6}$").expect("invariant: static HEX_COLOR_WITH_HASH regex literal")
+    })
 }
 fn get_hex_color_short_with_hash_re() -> &'static Regex {
-    HEX_COLOR_SHORT_WITH_HASH_RE.get_or_init(|| Regex::new(r"^#[0-9a-f]{3}$").unwrap())
+    HEX_COLOR_SHORT_WITH_HASH_RE.get_or_init(|| {
+        Regex::new(r"^#[0-9a-f]{3}$").expect("invariant: static HEX_COLOR_SHORT_WITH_HASH regex literal")
+    })
 }
 fn get_project_mention_link_re() -> &'static Regex {
-    PROJECT_MENTION_LINK_RE.get_or_init(|| Regex::new(r"(?i)\[[^\]]*]\((project://[^)\s]+)\)").unwrap())
+    PROJECT_MENTION_LINK_RE.get_or_init(|| {
+        Regex::new(r"(?i)\[[^\]]*]\((project://[^)\s]+)\)").expect("invariant: static PROJECT_MENTION_LINK regex literal")
+    })
 }
 fn get_agent_mention_link_re() -> &'static Regex {
-    AGENT_MENTION_LINK_RE.get_or_init(|| Regex::new(r"(?i)\[[^\]]*]\((agent://[^)\s]+)\)").unwrap())
+    AGENT_MENTION_LINK_RE.get_or_init(|| {
+        Regex::new(r"(?i)\[[^\]]*]\((agent://[^)\s]+)\)").expect("invariant: static AGENT_MENTION_LINK regex literal")
+    })
 }
 fn get_agent_icon_name_re() -> &'static Regex {
-    AGENT_ICON_NAME_RE.get_or_init(|| Regex::new(r"(?i)^[a-z0-9-]+$").unwrap())
+    AGENT_ICON_NAME_RE.get_or_init(|| {
+        Regex::new(r"(?i)^[a-z0-9-]+$").expect("invariant: static AGENT_ICON_NAME regex literal")
+    })
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -50,6 +64,7 @@ pub struct ParsedAgentMention {
     pub icon: Option<String>,
 }
 
+#[must_use]
 pub fn normalize_hex_color(input: Option<String>) -> Option<String> {
     let s = input?.trim().to_lowercase();
     if s.is_empty() {
@@ -78,6 +93,7 @@ pub fn normalize_hex_color(input: Option<String>) -> Option<String> {
     None
 }
 
+#[must_use]
 pub fn normalize_agent_icon(input: Option<String>) -> Option<String> {
     let s = input?.trim().to_lowercase();
     if s.is_empty() || !get_agent_icon_name_re().is_match(&s) {
@@ -86,15 +102,20 @@ pub fn normalize_agent_icon(input: Option<String>) -> Option<String> {
     Some(s)
 }
 
+/// Builds a `project://` mention href, percent-encoding the project ID.
+#[must_use]
 pub fn build_project_mention_href(project_id: &str, color: Option<String>) -> String {
     let trimmed = project_id.trim();
+    let encoded_id = urlencoding::encode(trimmed);
     let norm_color = normalize_hex_color(color);
     match norm_color {
-        Some(c) => format!("{}{}/?c={}", PROJECT_MENTION_SCHEME, trimmed, urlencoding::encode(&c[1..])),
-        None => format!("{}{}", PROJECT_MENTION_SCHEME, trimmed),
+        Some(c) => format!("{}{}/?c={}", PROJECT_MENTION_SCHEME, encoded_id, urlencoding::encode(&c[1..])),
+        None => format!("{}{}", PROJECT_MENTION_SCHEME, encoded_id),
     }
 }
 
+/// Parses a `project://` mention href, decoding percent-encoded IDs.
+#[must_use]
 pub fn parse_project_mention_href(href: &str) -> Option<ParsedProjectMention> {
     if !href.to_lowercase().starts_with(PROJECT_MENTION_SCHEME) {
         return None;
@@ -105,10 +126,10 @@ pub fn parse_project_mention_href(href: &str) -> Option<ParsedProjectMention> {
         return None;
     }
 
-    let project_id = format!("{}{}", url.host_str().unwrap_or(""), url.path())
-        .trim_matches('/')
-        .trim()
-        .to_string();
+    let raw_id = format!("{}{}", url.host_str().unwrap_or(""), url.path());
+    let raw_trimmed = raw_id.trim_matches('/').trim();
+    let project_id = urlencoding::decode(raw_trimmed)
+        .map_or_else(|_| raw_trimmed.to_string(), |s| s.into_owned());
 
     if project_id.is_empty() {
         return None;
@@ -124,15 +145,20 @@ pub fn parse_project_mention_href(href: &str) -> Option<ParsedProjectMention> {
     })
 }
 
+/// Builds an `agent://` mention href, percent-encoding the agent ID.
+#[must_use]
 pub fn build_agent_mention_href(agent_id: &str, icon: Option<String>) -> String {
     let trimmed = agent_id.trim();
+    let encoded_id = urlencoding::encode(trimmed);
     let norm_icon = normalize_agent_icon(icon);
     match norm_icon {
-        Some(i) => format!("{}{}/?i={}", AGENT_MENTION_SCHEME, trimmed, urlencoding::encode(&i)),
-        None => format!("{}{}", AGENT_MENTION_SCHEME, trimmed),
+        Some(i) => format!("{}{}/?i={}", AGENT_MENTION_SCHEME, encoded_id, urlencoding::encode(&i)),
+        None => format!("{}{}", AGENT_MENTION_SCHEME, encoded_id),
     }
 }
 
+/// Parses an `agent://` mention href, decoding percent-encoded IDs.
+#[must_use]
 pub fn parse_agent_mention_href(href: &str) -> Option<ParsedAgentMention> {
     if !href.to_lowercase().starts_with(AGENT_MENTION_SCHEME) {
         return None;
@@ -143,10 +169,10 @@ pub fn parse_agent_mention_href(href: &str) -> Option<ParsedAgentMention> {
         return None;
     }
 
-    let agent_id = format!("{}{}", url.host_str().unwrap_or(""), url.path())
-        .trim_matches('/')
-        .trim()
-        .to_string();
+    let raw_id = format!("{}{}", url.host_str().unwrap_or(""), url.path());
+    let raw_trimmed = raw_id.trim_matches('/').trim();
+    let agent_id = urlencoding::decode(raw_trimmed)
+        .map_or_else(|_| raw_trimmed.to_string(), |s| s.into_owned());
 
     if agent_id.is_empty() {
         return None;
@@ -162,6 +188,7 @@ pub fn parse_agent_mention_href(href: &str) -> Option<ParsedAgentMention> {
     })
 }
 
+#[must_use]
 pub fn extract_project_mention_ids(markdown: &str) -> Vec<String> {
     if markdown.is_empty() {
         return vec![];
@@ -169,10 +196,8 @@ pub fn extract_project_mention_ids(markdown: &str) -> Vec<String> {
     let mut ids = HashSet::new();
     let re = get_project_mention_link_re();
     for cap in re.captures_iter(markdown) {
-        if let Some(href) = cap.get(1) {
-            if let Some(parsed) = parse_project_mention_href(href.as_str()) {
-                ids.insert(parsed.project_id);
-            }
+        if let Some(parsed) = cap.get(1).and_then(|href| parse_project_mention_href(href.as_str())) {
+            ids.insert(parsed.project_id);
         }
     }
     let mut result: Vec<String> = ids.into_iter().collect();
@@ -180,6 +205,7 @@ pub fn extract_project_mention_ids(markdown: &str) -> Vec<String> {
     result
 }
 
+#[must_use]
 pub fn extract_agent_mention_ids(markdown: &str) -> Vec<String> {
     if markdown.is_empty() {
         return vec![];
@@ -187,10 +213,8 @@ pub fn extract_agent_mention_ids(markdown: &str) -> Vec<String> {
     let mut ids = HashSet::new();
     let re = get_agent_mention_link_re();
     for cap in re.captures_iter(markdown) {
-        if let Some(href) = cap.get(1) {
-            if let Some(parsed) = parse_agent_mention_href(href.as_str()) {
-                ids.insert(parsed.agent_id);
-            }
+        if let Some(parsed) = cap.get(1).and_then(|href| parse_agent_mention_href(href.as_str())) {
+            ids.insert(parsed.agent_id);
         }
     }
     let mut result: Vec<String> = ids.into_iter().collect();
@@ -212,17 +236,24 @@ mod tests {
     #[test]
     fn test_project_mention_href() {
         let href = build_project_mention_href("my-proj", Some("f00".into()));
-        // Note: URL parsing might add trailing slash if path is empty, we handle it in parser
-        
+
         let parsed = parse_project_mention_href(&href).unwrap();
         assert_eq!(parsed.project_id, "my-proj");
         assert_eq!(parsed.color, Some("#ff0000".into()));
     }
 
     #[test]
+    fn test_project_mention_href_special_chars() {
+        // IDs with special chars should round-trip via percent-encoding
+        let href = build_project_mention_href("foo bar", None);
+        let parsed = parse_project_mention_href(&href).unwrap();
+        assert_eq!(parsed.project_id, "foo bar");
+    }
+
+    #[test]
     fn test_agent_mention_href() {
         let href = build_agent_mention_href("agent-123", Some("bot".into()));
-        
+
         let parsed = parse_agent_mention_href(&href).unwrap();
         assert_eq!(parsed.agent_id, "agent-123");
         assert_eq!(parsed.icon, Some("bot".into()));
@@ -233,7 +264,7 @@ mod tests {
         let markdown = "Check [Project](project://p1) and [Other](project://p2?c=aabbcc). Also [Agent](agent://a1).";
         let p_ids = extract_project_mention_ids(markdown);
         assert_eq!(p_ids, vec!["p1".to_string(), "p2".to_string()]);
-        
+
         let a_ids = extract_agent_mention_ids(markdown);
         assert_eq!(a_ids, vec!["a1".to_string()]);
     }

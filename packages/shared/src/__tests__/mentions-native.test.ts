@@ -25,7 +25,7 @@ describe("Mention Processing (Native)", () => {
   it("round-trips agent mentions", () => {
     const href = buildAgentMentionHref("bot-1", "bot");
     const parsed = parseAgentMentionHref(href);
-    expect(parsed?.agent_id || (parsed as any).agentId).toBe("bot-1");
+    expect(parsed?.agentId).toBe("bot-1");
     expect(parsed?.icon).toBe("bot");
   });
 

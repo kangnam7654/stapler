@@ -2,32 +2,38 @@
 
 use regex::Regex;
 use serde_json::{Map, Value};
+use std::cmp::Reverse;
 use std::sync::OnceLock;
 
 pub const REDACTED_EVENT_VALUE: &str = "***REDACTED***";
+
+const MAX_SANITIZE_DEPTH: usize = 64;
 
 static SECRET_PAYLOAD_KEY_RE: OnceLock<Regex> = OnceLock::new();
 static JWT_VALUE_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_secret_key_re() -> &'static Regex {
     SECRET_PAYLOAD_KEY_RE.get_or_init(|| {
-        Regex::new(r"(?i)(api[-_]?key|access[-_]?token|auth(?:_?token)?|authorization|bearer|secret|passwd|password|credential|jwt|private[-_]?key|cookie|connectionstring)").unwrap()
+        Regex::new(r"(?i)(api[-_]?key|access[-_]?token|auth(?:_?token)?|authorization|bearer|secret|passwd|password|credential|jwt|private[-_]?key|cookie|connectionstring)")
+            .expect("invariant: static SECRET_PAYLOAD_KEY regex literal")
     })
 }
 
 fn get_jwt_value_re() -> &'static Regex {
     JWT_VALUE_RE.get_or_init(|| {
-        Regex::new(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?$").unwrap()
+        Regex::new(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?$")
+            .expect("invariant: static JWT_VALUE regex literal")
     })
 }
 
 /// Redacts a username by masking it with asterisks, preserving the first character.
+#[must_use]
 pub fn mask_user_name_for_logs(value: &str, fallback: &str) -> String {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return fallback.to_string();
     }
-    
+
     let chars: Vec<char> = trimmed.chars().collect();
     let first = chars[0];
     let mask_len = (chars.len() - 1).max(1);
@@ -39,6 +45,7 @@ fn is_word_boundary_char(c: char) -> bool {
 }
 
 /// Redacts user-specific text (usernames and home directories) from a string.
+#[must_use]
 pub fn redact_current_user_text(
     input: &str,
     user_names: &[String],
@@ -53,22 +60,22 @@ pub fn redact_current_user_text(
 
     // 1. Redact home directories (longest first)
     let mut sorted_home_dirs = home_dirs.to_vec();
-    sorted_home_dirs.sort_by(|a, b| b.len().cmp(&a.len()));
+    sorted_home_dirs.sort_by_key(|s| Reverse(s.len()));
 
     for home_dir in sorted_home_dirs {
         if home_dir.is_empty() {
             continue;
         }
-        
-        let normalized = home_dir.trim_end_matches(|c| c == '/' || c == '\\');
+
+        let normalized = home_dir.trim_end_matches(['/', '\\']);
         let last_segment = normalized
-            .split(|c| c == '/' || c == '\\')
-            .last()
+            .split(['/', '\\'])
+            .next_back()
             .unwrap_or("");
-            
+
         let replacement_val = if !last_segment.is_empty() {
             let masked_name = mask_user_name_for_logs(last_segment, replacement);
-            if let Some(pos) = normalized.rfind(|c| c == '/' || c == '\\') {
+            if let Some(pos) = normalized.rfind(['/', '\\']) {
                 format!("{}{}", &normalized[..pos + 1], masked_name)
             } else {
                 masked_name
@@ -82,7 +89,7 @@ pub fn redact_current_user_text(
 
     // 2. Redact usernames with boundary checks
     let mut sorted_user_names = user_names.to_vec();
-    sorted_user_names.sort_by(|a, b| b.len().cmp(&a.len()));
+    sorted_user_names.sort_by_key(|s| Reverse(s.len()));
 
     for user_name in sorted_user_names {
         if user_name.is_empty() {
@@ -97,7 +104,7 @@ pub fn redact_current_user_text(
         while let Some(start_offset) = result[search_pos..].find(&user_name) {
             let start = search_pos + start_offset;
             let end = start + user_name.len();
-            
+
             let before_ok = if start == 0 {
                 true
             } else {
@@ -123,7 +130,7 @@ pub fn redact_current_user_text(
                 search_pos = start + 1;
             }
         }
-        
+
         new_result.push_str(&result[last_pos..]);
         result = new_result;
     }
@@ -132,18 +139,32 @@ pub fn redact_current_user_text(
 }
 
 /// Redacts sensitive information from an event payload.
-/// 
-/// Mirrors `redactEventPayload` from TypeScript.
+///
+/// Handles all JSON value types at the root level:
+/// - Objects are recursively sanitized.
+/// - Arrays are recursively sanitized.
+/// - Strings are checked for JWT patterns.
+/// - Other values pass through unchanged.
+#[must_use]
 pub fn redact_event_payload(payload: Option<Value>) -> Option<Value> {
     let p = payload?;
-    if let Value::Object(map) = p {
-        Some(Value::Object(sanitize_record(map)))
-    } else {
-        Some(p)
-    }
+    Some(match p {
+        Value::Object(map) => Value::Object(sanitize_record(map, 0)),
+        Value::Array(arr) => Value::Array(
+            arr.into_iter().map(|v| sanitize_value(v, 0)).collect(),
+        ),
+        Value::String(s) => {
+            if get_jwt_value_re().is_match(&s) {
+                Value::String(REDACTED_EVENT_VALUE.to_string())
+            } else {
+                Value::String(s)
+            }
+        }
+        other => other,
+    })
 }
 
-pub fn sanitize_record(record: Map<String, Value>) -> Map<String, Value> {
+pub(crate) fn sanitize_record(record: Map<String, Value>, depth: usize) -> Map<String, Value> {
     let mut redacted = Map::new();
     let secret_key_re = get_secret_key_re();
     let jwt_value_re = get_jwt_value_re();
@@ -151,7 +172,7 @@ pub fn sanitize_record(record: Map<String, Value>) -> Map<String, Value> {
     for (key, value) in record {
         if secret_key_re.is_match(&key) {
             if is_secret_ref_binding(&value) {
-                redacted.insert(key, sanitize_value(value));
+                redacted.insert(key, sanitize_value(value, depth + 1));
                 continue;
             }
             if is_plain_binding(&value) {
@@ -165,25 +186,28 @@ pub fn sanitize_record(record: Map<String, Value>) -> Map<String, Value> {
             continue;
         }
 
-        if let Value::String(ref s) = value {
-            if jwt_value_re.is_match(s) {
-                redacted.insert(key, Value::String(REDACTED_EVENT_VALUE.to_string()));
-                continue;
-            }
+        if let Value::String(ref s) = value
+            && jwt_value_re.is_match(s)
+        {
+            redacted.insert(key, Value::String(REDACTED_EVENT_VALUE.to_string()));
+            continue;
         }
 
-        redacted.insert(key, sanitize_value(value));
+        redacted.insert(key, sanitize_value(value, depth + 1));
     }
     redacted
 }
 
-fn sanitize_value(value: Value) -> Value {
+fn sanitize_value(value: Value, depth: usize) -> Value {
+    if depth > MAX_SANITIZE_DEPTH {
+        return Value::String(REDACTED_EVENT_VALUE.to_string());
+    }
     match value {
         Value::Null => Value::Null,
         Value::Bool(b) => Value::Bool(b),
         Value::Number(n) => Value::Number(n),
         Value::String(s) => Value::String(s),
-        Value::Array(arr) => Value::Array(arr.into_iter().map(sanitize_value).collect()),
+        Value::Array(arr) => Value::Array(arr.into_iter().map(|v| sanitize_value(v, depth + 1)).collect()),
         Value::Object(map) => {
             if is_secret_ref_binding_obj(&map) {
                 Value::Object(map)
@@ -191,14 +215,14 @@ fn sanitize_value(value: Value) -> Value {
                 let mut new_map = Map::new();
                 for (k, v) in map {
                     if k == "value" {
-                        new_map.insert(k, sanitize_value(v));
+                        new_map.insert(k, sanitize_value(v, depth + 1));
                     } else {
                         new_map.insert(k, v);
                     }
                 }
                 Value::Object(new_map)
             } else {
-                Value::Object(sanitize_record(map))
+                Value::Object(sanitize_record(map, depth + 1))
             }
         }
     }
@@ -246,12 +270,12 @@ mod tests {
         let user_names = vec!["paperclipuser".to_string()];
         let home_dirs = vec![];
         let replacement = "*";
-        
+
         let redacted = redact_current_user_text(input, &user_names, &home_dirs, replacement);
         let masked = mask_user_name_for_logs("paperclipuser", "*");
-        
+
         assert_eq!(
-            redacted, 
+            redacted,
             format!("user {} said {}/project should stay but apaperclipuserz should not change", masked, masked)
         );
     }
@@ -272,7 +296,7 @@ mod tests {
         });
 
         let redacted = redact_event_payload(Some(payload)).unwrap();
-        
+
         assert_eq!(redacted["api_key"], REDACTED_EVENT_VALUE);
         assert_eq!(redacted["nested"]["password"], REDACTED_EVENT_VALUE);
         assert_eq!(redacted["nested"]["normal"], "value");
@@ -295,13 +319,40 @@ mod tests {
         });
 
         let redacted = redact_event_payload(Some(payload)).unwrap();
-        
+
         // secret_ref should be preserved
         assert_eq!(redacted["api_key"]["type"], "secret_ref");
         assert_eq!(redacted["api_key"]["secretId"], "id-123");
-        
+
         // plain binding value should be redacted because "auth_token" matches regex
         assert_eq!(redacted["auth_token"]["type"], "plain");
         assert_eq!(redacted["auth_token"]["value"], REDACTED_EVENT_VALUE);
+    }
+
+    #[test]
+    fn test_redact_non_object_root_jwt() {
+        let payload = Value::String("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.rqHaM-abc".to_string());
+        let redacted = redact_event_payload(Some(payload)).unwrap();
+        assert_eq!(redacted, Value::String(REDACTED_EVENT_VALUE.to_string()));
+    }
+
+    #[test]
+    fn test_redact_root_array() {
+        let payload = json!([{"secret": "hidden"}, "public"]);
+        let redacted = redact_event_payload(Some(payload)).unwrap();
+        assert_eq!(redacted[0]["secret"], REDACTED_EVENT_VALUE);
+        assert_eq!(redacted[1], "public");
+    }
+
+    #[test]
+    fn test_redact_depth_limit() {
+        // Build deeply nested JSON that exceeds MAX_SANITIZE_DEPTH
+        let mut value = json!({"leaf": "data"});
+        for _ in 0..70 {
+            value = json!({"nested": value});
+        }
+        // Should not panic (stack overflow) — just redact at depth limit
+        let redacted = redact_event_payload(Some(value));
+        assert!(redacted.is_some());
     }
 }

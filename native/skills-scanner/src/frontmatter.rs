@@ -91,8 +91,12 @@ fn parse_yaml_scalar(raw: &str) -> Value {
         }
     }
 
-    // JSON literal (quoted string, array, object)
-    if trimmed.starts_with('"') || trimmed.starts_with('[') || trimmed.starts_with('{') {
+    // JSON literal (quoted string, array, object) — size-limited to prevent
+    // resource exhaustion from untrusted SKILL.md frontmatter values.
+    const MAX_INLINE_JSON_LEN: usize = 4096;
+    if trimmed.len() <= MAX_INLINE_JSON_LEN
+        && (trimmed.starts_with('"') || trimmed.starts_with('[') || trimmed.starts_with('{'))
+    {
         if let Ok(v) = serde_json::from_str::<Value>(trimmed) {
             return v;
         }
