@@ -28,29 +28,7 @@ use crate::hash::hash_skill_value;
 
 /// Mirrors `normalizeAgentUrlKey` from `packages/shared/src/agent-url-key.ts`.
 pub fn normalize_agent_url_key(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    // Lower-case, replace any non-alphanumeric run with "-", strip leading/trailing "-".
-    let lowered = trimmed.to_lowercase();
-    let mut result = String::with_capacity(lowered.len());
-    let mut last_was_delim = true; // treat start as delimiter so we strip leading "-"
-
-    for ch in lowered.chars() {
-        if ch.is_ascii_alphanumeric() {
-            result.push(ch);
-            last_was_delim = false;
-        } else {
-            if !last_was_delim {
-                result.push('-');
-            }
-            last_was_delim = true;
-        }
-    }
-    // Strip trailing "-"
-    let result = result.trim_end_matches('-').to_string();
-    if result.is_empty() { None } else { Some(result) }
+    stapler_shared::validators::normalize_url_key(value)
 }
 
 // ── normalizeSkillSlug / normalizeSkillKey ─────────────────────────────────
