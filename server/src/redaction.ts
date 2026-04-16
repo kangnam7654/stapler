@@ -1,3 +1,5 @@
+import sharedNative from "@paperclipai/shared-native";
+
 const SECRET_PAYLOAD_KEY_RE =
   /(api[-_]?key|access[-_]?token|auth(?:_?token)?|authorization|bearer|secret|passwd|password|credential|jwt|private[-_]?key|cookie|connectionstring)/i;
 const JWT_VALUE_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?$/;
@@ -54,6 +56,15 @@ export function sanitizeRecord(record: Record<string, unknown>): Record<string, 
 
 export function redactEventPayload(payload: Record<string, unknown> | null): Record<string, unknown> | null {
   if (!payload) return null;
+
+  if (sharedNative) {
+    try {
+      return sharedNative.redactEventPayload(payload);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   if (!isPlainObject(payload)) return payload;
   return sanitizeRecord(payload);
 }
