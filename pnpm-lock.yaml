@@ -531,6 +531,9 @@ importers:
       '@paperclipai/shared':
         specifier: workspace:*
         version: link:../packages/shared
+      '@paperclipai/shared-native':
+        specifier: workspace:*
+        version: link:../native/shared
       '@paperclipai/skills-scanner-native':
         specifier: workspace:*
         version: link:../native/skills-scanner

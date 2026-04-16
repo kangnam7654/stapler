@@ -1,4 +1,5 @@
 import os from "node:os";
+import sharedNative from "@paperclipai/shared-native";
 
 export const CURRENT_USER_REDACTION_TOKEN = "*";
 
@@ -43,6 +44,15 @@ function replaceLastPathSegment(pathValue: string, replacement: string) {
 export function maskUserNameForLogs(value: string, fallback = CURRENT_USER_REDACTION_TOKEN) {
   const trimmed = value.trim();
   if (!trimmed) return fallback;
+
+  if (sharedNative) {
+    try {
+      return sharedNative.maskUserNameForLogs(trimmed, fallback);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   return `${trimmed[0]}${"*".repeat(Math.max(1, Array.from(trimmed).length - 1))}`;
 }
 
@@ -109,6 +119,15 @@ export function redactCurrentUserText(input: string, opts?: CurrentUserRedaction
   if (opts?.enabled === false) return input;
 
   const { userNames, homeDirs, replacement } = resolveCurrentUserCandidates(opts);
+
+  if (sharedNative) {
+    try {
+      return sharedNative.redactCurrentUserText(input, userNames, homeDirs, replacement);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+
   let result = input;
 
   for (const homeDir of [...homeDirs].sort((a, b) => b.length - a.length)) {
