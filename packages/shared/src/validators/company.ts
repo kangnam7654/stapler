@@ -4,18 +4,12 @@ import { COMPANY_STATUSES } from "../constants.js";
 const logoAssetIdSchema = z.string().uuid().nullable().optional();
 const brandColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
 
-const adapterEndpointSchema = z
-  .object({
-    baseUrl: z.string().min(1).optional(),
-    apiKey: z.string().optional(),
-  })
+const adapterProviderConfigSchema = z
+  .record(z.string(), z.unknown())
   .optional();
 
 const adapterDefaultsSchema = z
-  .object({
-    lm_studio_local: adapterEndpointSchema,
-    ollama_local: adapterEndpointSchema,
-  })
+  .record(z.string(), adapterProviderConfigSchema)
   .nullable()
   .optional();
 

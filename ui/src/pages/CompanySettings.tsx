@@ -54,8 +54,9 @@ export function CompanySettings() {
     setDescription(selectedCompany.description ?? "");
     setBrandColor(selectedCompany.brandColor ?? "");
     setLogoUrl(selectedCompany.logoUrl ?? "");
+    const lmStudioApiKey = selectedCompany.adapterDefaults?.lm_studio_local?.apiKey;
     setLmStudioBaseUrl(selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "");
-    setLmStudioApiKey(selectedCompany.adapterDefaults?.lm_studio_local?.apiKey ?? "");
+    setLmStudioApiKey(typeof lmStudioApiKey === "string" ? lmStudioApiKey : "");
     setOllamaBaseUrl(selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? "");
   }, [selectedCompany]);
 
@@ -70,10 +71,11 @@ export function CompanySettings() {
       description !== (selectedCompany.description ?? "") ||
       brandColor !== (selectedCompany.brandColor ?? ""));
 
+  const storedLmStudioApiKey = selectedCompany?.adapterDefaults?.lm_studio_local?.apiKey;
   const adapterDefaultsDirty =
     !!selectedCompany &&
     (lmStudioBaseUrl !== (selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "") ||
-     lmStudioApiKey !== (selectedCompany.adapterDefaults?.lm_studio_local?.apiKey ?? "") ||
+     lmStudioApiKey !== (typeof storedLmStudioApiKey === "string" ? storedLmStudioApiKey : "") ||
      ollamaBaseUrl !== (selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? ""));
 
   const generalMutation = useMutation({
