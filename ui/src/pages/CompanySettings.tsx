@@ -15,7 +15,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Settings, Check, Download, Upload, ChevronRight, Users } from "lucide-react";
+import { Settings, Check, Download, Upload, ChevronRight, Users, Layers } from "lucide-react";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import {
   Field,
@@ -24,6 +24,7 @@ import {
 } from "../components/agent-config-primitives";
 import { listUIAdapters } from "../adapters/registry";
 import type { AdapterConfigFieldsProps } from "../adapters/types";
+import { BulkApplyModal } from "../components/BulkApplyModal";
 
 type AgentSnippetInput = {
   onboardingTextUrl: string;
@@ -423,31 +424,13 @@ export function CompanySettings() {
       </div>
 
       {/* Adapter Defaults */}
-      <div className="space-y-4">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          어댑터 기본값
-        </div>
-        <p className="text-xs text-muted-foreground -mt-2">
-          각 provider의 company-level 기본값을 설정합니다. 에이전트에서 해당 필드를 override하지 않으면 여기서 설정한 값이 사용됩니다.
-        </p>
-        <div className="space-y-2">
-          {listUIAdapters().map((adapter) => (
-            <ProviderDefaultCard
-              key={adapter.type}
-              providerId={adapter.type}
-              label={adapter.label}
-              ConfigFields={adapter.ConfigFields}
-              initialDefaults={
-                (selectedCompany.adapterDefaults as Record<string, Record<string, unknown>> | null)?.[adapter.type] ?? {}
-              }
-              companyId={selectedCompanyId!}
-              onSaved={() => {
-                queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-              }}
-            />
-          ))}
-        </div>
-      </div>
+      <AdapterDefaultsSection
+        selectedCompany={selectedCompany}
+        selectedCompanyId={selectedCompanyId!}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+        }}
+      />
 
       {/* Invites */}
       <div className="space-y-4">
@@ -637,6 +620,72 @@ export function CompanySettings() {
   );
 }
 
+// ── AdapterDefaultsSection ───────────────────────────────────────────────────
+
+interface AdapterDefaultsSectionProps {
+  selectedCompany: NonNullable<ReturnType<typeof useCompany>["selectedCompany"]>;
+  selectedCompanyId: string;
+  onSaved: () => void;
+}
+
+/**
+ * Section that renders all ProviderDefaultCards plus a top-level
+ * "모든 에이전트 일괄 변경" button that opens the global BulkApplyModal.
+ */
+function AdapterDefaultsSection({
+  selectedCompany,
+  selectedCompanyId,
+  onSaved,
+}: AdapterDefaultsSectionProps) {
+  const [globalModalOpen, setGlobalModalOpen] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          어댑터 기본값
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setGlobalModalOpen(true)}
+          className="gap-1.5"
+          aria-label="모든 에이전트 어댑터 일괄 변경"
+        >
+          <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+          모든 에이전트 일괄 변경
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground -mt-2">
+        각 provider의 company-level 기본값을 설정합니다. 에이전트에서 해당 필드를 override하지 않으면 여기서 설정한 값이 사용됩니다.
+      </p>
+      <div className="space-y-2">
+        {listUIAdapters().map((adapter) => (
+          <ProviderDefaultCard
+            key={adapter.type}
+            providerId={adapter.type}
+            label={adapter.label}
+            ConfigFields={adapter.ConfigFields}
+            initialDefaults={
+              (selectedCompany.adapterDefaults as Record<string, Record<string, unknown>> | null)?.[adapter.type] ?? {}
+            }
+            companyId={selectedCompanyId}
+            onSaved={onSaved}
+          />
+        ))}
+      </div>
+
+      <BulkApplyModal
+        companyId={selectedCompanyId}
+        scope={{ kind: "global" }}
+        open={globalModalOpen}
+        onOpenChange={setGlobalModalOpen}
+      />
+    </div>
+  );
+}
+
 // ── ProviderDefaultCard ──────────────────────────────────────────────────────
 
 interface ProviderDefaultCardProps {
@@ -673,6 +722,7 @@ function ProviderDefaultCard({
   const [open, setOpen] = useState(false);
   // dirty holds only fields the user has explicitly changed since last save/load.
   const [dirty, setDirty] = useState<Record<string, unknown>>({});
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
   // Reset dirty state when the card is opened or when saved defaults change.
   // This ensures the card reflects the latest persisted values on re-open.
@@ -723,16 +773,9 @@ function ProviderDefaultCard({
     },
   });
 
-  function handleApplyToAgents() {
-    // Phase 8: open the BulkApplyModal for this provider.
-    // For now, log intent and show a toast.
-    console.info("[Phase 8] bulk apply intent — provider:", providerId);
-    pushToast({
-      title: `${label} — 에이전트에 일괄 적용`,
-      body: "일괄 적용 모달은 Phase 8에서 구현됩니다.",
-      tone: "info",
-    });
-  }
+  // The effective company defaults (persisted + any unsaved dirty state).
+  // We pass the persisted initialDefaults to the modal so the diff is accurate.
+  const companyDefaults = initialDefaults;
 
   const hasDefaults = Object.keys(initialDefaults).length > 0;
 
@@ -795,8 +838,9 @@ function ProviderDefaultCard({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleApplyToAgents}
+                onClick={() => setBulkModalOpen(true)}
                 className="gap-1.5"
+                aria-label={`${label} 기본값을 에이전트에 일괄 적용`}
               >
                 <Users className="h-3.5 w-3.5" aria-hidden="true" />
                 에이전트에 일괄 적용...
@@ -823,6 +867,18 @@ function ProviderDefaultCard({
           </div>
         </CollapsibleContent>
       </div>
+
+      <BulkApplyModal
+        companyId={companyId}
+        scope={{
+          kind: "provider",
+          providerId,
+          providerLabel: label,
+          companyDefaults,
+        }}
+        open={bulkModalOpen}
+        onOpenChange={setBulkModalOpen}
+      />
     </Collapsible>
   );
 }

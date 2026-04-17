@@ -127,6 +127,7 @@ import { GettingStartedPanel } from "@/components/GettingStartedPanel";
 import { PromptTemplateGenerateDialog } from "@/components/PromptTemplateGenerateDialog";
 import { InheritableField } from "@/components/InheritableField";
 import { DraftInput } from "@/components/agent-config-primitives";
+import { BulkApplyModal } from "@/components/BulkApplyModal";
 
 /* ------------------------------------------------------------------ */
 /*  Section wrapper                                                    */
@@ -205,6 +206,63 @@ function PromptTemplateGeneratorShowcase() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  BulkApplyModal showcase                                            */
+/* ------------------------------------------------------------------ */
+
+function BulkApplyModalShowcase() {
+  const [providerOpen, setProviderOpen] = useState(false);
+  const [globalOpen, setGlobalOpen] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Composite modal for bulk-applying adapter-config changes to agents.
+        Two scopes: provider-scoped (inherit / override selected fields) and
+        global wizard (swap-adapter across any adapter type).
+      </p>
+      <SubSection title="Provider-scoped (inherit / override)">
+        <p className="text-xs text-muted-foreground mb-2">
+          Opened from each ProviderDefaultCard in Company Settings. Lists agents
+          using that provider, lets admin pick fields and preview the diff.
+        </p>
+        <Button size="sm" variant="outline" onClick={() => setProviderOpen(true)}>
+          에이전트에 일괄 적용... (showcase)
+        </Button>
+        <BulkApplyModal
+          companyId="showcase-company-id"
+          scope={{
+            kind: "provider",
+            providerId: "lm_studio_local",
+            providerLabel: "LM Studio (Local)",
+            companyDefaults: {
+              baseUrl: "http://localhost:1234",
+              model: "default-model",
+            },
+          }}
+          open={providerOpen}
+          onOpenChange={setProviderOpen}
+        />
+      </SubSection>
+      <SubSection title="Global wizard (swap-adapter)">
+        <p className="text-xs text-muted-foreground mb-2">
+          4-step wizard: pick provider → enter config → pick agents → confirm.
+          Sends POST /bulk-apply mode=swap-adapter.
+        </p>
+        <Button size="sm" variant="outline" onClick={() => setGlobalOpen(true)}>
+          모든 에이전트 일괄 변경 (showcase)
+        </Button>
+        <BulkApplyModal
+          companyId="showcase-company-id"
+          scope={{ kind: "global" }}
+          open={globalOpen}
+          onOpenChange={setGlobalOpen}
+        />
+      </SubSection>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -265,7 +323,7 @@ export function DesignGuide() {
               {[
                 "StatusBadge", "StatusIcon", "PriorityIcon", "EntityRow", "EmptyState", "MetricCard",
                 "FilterBar", "InlineEditor", "PageSkeleton", "Identity", "CommentThread", "MarkdownEditor",
-                "PropertiesPanel", "Sidebar", "CommandPalette", "InheritableField",
+                "PropertiesPanel", "Sidebar", "CommandPalette", "InheritableField", "BulkApplyModal",
               ].map((name) => (
                 <Badge key={name} variant="ghost" className="font-mono text-[10px]">
                   {name}
@@ -1449,6 +1507,13 @@ export function DesignGuide() {
             />
           </SubSection>
         </div>
+      </Section>
+
+      {/* ============================================================ */}
+      {/*  BULK APPLY MODAL                                             */}
+      {/* ============================================================ */}
+      <Section title="BulkApplyModal">
+        <BulkApplyModalShowcase />
       </Section>
 
       {/* ============================================================ */}
