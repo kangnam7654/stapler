@@ -128,6 +128,9 @@
     "apiKeyAlreadyClaimed": "API 키가 이미 발급되었습니다",
     "invalidClaimSecret": "유효하지 않은 발급 시크릿",
     "claimSecretExpired": "발급 시크릿이 만료되었습니다",
-    "claimSecretAlreadyUsed": "발급 시크릿이 이미 사용되었습니다"
+    "claimSecretAlreadyUsed": "발급 시크릿이 이미 사용되었습니다",
+    "bulkApplyEmptyAgentIds": "agentIds는 비어 있을 수 없습니다",
+    "bulkApplyCrossCompanyAgent": "에이전트가 이 회사에 속하지 않습니다",
+    "bulkApplyInvalidMode": "유효하지 않은 bulk-apply 모드입니다"
   }
 }

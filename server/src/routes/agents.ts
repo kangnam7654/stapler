@@ -1856,7 +1856,17 @@ export function agentRoutes(db: Db) {
       }
       let rawEffectiveAdapterConfig = requestedAdapterConfig ?? existingAdapterConfig;
       if (requestedAdapterConfig && !changingAdapterType && !replaceAdapterConfig) {
-        rawEffectiveAdapterConfig = { ...existingAdapterConfig, ...requestedAdapterConfig };
+        // Merge patch: spread existing then requested, but treat null values as
+        // "remove this field" (inherit from company defaults), and undefined as
+        // "keep current" (already handled by requestedAdapterConfig only having
+        // own-property keys present in the payload).
+        const merged: Record<string, unknown> = { ...existingAdapterConfig, ...requestedAdapterConfig };
+        for (const [key, val] of Object.entries(merged)) {
+          if (val === null) {
+            delete merged[key];
+          }
+        }
+        rawEffectiveAdapterConfig = merged;
       }
       if (changingAdapterType) {
         rawEffectiveAdapterConfig = preserveInstructionsBundleConfig(
@@ -1864,13 +1874,12 @@ export function agentRoutes(db: Db) {
           rawEffectiveAdapterConfig,
         );
       }
-      const effectiveAdapterConfig = applyCreateDefaultsByAdapterType(
-        requestedAdapterType,
-        rawEffectiveAdapterConfig,
-      );
+      // Do NOT call applyCreateDefaultsByAdapterType on PATCH — it would stomp
+      // on inherit semantics (fields the user just set to null to inherit from
+      // company defaults would get hard-coded defaults injected back in).
       const normalizedEffectiveAdapterConfig = await secretsSvc.normalizeAdapterConfigForPersistence(
         existing.companyId,
-        effectiveAdapterConfig,
+        rawEffectiveAdapterConfig,
         { strictMode: strictSecretsMode },
       );
       patchData.adapterConfig = syncInstructionsBundleConfigFromFilePath(existing, normalizedEffectiveAdapterConfig);
