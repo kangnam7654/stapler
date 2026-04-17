@@ -123,8 +123,24 @@ Human auth tables (`users`, `sessions`, and provider-specific auth artifacts) ar
 - `name` text not null
 - `description` text null
 - `status` enum: `active | paused | archived`
+- `adapter_defaults` jsonb null — per-provider partial adapter config used as inheritance source (see §22)
 
 Invariant: every business record belongs to exactly one company.
+
+Shape of `adapter_defaults`:
+
+```ts
+// packages/shared/src/types/company.ts
+type CompanyAdapterDefaults = {
+  [providerId: string]: Partial<AdapterConfig>;
+};
+```
+
+Keys are adapter type ids (`claude_local`, `codex_local`, `cursor`, `gemini_local`,
+`hermes_local`, `http`, `lm_studio_local`, `ollama_local`, `openclaw_gateway`,
+`opencode_local`, `pi_local`, `process`). Values are partial adapter configs and
+may include `secret_ref` objects; secret refs are treated as leaf values during
+merge.
 
 ## 7.2 `agents`
 
@@ -136,8 +152,12 @@ Invariant: every business record belongs to exactly one company.
 - `status` enum: `active | paused | idle | running | error | terminated`
 - `reports_to` uuid fk `agents.id` null
 - `capabilities` text null
-- `adapter_type` enum: `process | http`
-- `adapter_config` jsonb not null
+- `adapter_type` enum: `process | http` (V1 built-in set; fork ships additional
+  local-model adapter types — see §22 for the full list used by the inheritance
+  resolver)
+- `adapter_config` jsonb not null — stores **explicit overrides only**. Unset
+  fields are resolved at runtime from `companies.adapter_defaults[adapter_type]`.
+  See §22 for resolution semantics.
 - `context_mode` enum: `thin | fat` default `thin`
 - `budget_monthly_cents` int not null default 0
 - `spent_monthly_cents` int not null default 0
@@ -476,6 +496,21 @@ All endpoints are under `/api` and return JSON.
 - `PATCH /companies/:companyId`
 - `PATCH /companies/:companyId/branding`
 - `POST /companies/:companyId/archive`
+- `GET /companies/:companyId/adapter-defaults`
+  → `{ [providerId]: Partial<AdapterConfig> }` (all providers)
+- `GET /companies/:companyId/adapter-defaults/:providerId`
+  → `Partial<AdapterConfig>` (single provider)
+- `PUT /companies/:companyId/adapter-defaults/:providerId`
+  → replace provider defaults (body fields not present are removed)
+- `PATCH /companies/:companyId/adapter-defaults/:providerId`
+  → deep-merge provider defaults. Value semantics: key absent = keep; value =
+  overwrite; `null` = remove field.
+- `DELETE /companies/:companyId/adapter-defaults/:providerId`
+  → remove provider defaults entirely
+
+All adapter-defaults endpoints are board-only (enforced by `assertBoard` +
+`assertCompanyAccess` in `server/src/routes/adapter-defaults.ts`) and write a
+`company.adapter_defaults.updated` activity log entry per mutation. See §22.
 
 ## 10.2 Goals
 
@@ -496,6 +531,17 @@ All endpoints are under `/api` and return JSON.
 - `POST /agents/:agentId/terminate`
 - `POST /agents/:agentId/keys` (create API key)
 - `POST /agents/:agentId/heartbeat/invoke`
+- `POST /companies/:companyId/agents/bulk-apply` — board-only bulk mutation of
+  agent adapter configs across many agents in one transaction. See §22.
+
+`PATCH /agents/:agentId` — value semantics inside `adapterConfig`:
+
+- field `undefined` (key absent): keep existing override
+- field = value: set explicit override
+- field = `null`: remove override (inherit from company default)
+
+`replaceAdapterConfig: true` preserves the legacy "replace whole config" behavior
+and ignores the per-field `null` semantics.
 
 ## 10.4 Tasks (Issues)
 
@@ -747,6 +793,12 @@ Required UX behaviors:
 - quick actions: pause/resume agent, create task, approve/reject request
 - conflict toasts on atomic checkout failure
 - no silent background failures; every failed run visible in UI
+- adapter config fields use the inherit/override pattern (see §22):
+  per-field toggle between "inherit from company default" (read-only, shows
+  resolved value with company-default badge) and "custom" (editable override).
+  Company Settings surfaces a dynamic per-provider "Adapter Defaults" section.
+  Provider-scoped and global (cross-provider swap) bulk-apply modals are
+  available from Company Settings.
 
 ## 15. Operational Requirements
 
@@ -905,3 +957,154 @@ Export/import behavior in V1:
 - import supports collision strategies: `rename`, `skip`, `replace`
 - import supports preview (dry-run) before apply
 - GitHub imports warn on unpinned refs instead of blocking
+
+## 22. Adapter Config Inheritance
+
+Company-level adapter defaults let the board define a partial adapter config per
+provider, and let each agent choose per-field whether to inherit from that
+default or carry an explicit override. No schema migration: `companies.adapter_defaults`
+already existed as a JSONB column; only the shape and interpretation are extended.
+
+Deeper design context: `doc/llm/adapter-config-inheritance.md`.
+
+## 22.1 Data Model
+
+- `companies.adapter_defaults` (JSONB, see §7.1) holds
+  `{ [providerId]: Partial<AdapterConfig> }` across all 12 adapter types:
+  `claude_local`, `codex_local`, `cursor`, `gemini_local`, `hermes_local`,
+  `http`, `lm_studio_local`, `ollama_local`, `openclaw_gateway`,
+  `opencode_local`, `pi_local`, `process`.
+- `agents.adapter_config` (JSONB, see §7.2) now stores **only explicit
+  overrides**. Unset fields inherit from `companies.adapter_defaults[adapter_type]`
+  at runtime.
+- Values may be `secret_ref` objects (`{ type: "secret_ref", secretId: "..." }`);
+  the resolver treats these as leaves and never recurses into them.
+- Backward compatibility: pre-existing `agents.adapter_config` values are
+  interpreted as "fully overridden", so Day 1 runtime behavior is unchanged.
+
+## 22.2 Resolution Algorithm
+
+`resolveAgentAdapterConfig(agent, company)` (in
+`packages/shared/src/adapter-config.ts`) performs a deep merge of
+`company.adapter_defaults[agent.adapter_type]` (defaults) into
+`agent.adapter_config` (overrides), with these rules:
+
+- override `undefined` or `null` → keep default (null is dropped at the API
+  boundary; it never reaches the resolver)
+- override plain object + default plain object → recursive deep merge
+- override is a `secret_ref` or default is a `secret_ref` → replace (no recurse)
+- override array or scalar → replace wholesale
+
+The helper used internally is `deepMergeAdapterConfig(defaults, overrides)`.
+
+```mermaid
+sequenceDiagram
+  participant Scheduler
+  participant Heartbeat as heartbeat.ts
+  participant Resolver as resolveAgentAdapterConfig
+  participant Secrets as secretsSvc
+  participant Adapter
+
+  Scheduler->>Heartbeat: invoke(agentId)
+  Heartbeat->>Heartbeat: load agent + company
+  Heartbeat->>Heartbeat: parseObject(agent.adapterConfig)
+  Heartbeat->>Resolver: agent, company
+  Resolver-->>Heartbeat: resolvedConfig
+  Heartbeat->>Heartbeat: apply workspace policy + issue override
+  Heartbeat->>Secrets: resolveAdapterConfigForRuntime(resolvedConfig)
+  Secrets-->>Heartbeat: config with secrets materialized
+  Heartbeat->>Adapter: invoke(config)
+```
+
+The resolver runs early in `server/src/services/heartbeat.ts` — before
+workspace-policy application and issue-level override — so downstream layers all
+operate on the inherited config. The final resolved config is then passed to
+`secretsSvc.resolveAdapterConfigForRuntime` to materialize `secret_ref` leaves.
+
+## 22.3 REST API
+
+See §10.1 (company adapter defaults) and §10.3 (bulk-apply + `PATCH` `null`
+semantics) for endpoint listings. Summary:
+
+- Board-only CRUD on `/companies/:companyId/adapter-defaults[/:providerId]`
+- `PATCH /agents/:id` with `null` in an `adapterConfig` field = remove the
+  override (agent inherits that field again)
+- `POST /companies/:companyId/agents/bulk-apply` performs one transactional
+  mutation across many agents
+
+### 22.3.1 Bulk apply modes
+
+`POST /companies/:companyId/agents/bulk-apply` body shape:
+
+```json
+{
+  "agentIds": ["uuid", "..."],
+  "mode": "inherit | override | swap-adapter",
+  "fields": ["model", "baseUrl"],
+  "overrides": { "model": "llama3.2" },
+  "newAdapterType": "ollama_local",
+  "newAdapterConfig": { "baseUrl": "...", "model": "..." }
+}
+```
+
+- `inherit`: clear the fields listed in `fields` from each agent's
+  `adapter_config`, so they fall back to company defaults.
+- `override`: write the values in `overrides` as explicit overrides on each
+  agent.
+- `swap-adapter`: replace `adapter_type` and `adapter_config` wholesale on each
+  agent (cross-provider migration).
+
+Transactional: single DB transaction, all-or-none rollback. Cross-company agent
+ids are rejected (`409`).
+
+## 22.4 Authorization
+
+All adapter-defaults endpoints and `bulk-apply` are gated by `assertBoard` +
+`assertCompanyAccess` (`server/src/routes/adapter-defaults.ts`,
+`server/src/routes/bulk-apply.ts`). Agent API keys cannot reach these endpoints.
+
+## 22.5 Activity Log
+
+Two actions are written; both keep log volume proportional to operator intent,
+not to the number of affected agents:
+
+- `company.adapter_defaults.updated` — one entry per adapter-defaults
+  mutation (`PUT`/`PATCH`/`DELETE`). `details` includes `providerId`,
+  `changedFields`, `affectedAgentCount`, and `operation`.
+- `agent.adapter_config.bulk_applied` — one entry per bulk-apply call.
+  `details` includes `agentIds`, `mode`, and a diff summary. Individual
+  per-agent log entries are intentionally suppressed (100-agent update = 2
+  activity rows, not 101).
+
+## 22.6 UI Primitives
+
+- `<InheritableField>` (`ui/src/components/InheritableField.tsx`): per-field
+  inherit/override toggle. In inherit state it renders as a read-only input
+  showing the resolved value plus a "company default" badge, with an
+  `[Override]` affordance. In override state it renders an editable input plus
+  `[Reset to company default]`.
+- `<BulkApplyModal>` (`ui/src/components/BulkApplyModal.tsx`) with two variants
+  in `ui/src/components/BulkApplyModal/`:
+  - `ProviderScopedModal` — triggered from a provider card in Company
+    Settings; supports `inherit` and `override` modes for that provider.
+  - `GlobalModal` — cross-provider swap-adapter wizard triggered from the top
+    of Company Settings.
+- Company Settings ("Adapter Defaults" section, `ui/src/pages/CompanySettings.tsx`)
+  dynamically renders a card per adapter type (12 cards). Each card reuses the
+  adapter's `ui/src/adapters/<id>/config-fields.tsx` in company-defaults edit
+  mode.
+- The 12 adapter `config-fields.tsx` files all wrap fields in
+  `<InheritableField>`. Per-adapter field-level exclusions (for site-specific
+  or boolean fields) are documented in the Phase 6 plan.
+
+## 22.7 Constraints
+
+- No destructive schema migration — the JSONB shape extension is
+  backward-compatible (§22.1).
+- Company scoping enforced on every endpoint; cross-company agent ids in
+  `bulk-apply` are rejected.
+- Activity log entries are emitted per operator action, never per affected
+  agent.
+- `bulk-apply` is transactional (all-or-none).
+- `secret_ref` objects are leaves during merge and are never cloned into
+  a different adapter slot.
