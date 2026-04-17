@@ -23,11 +23,15 @@ import { ensureCompanyDocs } from "../services/company-docs.js";
 import { getOnboardingProgress } from "../services/onboarding-progress.js";
 import type { StorageService } from "../storage/types.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
+import { adapterDefaultsRoutes } from "./adapter-defaults.js";
 
 export function companyRoutes(db: Db, storage?: StorageService) {
   const router = Router();
   const svc = companyService(db);
   const agents = agentService(db);
+
+  // Mount adapter-defaults sub-router before parameterized routes to avoid conflicts.
+  router.use("/:companyId/adapter-defaults", adapterDefaultsRoutes(db));
   const portability = companyPortabilityService(db, storage);
   const access = accessService(db);
   const budgets = budgetService(db);

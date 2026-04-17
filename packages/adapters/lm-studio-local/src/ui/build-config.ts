@@ -20,13 +20,37 @@ function parseEnvLines(text: string): Record<string, string> {
   return env;
 }
 
+/**
+ * Builds the persisted `adapterConfig` object for a new LM Studio agent.
+ *
+ * Phase 5 note: `baseUrlMode` is no longer written. The field is deprecated —
+ * existing values in the DB are silently ignored by the UI and will be cleaned
+ * up in a future migration. Inheritance is now expressed by the *absence* of
+ * `baseUrl` in the stored config (undefined = inherit from company defaults).
+ *
+ * - If a custom `url` is provided it is stored as `baseUrl`.
+ * - If no custom URL is provided (or `lmStudioBaseUrlMode` is 'company'),
+ *   `baseUrl` is omitted so that the resolver falls back to the company default.
+ */
 export function buildLmStudioLocalConfig(values: CreateConfigValues): Record<string, unknown> {
   const config: Record<string, unknown> = {
-    baseUrlMode: values.lmStudioBaseUrlMode ?? "company",
     model: asString(values.model, DEFAULT_LM_STUDIO_MODEL),
   };
 
-  if (values.lmStudioBaseUrlMode === "custom") {
+  // Only persist baseUrl when the user explicitly chose a custom URL.
+  // An absent baseUrl means "inherit from company defaults".
+  if (
+    values.lmStudioBaseUrlMode === "custom" &&
+    typeof values.url === "string" &&
+    values.url.trim().length > 0
+  ) {
+    config.baseUrl = asString(values.url, DEFAULT_LM_STUDIO_BASE_URL);
+  } else if (
+    values.lmStudioBaseUrlMode !== "company" &&
+    typeof values.url === "string" &&
+    values.url.trim().length > 0
+  ) {
+    // Treat any non-empty URL without an explicit mode as a custom override.
     config.baseUrl = asString(values.url, DEFAULT_LM_STUDIO_BASE_URL);
   }
 

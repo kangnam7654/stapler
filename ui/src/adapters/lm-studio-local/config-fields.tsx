@@ -1,16 +1,21 @@
 import { useCompany } from "../../context/CompanyContext";
 import type { AdapterConfigFieldsProps } from "../types";
 import { RemoteModelDropdown } from "../remote-model-dropdown";
-import { resolveLmStudioBaseUrlMode, resolveLmStudioCompanyBaseUrl } from "./base-url";
-import { Field, DraftInput } from "../../components/agent-config-primitives";
+import { InheritableField } from "../../components/InheritableField";
+import { DraftInput } from "../../components/agent-config-primitives";
+import { DEFAULT_LM_STUDIO_BASE_URL } from "@paperclipai/adapter-lm-studio-local";
+
+// Legacy `baseUrlMode` field is no longer written by the UI. Existing persisted
+// values are silently ignored — server-side normalisation strips them on the
+// next save. Removal migration is tracked in Phase 6.
+
+const baseUrlHint =
+  "LM Studio HTTP server URL. Leave as-is to inherit from the company setting.";
+const modelHint =
+  "Model id as shown in LM Studio. Must be loaded in LM Studio and must support tool calling.";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
-
-const baseUrlHint =
-  "Choose whether this agent inherits the company LM Studio server or uses its own URL.";
-const modelHint =
-  "Model id as shown in LM Studio. Must be loaded in LM Studio and must support tool calling.";
 
 export function LmStudioLocalConfigFields({
   isCreate,
@@ -24,84 +29,93 @@ export function LmStudioLocalConfigFields({
   isFetchingModels,
 }: AdapterConfigFieldsProps) {
   const { selectedCompany } = useCompany();
-  const companyBaseUrl = resolveLmStudioCompanyBaseUrl(selectedCompany);
+  const companyBaseUrl =
+    selectedCompany?.adapterDefaults?.lm_studio_local?.baseUrl?.trim() ||
+    DEFAULT_LM_STUDIO_BASE_URL;
 
-  const currentMode = resolveLmStudioBaseUrlMode(
-    isCreate ? values!.lmStudioBaseUrlMode : eff("adapterConfig", "baseUrlMode", config.baseUrlMode),
-    isCreate ? values!.url : eff("adapterConfig", "baseUrl", String(config.baseUrl ?? "")),
-  );
+  // ---- Current values ----
 
-  const currentModel = isCreate
-    ? (values!.model ?? "")
-    : eff("adapterConfig", "model", String(config.model ?? ""));
+  // In create mode `values.url` holds the base URL draft. A non-empty value
+  // means the user has set a custom URL; undefined/empty means inherit.
+  const currentBaseUrl: string | undefined = isCreate
+    ? (values!.url || undefined)
+    : (() => {
+        const raw = eff("adapterConfig", "baseUrl", config.baseUrl);
+        return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+      })();
 
-  const currentBaseUrl = isCreate
-    ? (values!.url ?? "")
-    : eff("adapterConfig", "baseUrl", String(config.baseUrl ?? ""));
+  const currentModel: string | undefined = isCreate
+    ? (values!.model ?? undefined)
+    : (() => {
+        const raw = eff("adapterConfig", "model", config.model);
+        return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+      })();
 
-  function onModelChange(v: string) {
-    if (isCreate) set!({ model: v });
-    else mark("adapterConfig", "model", v || undefined);
-  }
+  // ---- Change handlers ----
 
-  function onModeChange(nextMode: "company" | "custom") {
+  function onBaseUrlChange(v: string | undefined) {
     if (isCreate) {
-      set!({
-        lmStudioBaseUrlMode: nextMode,
-        url: nextMode === "custom" ? (values!.url?.trim() || companyBaseUrl) : values!.url,
-      });
-      return;
-    }
-
-    mark("adapterConfig", "baseUrlMode", nextMode);
-    if (nextMode === "custom" && !currentBaseUrl.trim()) {
-      mark("adapterConfig", "baseUrl", companyBaseUrl);
+      set!({ url: v ?? "" });
+    } else {
+      mark("adapterConfig", "baseUrl", v || undefined);
     }
   }
+
+  function onModelChange(v: string | undefined) {
+    if (isCreate) {
+      set!({ model: v ?? "" });
+    } else {
+      mark("adapterConfig", "model", v || undefined);
+    }
+  }
+
+  // Resolved value for the model field (company default if no override)
+  const resolvedModel =
+    currentModel ??
+    String(selectedCompany?.adapterDefaults?.lm_studio_local?.model ?? "");
+  const companyDefaultModel =
+    selectedCompany?.adapterDefaults?.lm_studio_local?.model != null
+      ? String(selectedCompany.adapterDefaults.lm_studio_local.model)
+      : undefined;
 
   return (
     <>
-      <Field label="Base URL source" hint={baseUrlHint}>
-        <select
-          value={currentMode}
-          onChange={(e) => onModeChange(e.target.value === "custom" ? "custom" : "company")}
-          className={inputClass}
-        >
-          <option value="company">Use company setting</option>
-          <option value="custom">Use custom URL</option>
-        </select>
-      </Field>
-
-      {currentMode === "company" ? (
-        <div className="rounded-md border border-dashed border-border/80 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-          Using company LM Studio URL: <span className="font-mono text-foreground">{companyBaseUrl}</span>
-        </div>
-      ) : (
-        <Field label="Base URL" hint="This agent-only URL overrides the company setting.">
+      <InheritableField
+        label="Base URL"
+        hint={baseUrlHint}
+        value={currentBaseUrl}
+        resolvedValue={companyBaseUrl}
+        companyDefault={companyBaseUrl}
+        onChange={onBaseUrlChange}
+        renderField={(props) => (
           <DraftInput
-            value={currentBaseUrl}
-            onCommit={(v) =>
-              isCreate
-                ? set!({ url: v })
-                : mark("adapterConfig", "baseUrl", v || undefined)
-            }
+            value={props.value}
+            onCommit={props.onChange}
             immediate
             className={inputClass}
-            placeholder={companyBaseUrl}
+            placeholder={DEFAULT_LM_STUDIO_BASE_URL}
           />
-        </Field>
-      )}
+        )}
+      />
 
-      <Field label="Model" hint={modelHint}>
-        <RemoteModelDropdown
-          models={models}
-          value={currentModel}
-          onChange={onModelChange}
-          placeholder="local-model"
-          refetchModels={refetchModels}
-          isFetchingModels={isFetchingModels}
-        />
-      </Field>
+      <InheritableField
+        label="Model"
+        hint={modelHint}
+        value={currentModel}
+        resolvedValue={resolvedModel}
+        companyDefault={companyDefaultModel}
+        onChange={onModelChange}
+        renderField={(props) => (
+          <RemoteModelDropdown
+            models={models}
+            value={props.value}
+            onChange={props.onChange}
+            placeholder="local-model"
+            refetchModels={refetchModels}
+            isFetchingModels={isFetchingModels}
+          />
+        )}
+      />
     </>
   );
 }

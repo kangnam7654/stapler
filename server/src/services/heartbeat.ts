@@ -4,7 +4,8 @@ import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import type { BillingType, AdapterDefaults } from "@paperclipai/shared";
+import type { BillingType, CompanyAdapterDefaults } from "@paperclipai/shared";
+import { deepMergeAdapterConfig, resolveAgentAdapterConfig } from "@paperclipai/shared";
 import {
   agents,
   agentRuntimeState,
@@ -79,17 +80,21 @@ const SESSIONED_LOCAL_ADAPTERS = new Set([
   "pi_local",
 ]);
 
+/**
+ * Merges company-level adapter defaults with an agent-level config record.
+ * Agent fields win over defaults; null/undefined agent fields fall back to
+ * company defaults.  Delegates to `deepMergeAdapterConfig` from
+ * `@paperclipai/shared` so the merge semantics stay in one place.
+ *
+ * @deprecated Prefer calling `resolveAgentAdapterConfig` with full agent/company
+ * objects.  This wrapper is kept for backward compat with existing unit-test
+ * callers that pass pre-extracted records.
+ */
 export function mergeAdapterConfigWithCompanyDefaults(
   companyAdapterDefaults: Record<string, unknown>,
   runtimeConfig: Record<string, unknown>,
 ): Record<string, unknown> {
-  const explicitOverrides = Object.fromEntries(
-    Object.entries(runtimeConfig).filter(([, value]) => value !== null && value !== undefined),
-  );
-  return {
-    ...companyAdapterDefaults,
-    ...explicitOverrides,
-  };
+  return deepMergeAdapterConfig(companyAdapterDefaults, runtimeConfig);
 }
 
 export function normalizeAdapterConfigForAdapterType(
@@ -2080,7 +2085,16 @@ export function heartbeatService(db: Db) {
       explicitResumeSessionParams ??
       (explicitResumeSessionDisplayId ? { sessionId: explicitResumeSessionDisplayId } : null) ??
       normalizeSessionParams(sessionCodec.deserialize(taskSessionForRun?.sessionParamsJson ?? null));
-    const config = parseObject(agent.adapterConfig);
+    // Resolve company-level adapter defaults early so that workspace-policy
+    // and issue-override logic operates on the fully-merged config.
+    const company = await companySvc.getById(agent.companyId).catch(() => null);
+    const config = normalizeAdapterConfigForAdapterType(
+      agent.adapterType,
+      resolveAgentAdapterConfig(
+        { adapterType: agent.adapterType, adapterConfig: parseObject(agent.adapterConfig) },
+        { adapterDefaults: (company?.adapterDefaults as CompanyAdapterDefaults | null | undefined) ?? null },
+      ),
+    );
     const executionWorkspaceMode = resolveExecutionWorkspaceMode({
       projectPolicy: projectExecutionWorkspacePolicy,
       issueSettings: issueExecutionWorkspaceSettings,
@@ -2563,30 +2577,14 @@ export function heartbeatService(db: Db) {
           "local agent jwt secret missing or invalid; running without injected PAPERCLIP_API_KEY",
         );
       }
-      // Merge company adapter defaults — agent-level config wins
-      const companyAdapterDefaults = await companySvc
-        .getById(agent.companyId)
-        .then((co) => {
-          if (!co?.adapterDefaults) return {};
-          const key = agent.adapterType as keyof AdapterDefaults;
-          return (co.adapterDefaults as AdapterDefaults)[key] ?? {};
-        })
-        .catch(() => ({}));
-
-      const mergedAdapterConfig = mergeAdapterConfigWithCompanyDefaults(
-        companyAdapterDefaults,
-        runtimeConfig as Record<string, unknown>,
-      );
-      const normalizedAdapterConfig = normalizeAdapterConfigForAdapterType(
-        agent.adapterType,
-        mergedAdapterConfig,
-      );
-
+      // Company defaults were merged early (before workspace-policy and issue
+      // overrides) into `config`.  The runtimeConfig already carries the full
+      // resolved value; pass it directly to the adapter.
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
         runtime: runtimeForAdapter,
-        config: normalizedAdapterConfig,
+        config: runtimeConfig as Record<string, unknown>,
         context,
         onLog,
         onMeta: onAdapterMeta,

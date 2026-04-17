@@ -125,6 +125,8 @@ import { PageSkeleton } from "@/components/PageSkeleton";
 import { Identity } from "@/components/Identity";
 import { GettingStartedPanel } from "@/components/GettingStartedPanel";
 import { PromptTemplateGenerateDialog } from "@/components/PromptTemplateGenerateDialog";
+import { InheritableField } from "@/components/InheritableField";
+import { DraftInput } from "@/components/agent-config-primitives";
 
 /* ------------------------------------------------------------------ */
 /*  Section wrapper                                                    */
@@ -222,6 +224,11 @@ export function DesignGuide() {
     { key: "priority", label: "Priority", value: "High" },
   ]);
 
+  // InheritableField showcase state
+  const [inheritBaseUrl, setInheritBaseUrl] = useState<string | undefined>(undefined);
+  const [inheritModel, setInheritModel] = useState<string | undefined>("my-custom-model");
+  const [inheritNoDefault, setInheritNoDefault] = useState<string | undefined>(undefined);
+
   return (
     <div className="space-y-10 max-w-4xl">
       {/* Page header */}
@@ -258,7 +265,7 @@ export function DesignGuide() {
               {[
                 "StatusBadge", "StatusIcon", "PriorityIcon", "EntityRow", "EmptyState", "MetricCard",
                 "FilterBar", "InlineEditor", "PageSkeleton", "Identity", "CommentThread", "MarkdownEditor",
-                "PropertiesPanel", "Sidebar", "CommandPalette",
+                "PropertiesPanel", "Sidebar", "CommandPalette", "InheritableField",
               ].map((name) => (
                 <Badge key={name} variant="ghost" className="font-mono text-[10px]">
                   {name}
@@ -1357,6 +1364,91 @@ export function DesignGuide() {
       {/* ============================================================ */}
       <Section title="AI Prompt Template Generator">
         <PromptTemplateGeneratorShowcase />
+      </Section>
+
+      {/* ============================================================ */}
+      {/*  INHERITABLE FIELD                                            */}
+      {/* ============================================================ */}
+      <Section title="InheritableField">
+        <p className="text-sm text-muted-foreground">
+          Adapter config field wrapper with inherit / custom toggle. Three UI
+          states: <strong>Inherit</strong> (company default, read-only + badge),{" "}
+          <strong>Custom</strong> (editable + optional reset), and{" "}
+          <strong>Unset / no default</strong> (editable + warning).
+        </p>
+        <p className="text-xs text-muted-foreground font-mono">
+          Props: label, hint, value, resolvedValue, companyDefault, onChange(value | undefined), renderField
+        </p>
+
+        <div className="grid gap-6 md:grid-cols-2 max-w-2xl">
+          <SubSection title="Inherit state (value = undefined, companyDefault set)">
+            <p className="text-xs text-muted-foreground mb-2">
+              Click <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border">Override</kbd> to switch to custom.
+            </p>
+            <InheritableField
+              label="Base URL"
+              hint="LM Studio HTTP server URL."
+              value={inheritBaseUrl}
+              resolvedValue="http://localhost:1234"
+              companyDefault="http://localhost:1234"
+              onChange={setInheritBaseUrl}
+              renderField={(props) => (
+                <DraftInput
+                  value={props.value}
+                  onCommit={props.onChange}
+                  immediate
+                  className={props.className}
+                  placeholder="http://localhost:1234"
+                />
+              )}
+            />
+          </SubSection>
+
+          <SubSection title="Custom state (value set, companyDefault set)">
+            <p className="text-xs text-muted-foreground mb-2">
+              Click <kbd className="px-1 py-0.5 text-[10px] bg-muted rounded border border-border">Reset</kbd> to revert to company default.
+            </p>
+            <InheritableField
+              label="Model"
+              hint="Model id as shown in LM Studio."
+              value={inheritModel}
+              resolvedValue={inheritModel ?? "company-model"}
+              companyDefault="company-model"
+              onChange={setInheritModel}
+              renderField={(props) => (
+                <DraftInput
+                  value={props.value}
+                  onCommit={props.onChange}
+                  immediate
+                  className={props.className}
+                  placeholder="local-model"
+                />
+              )}
+            />
+          </SubSection>
+
+          <SubSection title="Unset / no company default">
+            <p className="text-xs text-muted-foreground mb-2">
+              No company default is set. Warning note prompts the user to provide a value.
+            </p>
+            <InheritableField
+              label="API Key"
+              hint="Optional API key for authenticated LM Studio instances."
+              value={inheritNoDefault}
+              resolvedValue=""
+              onChange={setInheritNoDefault}
+              renderField={(props) => (
+                <DraftInput
+                  value={props.value}
+                  onCommit={props.onChange}
+                  immediate
+                  className={props.className}
+                  placeholder="sk-…"
+                />
+              )}
+            />
+          </SubSection>
+        </div>
       </Section>
 
       {/* ============================================================ */}
