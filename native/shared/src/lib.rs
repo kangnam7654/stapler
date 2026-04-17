@@ -1,5 +1,7 @@
 //! Native shared utilities exported to Node.js via napi-rs.
 
+use napi::bindgen_prelude::{AsyncTask, Buffer};
+use napi::{Env, Error, JsString, Result, Status, Task};
 use napi_derive::napi;
 
 /// Normalizes a string to be used as a URL key (slug).
@@ -125,32 +127,119 @@ pub fn sha256_hex(value: String) -> String {
 
 /// Computes HMAC-SHA256 and returns the hex digest.
 #[napi(js_name = "hmacSha256Hex")]
-pub fn hmac_sha256_hex(key: napi::bindgen_prelude::Buffer, data: napi::bindgen_prelude::Buffer) -> String {
+pub fn hmac_sha256_hex(key: Buffer, data: Buffer) -> String {
     stapler_shared::crypto::hmac_sha256_hex(&key, &data)
 }
 
 /// Computes HMAC-SHA256 and returns the base64url (no padding) digest.
 #[napi(js_name = "hmacSha256Base64Url")]
-pub fn hmac_sha256_base64url(key: napi::bindgen_prelude::Buffer, data: napi::bindgen_prelude::Buffer) -> String {
+pub fn hmac_sha256_base64url(key: Buffer, data: Buffer) -> String {
     stapler_shared::crypto::hmac_sha256_base64url(&key, &data)
 }
 
 /// Constant-time equality comparison for two buffers.
 #[napi(js_name = "timingSafeEqual")]
-pub fn timing_safe_equal(a: napi::bindgen_prelude::Buffer, b: napi::bindgen_prelude::Buffer) -> bool {
+pub fn timing_safe_equal(a: Buffer, b: Buffer) -> bool {
     stapler_shared::crypto::timing_safe_equal(&a, &b)
 }
 
 /// Encodes bytes to base64url (no padding).
 #[napi(js_name = "base64UrlEncode")]
-pub fn base64url_encode(data: napi::bindgen_prelude::Buffer) -> String {
+pub fn base64url_encode(data: Buffer) -> String {
     stapler_shared::crypto::base64url_encode(&data)
 }
 
 /// Decodes a base64url (no padding) string to bytes.
 #[napi(js_name = "base64UrlDecode")]
-pub fn base64url_decode(encoded: String) -> Option<napi::bindgen_prelude::Buffer> {
-    stapler_shared::crypto::base64url_decode(&encoded).map(|v| v.into())
+pub fn base64url_decode(encoded: String) -> Option<Buffer> {
+    stapler_shared::crypto::base64url_decode(&encoded).map(Buffer::from)
+}
+
+// ---------------------------------------------------------------------------
+// AES-256-GCM
+// ---------------------------------------------------------------------------
+
+/// Result of `aes256GcmEncrypt` — ciphertext and 16-byte auth tag are
+/// returned separately to match the on-disk `LocalEncryptedMaterial` shape.
+#[napi(object)]
+pub struct AesGcmEncryptResult {
+    pub ciphertext: Buffer,
+    pub auth_tag: Buffer,
+}
+
+/// AES-256-GCM encrypt. Throws on invalid key or IV length.
+#[napi(js_name = "aes256GcmEncrypt")]
+pub fn aes256_gcm_encrypt(
+    key: Buffer,
+    iv: Buffer,
+    plaintext: Buffer,
+) -> Result<AesGcmEncryptResult> {
+    match stapler_shared::crypto::aes256_gcm_encrypt(&key, &iv, &plaintext) {
+        Some((ciphertext, tag)) => Ok(AesGcmEncryptResult {
+            ciphertext: ciphertext.into(),
+            auth_tag: tag.into(),
+        }),
+        None => Err(Error::new(
+            Status::InvalidArg,
+            "Invalid AES-256-GCM key or IV length".to_string(),
+        )),
+    }
+}
+
+/// AES-256-GCM decrypt. Throws on auth-tag mismatch or invalid lengths.
+#[napi(js_name = "aes256GcmDecrypt")]
+pub fn aes256_gcm_decrypt(
+    key: Buffer,
+    iv: Buffer,
+    ciphertext: Buffer,
+    auth_tag: Buffer,
+) -> Result<Buffer> {
+    match stapler_shared::crypto::aes256_gcm_decrypt(&key, &iv, &ciphertext, &auth_tag) {
+        Some(plaintext) => Ok(plaintext.into()),
+        None => Err(Error::new(
+            Status::GenericFailure,
+            "AES-256-GCM decryption failed (auth tag mismatch or invalid input)".to_string(),
+        )),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cryptographic RNG
+// ---------------------------------------------------------------------------
+
+/// Returns `len` cryptographically secure random bytes from the OS CSPRNG.
+#[napi(js_name = "randomBytes")]
+pub fn random_bytes(len: u32) -> Buffer {
+    stapler_shared::crypto::random_bytes(len as usize).into()
+}
+
+// ---------------------------------------------------------------------------
+// Streaming SHA-256 file hash (AsyncTask → Promise<string>)
+// ---------------------------------------------------------------------------
+
+pub struct Sha256FileTask {
+    path: String,
+}
+
+impl Task for Sha256FileTask {
+    type Output = String;
+    type JsValue = JsString;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        stapler_shared::crypto::sha256_file(std::path::Path::new(&self.path))
+            .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))
+    }
+
+    fn resolve(&mut self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
+        env.create_string(&output)
+    }
+}
+
+/// Streams a file through SHA-256 on the napi-rs worker pool and resolves
+/// with the lowercase hex digest.
+#[napi(js_name = "sha256File", ts_return_type = "Promise<string>")]
+pub fn sha256_file(path: String) -> AsyncTask<Sha256FileTask> {
+    AsyncTask::new(Sha256FileTask { path })
 }
 
 #[napi(js_name = "normalizeCurrency")]

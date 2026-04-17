@@ -15,3 +15,5 @@ hmac = { workspace = true }
 hex = { workspace = true }
 base64 = { workspace = true }
 subtle = { workspace = true }
+aes-gcm = { workspace = true }
+getrandom = { workspace = true }

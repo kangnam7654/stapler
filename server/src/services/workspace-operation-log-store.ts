@@ -1,6 +1,6 @@
 import { createReadStream, promises as fs } from "node:fs";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { sha256File } from "@paperclipai/shared/crypto";
 import { notFound } from "../errors.js";
 import { resolvePaperclipInstanceRoot } from "../home-paths.js";
 
@@ -80,16 +80,6 @@ function createLocalFileWorkspaceOperationLogStore(basePath: string): WorkspaceO
     const content = Buffer.concat(chunks).toString("utf8");
     const nextOffset = end + 1 < stat.size ? end + 1 : undefined;
     return { content, nextOffset };
-  }
-
-  async function sha256File(filePath: string): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const hash = createHash("sha256");
-      const stream = createReadStream(filePath);
-      stream.on("data", (chunk) => hash.update(chunk));
-      stream.on("error", reject);
-      stream.on("end", () => resolve(hash.digest("hex")));
-    });
   }
 
   return {

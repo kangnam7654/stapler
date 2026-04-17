@@ -1,6 +1,11 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
 import path from "node:path";
+import {
+  aes256GcmDecrypt,
+  aes256GcmEncrypt,
+  randomBytes,
+  sha256Hex,
+} from "@paperclipai/shared/crypto";
 import type { SecretProviderModule, StoredSecretVersionMaterial } from "./types.js";
 import { badRequest } from "../errors.js";
 
@@ -72,19 +77,13 @@ function loadOrCreateMasterKey(): Buffer {
   return generated;
 }
 
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
 function encryptValue(masterKey: Buffer, value: string): LocalEncryptedMaterial {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", masterKey, iv);
-  const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
+  const { ciphertext, authTag } = aes256GcmEncrypt(masterKey, iv, Buffer.from(value, "utf8"));
   return {
     scheme: "local_encrypted_v1",
     iv: iv.toString("base64"),
-    tag: tag.toString("base64"),
+    tag: authTag.toString("base64"),
     ciphertext: ciphertext.toString("base64"),
   };
 }
@@ -93,10 +92,7 @@ function decryptValue(masterKey: Buffer, material: LocalEncryptedMaterial): stri
   const iv = Buffer.from(material.iv, "base64");
   const tag = Buffer.from(material.tag, "base64");
   const ciphertext = Buffer.from(material.ciphertext, "base64");
-  const decipher = createDecipheriv("aes-256-gcm", masterKey, iv);
-  decipher.setAuthTag(tag);
-  const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  return plain.toString("utf8");
+  return aes256GcmDecrypt(masterKey, iv, ciphertext, tag).toString("utf8");
 }
 
 function asLocalEncryptedMaterial(value: StoredSecretVersionMaterial): LocalEncryptedMaterial {

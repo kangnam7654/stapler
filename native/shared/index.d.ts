@@ -116,6 +116,37 @@ declare const native: {
   base64UrlDecode(encoded: string): Buffer | null;
 
   /**
+   * AES-256-GCM encrypt. Returns ciphertext and 16-byte auth tag separately.
+   * Throws if key is not 32 bytes or iv is not 12 bytes.
+   */
+  aes256GcmEncrypt(
+    key: Buffer,
+    iv: Buffer,
+    plaintext: Buffer
+  ): { ciphertext: Buffer; authTag: Buffer };
+
+  /**
+   * AES-256-GCM decrypt. Throws on auth-tag mismatch or invalid input lengths.
+   */
+  aes256GcmDecrypt(
+    key: Buffer,
+    iv: Buffer,
+    ciphertext: Buffer,
+    authTag: Buffer
+  ): Buffer;
+
+  /**
+   * Returns `len` cryptographically secure random bytes from the OS CSPRNG.
+   */
+  randomBytes(len: number): Buffer;
+
+  /**
+   * Streams a file through SHA-256 on the napi-rs worker pool.
+   * Resolves to the lowercase hex digest.
+   */
+  sha256File(path: string): Promise<string>;
+
+  /**
    * Normalizes a currency code to uppercase.
    */
   normalizeCurrency(code: string): string;

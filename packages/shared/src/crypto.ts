@@ -1,4 +1,12 @@
-import { createHash, createHmac, timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes as nodeRandomBytes,
+  timingSafeEqual as nodeTimingSafeEqual,
+} from "node:crypto";
+import { createReadStream } from "node:fs";
 import sharedNative from "@paperclipai/shared-native";
 
 // ---------------------------------------------------------------------------
@@ -108,4 +116,103 @@ export function base64UrlDecode(encoded: string): Buffer | null {
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// AES-256-GCM
+// ---------------------------------------------------------------------------
+
+export interface AesGcmEncryptResult {
+  ciphertext: Buffer;
+  authTag: Buffer;
+}
+
+/**
+ * AES-256-GCM encrypt. Returns ciphertext and 16-byte auth tag separately
+ * so callers can persist them as distinct fields.
+ *
+ * Throws if key is not 32 bytes or iv is not 12 bytes.
+ */
+export function aes256GcmEncrypt(
+  key: Buffer,
+  iv: Buffer,
+  plaintext: Buffer,
+): AesGcmEncryptResult {
+  if (sharedNative) {
+    try {
+      const result = sharedNative.aes256GcmEncrypt(key, iv, plaintext);
+      return { ciphertext: result.ciphertext, authTag: result.authTag };
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return { ciphertext, authTag: cipher.getAuthTag() };
+}
+
+/**
+ * AES-256-GCM decrypt. Throws on auth-tag mismatch or invalid input.
+ */
+export function aes256GcmDecrypt(
+  key: Buffer,
+  iv: Buffer,
+  ciphertext: Buffer,
+  authTag: Buffer,
+): Buffer {
+  if (sharedNative) {
+    try {
+      return sharedNative.aes256GcmDecrypt(key, iv, ciphertext, authTag);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+// ---------------------------------------------------------------------------
+// Cryptographic RNG
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns `len` cryptographically secure random bytes from the OS CSPRNG.
+ */
+export function randomBytes(len: number): Buffer {
+  if (sharedNative) {
+    try {
+      return sharedNative.randomBytes(len);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+  return nodeRandomBytes(len);
+}
+
+// ---------------------------------------------------------------------------
+// Streaming SHA-256 file hash
+// ---------------------------------------------------------------------------
+
+/**
+ * Streams a file through SHA-256 and resolves to the lowercase hex digest.
+ *
+ * Uses the napi-rs worker pool when the native binding is available,
+ * falling back to a Node.js streaming read + `createHash("sha256")`.
+ */
+export async function sha256File(path: string): Promise<string> {
+  if (sharedNative) {
+    try {
+      return await sharedNative.sha256File(path);
+    } catch (_err) {
+      // Fall through to JS
+    }
+  }
+  return await new Promise<string>((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(path);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(hash.digest("hex")));
+  });
 }
