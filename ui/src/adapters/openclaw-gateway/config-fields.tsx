@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useCompany } from "../../context/CompanyContext";
 import type { AdapterConfigFieldsProps } from "../types";
 import {
   Field,
   DraftInput,
   help,
 } from "../../components/agent-config-primitives";
+import { InheritableField } from "../../components/InheritableField";
 import {
   PayloadTemplateJsonField,
   RuntimeServicesJsonField,
@@ -64,6 +66,8 @@ export function OpenClawGatewayConfigFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const { selectedCompany } = useCompany();
+
   const configuredHeaders =
     config.headers && typeof config.headers === "object" && !Array.isArray(config.headers)
       ? (config.headers as Record<string, unknown>)
@@ -96,8 +100,64 @@ export function OpenClawGatewayConfigFields({
     String(config.sessionKeyStrategy ?? "fixed"),
   );
 
+  // ---- Inheritable field: paperclipApiUrl ----
+  const companyPaperclipApiUrl =
+    selectedCompany?.adapterDefaults?.openclaw_gateway?.paperclipApiUrl != null
+      ? String(selectedCompany.adapterDefaults.openclaw_gateway.paperclipApiUrl)
+      : undefined;
+
+  const currentPaperclipApiUrl: string | undefined = (() => {
+    const raw = eff("adapterConfig", "paperclipApiUrl", config.paperclipApiUrl);
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+  })();
+
+  const resolvedPaperclipApiUrl =
+    currentPaperclipApiUrl ?? companyPaperclipApiUrl ?? "";
+
+  // ---- Inheritable field: role ----
+  const companyRole =
+    selectedCompany?.adapterDefaults?.openclaw_gateway?.role != null
+      ? String(selectedCompany.adapterDefaults.openclaw_gateway.role)
+      : undefined;
+
+  const currentRole: string | undefined = (() => {
+    const raw = eff("adapterConfig", "role", config.role);
+    return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+  })();
+
+  const resolvedRole = currentRole ?? companyRole ?? "operator";
+
+  // ---- Inheritable field: scopes ----
+  const companyScopes =
+    selectedCompany?.adapterDefaults?.openclaw_gateway?.scopes != null
+      ? parseScopes(selectedCompany.adapterDefaults.openclaw_gateway.scopes)
+      : undefined;
+
+  const currentScopes: string | undefined = (() => {
+    const raw = eff("adapterConfig", "scopes", config.scopes);
+    const parsed = parseScopes(raw ?? config.scopes ?? ["operator.admin"]);
+    // Treat default "operator.admin" as having no explicit value (allow inherit)
+    return parsed && parsed !== "operator.admin" ? parsed : undefined;
+  })();
+
+  const resolvedScopes = currentScopes ?? companyScopes ?? "operator.admin";
+
+  // ---- Inheritable field: waitTimeoutMs ----
+  const companyWaitTimeoutMs =
+    selectedCompany?.adapterDefaults?.openclaw_gateway?.waitTimeoutMs != null
+      ? String(selectedCompany.adapterDefaults.openclaw_gateway.waitTimeoutMs)
+      : undefined;
+
+  const currentWaitTimeoutMs: string | undefined = (() => {
+    const raw = eff("adapterConfig", "waitTimeoutMs", config.waitTimeoutMs);
+    return raw != null && raw !== 120000 ? String(raw) : undefined;
+  })();
+
+  const resolvedWaitTimeoutMs = currentWaitTimeoutMs ?? companyWaitTimeoutMs ?? "120000";
+
   return (
     <>
+      {/* Gateway URL is deployment-specific and not inheritable */}
       <Field label="Gateway URL" hint={help.webhookUrl}>
         <DraftInput
           value={
@@ -134,22 +194,24 @@ export function OpenClawGatewayConfigFields({
 
       {!isCreate && (
         <>
-          <Field label="Paperclip API URL override">
-            <DraftInput
-              value={
-                eff(
-                  "adapterConfig",
-                  "paperclipApiUrl",
-                  String(config.paperclipApiUrl ?? ""),
-                )
-              }
-              onCommit={(v) => mark("adapterConfig", "paperclipApiUrl", v || undefined)}
-              immediate
-              className={inputClass}
-              placeholder="https://paperclip.example"
-            />
-          </Field>
+          <InheritableField
+            label="Paperclip API URL override"
+            value={currentPaperclipApiUrl}
+            resolvedValue={resolvedPaperclipApiUrl}
+            companyDefault={companyPaperclipApiUrl}
+            onChange={(v) => mark("adapterConfig", "paperclipApiUrl", v || undefined)}
+            renderField={(props) => (
+              <DraftInput
+                value={props.value}
+                onCommit={props.onChange}
+                immediate
+                className={inputClass}
+                placeholder="https://paperclip.example"
+              />
+            )}
+          />
 
+          {/* Session strategy and session key are per-agent state, not inheritable */}
           <Field label="Session strategy">
             <select
               value={sessionStrategy}
@@ -174,6 +236,7 @@ export function OpenClawGatewayConfigFields({
             </Field>
           )}
 
+          {/* Gateway token contains secrets — preserve existing secret handling pattern */}
           <SecretField
             label="Gateway auth token (x-openclaw-token)"
             value={effectiveGatewayToken}
@@ -181,48 +244,68 @@ export function OpenClawGatewayConfigFields({
             placeholder="OpenClaw gateway token"
           />
 
-          <Field label="Role">
-            <DraftInput
-              value={eff("adapterConfig", "role", String(config.role ?? "operator"))}
-              onCommit={(v) => mark("adapterConfig", "role", v || undefined)}
-              immediate
-              className={inputClass}
-              placeholder="operator"
-            />
-          </Field>
+          <InheritableField
+            label="Role"
+            value={currentRole}
+            resolvedValue={resolvedRole}
+            companyDefault={companyRole}
+            onChange={(v) => mark("adapterConfig", "role", v || undefined)}
+            renderField={(props) => (
+              <DraftInput
+                value={props.value}
+                onCommit={props.onChange}
+                immediate
+                className={inputClass}
+                placeholder="operator"
+              />
+            )}
+          />
 
-          <Field label="Scopes (comma-separated)">
-            <DraftInput
-              value={eff("adapterConfig", "scopes", parseScopes(config.scopes ?? ["operator.admin"]))}
-              onCommit={(v) => {
-                const parsed = v
-                  .split(",")
-                  .map((entry) => entry.trim())
-                  .filter(Boolean);
-                mark("adapterConfig", "scopes", parsed.length > 0 ? parsed : undefined);
-              }}
-              immediate
-              className={inputClass}
-              placeholder="operator.admin"
-            />
-          </Field>
+          <InheritableField
+            label="Scopes (comma-separated)"
+            value={currentScopes}
+            resolvedValue={resolvedScopes}
+            companyDefault={companyScopes}
+            onChange={(v) => {
+              const parsed = v
+                ? v.split(",").map((entry) => entry.trim()).filter(Boolean)
+                : undefined;
+              mark("adapterConfig", "scopes", parsed && parsed.length > 0 ? parsed : undefined);
+            }}
+            renderField={(props) => (
+              <DraftInput
+                value={props.value}
+                onCommit={props.onChange}
+                immediate
+                className={inputClass}
+                placeholder="operator.admin"
+              />
+            )}
+          />
 
-          <Field label="Wait timeout (ms)">
-            <DraftInput
-              value={eff("adapterConfig", "waitTimeoutMs", String(config.waitTimeoutMs ?? "120000"))}
-              onCommit={(v) => {
-                const parsed = Number.parseInt(v.trim(), 10);
-                mark(
-                  "adapterConfig",
-                  "waitTimeoutMs",
-                  Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
-                );
-              }}
-              immediate
-              className={inputClass}
-              placeholder="120000"
-            />
-          </Field>
+          <InheritableField
+            label="Wait timeout (ms)"
+            value={currentWaitTimeoutMs}
+            resolvedValue={resolvedWaitTimeoutMs}
+            companyDefault={companyWaitTimeoutMs}
+            onChange={(v) => {
+              const parsed = v ? Number.parseInt(v.trim(), 10) : undefined;
+              mark(
+                "adapterConfig",
+                "waitTimeoutMs",
+                parsed != null && Number.isFinite(parsed) && parsed > 0 ? parsed : undefined,
+              );
+            }}
+            renderField={(props) => (
+              <DraftInput
+                value={props.value}
+                onCommit={props.onChange}
+                immediate
+                className={inputClass}
+                placeholder="120000"
+              />
+            )}
+          />
 
           <Field label="Device auth">
             <div className="text-xs text-muted-foreground leading-relaxed">

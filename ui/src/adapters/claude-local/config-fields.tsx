@@ -1,6 +1,6 @@
+import { useCompany } from "../../context/CompanyContext";
 import type { AdapterConfigFieldsProps } from "../types";
 import {
-  Field,
   ToggleField,
   DraftInput,
   DraftNumberInput,
@@ -8,6 +8,7 @@ import {
 } from "../../components/agent-config-primitives";
 import { ChoosePathButton } from "../../components/PathInstructionsModal";
 import { LocalWorkspaceRuntimeFields } from "../local-workspace-runtime-fields";
+import { InheritableField } from "../../components/InheritableField";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
@@ -27,33 +28,54 @@ export function ClaudeLocalConfigFields({
   models,
   hideInstructionsFile,
 }: AdapterConfigFieldsProps) {
+  const { selectedCompany } = useCompany();
+
+  const companyInstructionsFilePath =
+    selectedCompany?.adapterDefaults?.claude_local?.instructionsFilePath != null
+      ? String(selectedCompany.adapterDefaults.claude_local.instructionsFilePath)
+      : undefined;
+
+  const currentInstructionsFilePath: string | undefined = isCreate
+    ? (values!.instructionsFilePath || undefined)
+    : (() => {
+        const raw = eff("adapterConfig", "instructionsFilePath", config.instructionsFilePath);
+        return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+      })();
+
+  function onInstructionsFilePathChange(v: string | undefined) {
+    if (isCreate) {
+      set!({ instructionsFilePath: v ?? "" });
+    } else {
+      mark("adapterConfig", "instructionsFilePath", v || undefined);
+    }
+  }
+
+  const resolvedInstructionsFilePath =
+    currentInstructionsFilePath ?? companyInstructionsFilePath ?? "";
+
   return (
     <>
       {!hideInstructionsFile && (
-        <Field label="Agent instructions file" hint={instructionsFileHint}>
-          <div className="flex items-center gap-2">
-            <DraftInput
-              value={
-                isCreate
-                  ? values!.instructionsFilePath ?? ""
-                  : eff(
-                      "adapterConfig",
-                      "instructionsFilePath",
-                      String(config.instructionsFilePath ?? ""),
-                    )
-              }
-              onCommit={(v) =>
-                isCreate
-                  ? set!({ instructionsFilePath: v })
-                  : mark("adapterConfig", "instructionsFilePath", v || undefined)
-              }
-              immediate
-              className={inputClass}
-              placeholder="/absolute/path/to/AGENTS.md"
-            />
-            <ChoosePathButton />
-          </div>
-        </Field>
+        <InheritableField
+          label="Agent instructions file"
+          hint={instructionsFileHint}
+          value={currentInstructionsFilePath}
+          resolvedValue={resolvedInstructionsFilePath}
+          companyDefault={companyInstructionsFilePath}
+          onChange={onInstructionsFilePathChange}
+          renderField={(props) => (
+            <div className="flex items-center gap-2">
+              <DraftInput
+                value={props.value}
+                onCommit={props.onChange}
+                immediate
+                className={inputClass}
+                placeholder="/absolute/path/to/AGENTS.md"
+              />
+              <ChoosePathButton />
+            </div>
+          )}
+        />
       )}
       <LocalWorkspaceRuntimeFields
         isCreate={isCreate}
@@ -78,6 +100,32 @@ export function ClaudeLocalAdvancedFields({
   eff,
   mark,
 }: AdapterConfigFieldsProps) {
+  const { selectedCompany } = useCompany();
+
+  const companyMaxTurnsPerRun =
+    selectedCompany?.adapterDefaults?.claude_local?.maxTurnsPerRun != null
+      ? String(selectedCompany.adapterDefaults.claude_local.maxTurnsPerRun)
+      : undefined;
+
+  const currentMaxTurnsPerRun: string | undefined = isCreate
+    ? (values!.maxTurnsPerRun != null ? String(values!.maxTurnsPerRun) : undefined)
+    : (() => {
+        const raw = eff("adapterConfig", "maxTurnsPerRun", config.maxTurnsPerRun);
+        return raw != null && raw !== 300 ? String(raw) : undefined;
+      })();
+
+  function onMaxTurnsChange(v: string | undefined) {
+    if (isCreate) {
+      set!({ maxTurnsPerRun: v ? Number(v) : undefined });
+    } else {
+      const parsed = v ? Number(v) : undefined;
+      mark("adapterConfig", "maxTurnsPerRun", parsed && parsed > 0 ? parsed : undefined);
+    }
+  }
+
+  const resolvedMaxTurns =
+    currentMaxTurnsPerRun ?? companyMaxTurnsPerRun ?? "300";
+
   return (
     <>
       <ToggleField
@@ -112,27 +160,22 @@ export function ClaudeLocalAdvancedFields({
             : mark("adapterConfig", "dangerouslySkipPermissions", v)
         }
       />
-      <Field label="Max turns per run" hint={help.maxTurnsPerRun}>
-        {isCreate ? (
-          <input
-            type="number"
-            className={inputClass}
-            value={values!.maxTurnsPerRun}
-            onChange={(e) => set!({ maxTurnsPerRun: Number(e.target.value) })}
-          />
-        ) : (
+      <InheritableField
+        label="Max turns per run"
+        hint={help.maxTurnsPerRun}
+        value={currentMaxTurnsPerRun}
+        resolvedValue={resolvedMaxTurns}
+        companyDefault={companyMaxTurnsPerRun}
+        onChange={onMaxTurnsChange}
+        renderField={(props) => (
           <DraftNumberInput
-            value={eff(
-              "adapterConfig",
-              "maxTurnsPerRun",
-              Number(config.maxTurnsPerRun ?? 300),
-            )}
-            onCommit={(v) => mark("adapterConfig", "maxTurnsPerRun", v || 300)}
+            value={props.value ? Number(props.value) : 300}
+            onCommit={(v) => { props.onChange(String(v)); }}
             immediate
             className={inputClass}
           />
         )}
-      </Field>
+      />
     </>
   );
 }

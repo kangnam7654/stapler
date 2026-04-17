@@ -1,12 +1,13 @@
+import { useCompany } from "../../context/CompanyContext";
 import type { AdapterConfigFieldsProps } from "../types";
 import {
-  Field,
   ToggleField,
   DraftInput,
   help,
 } from "../../components/agent-config-primitives";
 import { ChoosePathButton } from "../../components/PathInstructionsModal";
 import { LocalWorkspaceRuntimeFields } from "../local-workspace-runtime-fields";
+import { InheritableField } from "../../components/InheritableField";
 
 const inputClass =
   "w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40";
@@ -25,36 +26,56 @@ export function CodexLocalConfigFields({
   models,
   hideInstructionsFile,
 }: AdapterConfigFieldsProps) {
+  const { selectedCompany } = useCompany();
   const bypassEnabled =
     config.dangerouslyBypassApprovalsAndSandbox === true || config.dangerouslyBypassSandbox === true;
+
+  const companyInstructionsFilePath =
+    selectedCompany?.adapterDefaults?.codex_local?.instructionsFilePath != null
+      ? String(selectedCompany.adapterDefaults.codex_local.instructionsFilePath)
+      : undefined;
+
+  const currentInstructionsFilePath: string | undefined = isCreate
+    ? (values!.instructionsFilePath || undefined)
+    : (() => {
+        const raw = eff("adapterConfig", "instructionsFilePath", config.instructionsFilePath);
+        return typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+      })();
+
+  function onInstructionsFilePathChange(v: string | undefined) {
+    if (isCreate) {
+      set!({ instructionsFilePath: v ?? "" });
+    } else {
+      mark("adapterConfig", "instructionsFilePath", v || undefined);
+    }
+  }
+
+  const resolvedInstructionsFilePath =
+    currentInstructionsFilePath ?? companyInstructionsFilePath ?? "";
 
   return (
     <>
       {!hideInstructionsFile && (
-        <Field label="Agent instructions file" hint={instructionsFileHint}>
-          <div className="flex items-center gap-2">
-            <DraftInput
-              value={
-                isCreate
-                  ? values!.instructionsFilePath ?? ""
-                  : eff(
-                      "adapterConfig",
-                      "instructionsFilePath",
-                      String(config.instructionsFilePath ?? ""),
-                    )
-              }
-              onCommit={(v) =>
-                isCreate
-                  ? set!({ instructionsFilePath: v })
-                  : mark("adapterConfig", "instructionsFilePath", v || undefined)
-              }
-              immediate
-              className={inputClass}
-              placeholder="/absolute/path/to/AGENTS.md"
-            />
-            <ChoosePathButton />
-          </div>
-        </Field>
+        <InheritableField
+          label="Agent instructions file"
+          hint={instructionsFileHint}
+          value={currentInstructionsFilePath}
+          resolvedValue={resolvedInstructionsFilePath}
+          companyDefault={companyInstructionsFilePath}
+          onChange={onInstructionsFilePathChange}
+          renderField={(props) => (
+            <div className="flex items-center gap-2">
+              <DraftInput
+                value={props.value}
+                onCommit={props.onChange}
+                immediate
+                className={inputClass}
+                placeholder="/absolute/path/to/AGENTS.md"
+              />
+              <ChoosePathButton />
+            </div>
+          )}
+        />
       )}
       <ToggleField
         label="Bypass sandbox"
