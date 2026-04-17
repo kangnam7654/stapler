@@ -6,14 +6,11 @@ import { logActivity } from "../services/activity-log.js";
 import { adapterDefaultsService } from "../services/adapter-defaults.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 
-// Accepts any object; individual provider validation (unknown key rejection)
-// happens in the service layer so we can surface clean 422 errors with provider context.
-const adapterEndpointPayloadSchema = z
-  .object({
-    baseUrl: z.string().min(1).optional(),
-    apiKey: z.string().optional(),
-  })
-  .strict();
+// Accepts any provider-specific fields (model, temperature, env, etc.).
+// Provider-level field semantics are the adapter's concern; the route only
+// enforces that the body is a plain object (not an array or scalar).
+// Secret handling (apiKey → secret_ref) happens in the service layer.
+const adapterEndpointPayloadSchema = z.record(z.string(), z.unknown());
 
 function parseEndpointPayload(body: unknown): Record<string, unknown> {
   const result = adapterEndpointPayloadSchema.safeParse(body);

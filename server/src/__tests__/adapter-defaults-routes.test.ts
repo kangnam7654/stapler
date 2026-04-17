@@ -202,13 +202,23 @@ describe("PUT /api/companies/:companyId/adapter-defaults/:providerId", () => {
     expect(mockPutOne).toHaveBeenCalledWith(COMPANY_ID, PROVIDER_ID, payload);
   });
 
-  it("returns 422 for an invalid payload shape (extra unknown field)", async () => {
+  it("accepts provider-specific fields beyond baseUrl/apiKey (schema is open)", async () => {
+    // Phase 7: schema was loosened from .strict() to z.record(z.string(), z.unknown())
+    // so provider-specific fields like model, temperature, env pass through to the service.
+    const payload = { baseUrl: "http://localhost", model: "llama3.2", temperature: 0.7 };
+    mockPutOne.mockResolvedValue({
+      updated: payload,
+      affectedAgentCount: 0,
+      changedFields: ["baseUrl", "model", "temperature"],
+    });
+    mockLogActivity.mockResolvedValue(undefined);
+
     const res = await request(createApp(boardActor))
       .put(`/api/companies/${COMPANY_ID}/adapter-defaults/${PROVIDER_ID}`)
-      .send({ baseUrl: "http://localhost", unknownField: "oops" });
+      .send(payload);
 
-    expect(res.status).toBe(422);
-    expect(mockPutOne).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(mockPutOne).toHaveBeenCalledWith(COMPANY_ID, PROVIDER_ID, payload);
   });
 
   it("returns 403 for cross-company board user", async () => {
@@ -252,13 +262,24 @@ describe("PATCH /api/companies/:companyId/adapter-defaults/:providerId", () => {
     expect(logCall.details.operation).toBe("patch");
   });
 
-  it("returns 422 for invalid payload", async () => {
+  it("accepts provider-specific fields in PATCH payload (schema is open)", async () => {
+    // Phase 7: schema was loosened; any object keys are forwarded to the service.
+    const payload = { model: "qwen2.5-coder" };
+    const merged = { baseUrl: "http://10.0.0.1:11434", model: "qwen2.5-coder" };
+    mockPatchOne.mockResolvedValue({
+      merged,
+      affectedAgentCount: 0,
+      changedFields: ["model"],
+    });
+    mockLogActivity.mockResolvedValue(undefined);
+
     const res = await request(createApp(boardActor))
       .patch(`/api/companies/${COMPANY_ID}/adapter-defaults/${PROVIDER_ID}`)
-      .send({ unknown: "value" });
+      .send(payload);
 
-    expect(res.status).toBe(422);
-    expect(mockPatchOne).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(merged);
+    expect(mockPatchOne).toHaveBeenCalledWith(COMPANY_ID, PROVIDER_ID, payload);
   });
 });
 

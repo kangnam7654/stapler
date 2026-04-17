@@ -5,8 +5,22 @@ import { notFound, unprocessable } from "../errors.js";
 import { logger } from "../middleware/logger.js";
 import { secretService } from "./secrets.js";
 
-// Supported provider IDs — must stay in sync with CompanyAdapterDefaults in @paperclipai/shared.
-const KNOWN_PROVIDER_IDS = new Set(["lm_studio_local", "ollama_local"]);
+// Supported provider IDs — must stay in sync with the UI adapter registry and
+// the server adapter registry (server/src/adapters/registry.ts).
+const KNOWN_PROVIDER_IDS = new Set([
+  "claude_local",
+  "codex_local",
+  "cursor",
+  "gemini_local",
+  "hermes_local",
+  "http",
+  "lm_studio_local",
+  "ollama_local",
+  "openclaw_gateway",
+  "opencode_local",
+  "pi_local",
+  "process",
+]);
 
 function validateProviderId(providerId: string): void {
   if (!KNOWN_PROVIDER_IDS.has(providerId)) {

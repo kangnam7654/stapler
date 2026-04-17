@@ -56,4 +56,13 @@ export const companiesApi = {
     api.post<CompanyPortabilityPreviewResult>("/companies/import/preview", data),
   importBundle: (data: CompanyPortabilityImportRequest) =>
     api.post<CompanyPortabilityImportResult>("/companies/import", data),
+  putAdapterDefaults: (
+    companyId: string,
+    providerId: string,
+    payload: Record<string, unknown>,
+  ) =>
+    api.put<Record<string, unknown>>(
+      `/companies/${companyId}/adapter-defaults/${providerId}`,
+      payload,
+    ),
 };

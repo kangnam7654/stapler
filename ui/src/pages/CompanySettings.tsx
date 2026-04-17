@@ -1,24 +1,29 @@
-import type { AdapterEnvironmentTestResult } from "@paperclipai/shared";
-import { ChangeEvent, useEffect, useState } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
-import { agentsApi } from "../api/agents";
 import { companiesApi } from "../api/companies";
 import { accessApi } from "../api/access";
 import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
-import { Settings, Check, Download, Upload } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Settings, Check, Download, Upload, ChevronRight, Users } from "lucide-react";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import {
   Field,
   ToggleField,
   HintIcon
 } from "../components/agent-config-primitives";
+import { listUIAdapters } from "../adapters/registry";
+import type { AdapterConfigFieldsProps } from "../adapters/types";
 
 type AgentSnippetInput = {
   onboardingTextUrl: string;
@@ -43,9 +48,6 @@ export function CompanySettings() {
   const [brandColor, setBrandColor] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
-  const [lmStudioBaseUrl, setLmStudioBaseUrl] = useState("");
-  const [lmStudioApiKey, setLmStudioApiKey] = useState("");
-  const [ollamaBaseUrl, setOllamaBaseUrl] = useState("");
 
   // Sync local state from selected company
   useEffect(() => {
@@ -54,10 +56,6 @@ export function CompanySettings() {
     setDescription(selectedCompany.description ?? "");
     setBrandColor(selectedCompany.brandColor ?? "");
     setLogoUrl(selectedCompany.logoUrl ?? "");
-    const lmStudioApiKey = selectedCompany.adapterDefaults?.lm_studio_local?.apiKey;
-    setLmStudioBaseUrl(selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "");
-    setLmStudioApiKey(typeof lmStudioApiKey === "string" ? lmStudioApiKey : "");
-    setOllamaBaseUrl(selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? "");
   }, [selectedCompany]);
 
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -71,13 +69,6 @@ export function CompanySettings() {
       description !== (selectedCompany.description ?? "") ||
       brandColor !== (selectedCompany.brandColor ?? ""));
 
-  const storedLmStudioApiKey = selectedCompany?.adapterDefaults?.lm_studio_local?.apiKey;
-  const adapterDefaultsDirty =
-    !!selectedCompany &&
-    (lmStudioBaseUrl !== (selectedCompany.adapterDefaults?.lm_studio_local?.baseUrl ?? "") ||
-     lmStudioApiKey !== (typeof storedLmStudioApiKey === "string" ? storedLmStudioApiKey : "") ||
-     ollamaBaseUrl !== (selectedCompany.adapterDefaults?.ollama_local?.baseUrl ?? ""));
-
   const generalMutation = useMutation({
     mutationFn: (data: {
       name: string;
@@ -87,49 +78,6 @@ export function CompanySettings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     }
-  });
-
-  const adapterDefaultsMutation = useMutation({
-    mutationFn: () =>
-      companiesApi.update(selectedCompanyId!, {
-        adapterDefaults: {
-          lm_studio_local: (lmStudioBaseUrl || lmStudioApiKey)
-            ? { baseUrl: lmStudioBaseUrl || undefined, apiKey: lmStudioApiKey || undefined }
-            : undefined,
-          ollama_local: ollamaBaseUrl ? { baseUrl: ollamaBaseUrl } : undefined,
-        },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
-      pushToast({ title: "어댑터 기본값 저장됨", tone: "success" });
-    },
-  });
-
-  const lmStudioTestMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedCompanyId) {
-        throw new Error("회사를 먼저 선택해 주세요.");
-      }
-      return agentsApi.testEnvironment(selectedCompanyId, "lm_studio_local", {
-        adapterConfig: {
-          baseUrl: lmStudioBaseUrl || undefined,
-          apiKey: lmStudioApiKey || undefined,
-        },
-      });
-    },
-  });
-
-  const ollamaTestMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedCompanyId) {
-        throw new Error("회사를 먼저 선택해 주세요.");
-      }
-      return agentsApi.testEnvironment(selectedCompanyId, "ollama_local", {
-        adapterConfig: {
-          baseUrl: ollamaBaseUrl || undefined,
-        },
-      });
-    },
   });
 
   const settingsMutation = useMutation({
@@ -231,31 +179,11 @@ export function CompanySettings() {
     clearLogoMutation.mutate();
   }
 
-  function handleLmStudioBaseUrlChange(value: string) {
-    setLmStudioBaseUrl(value);
-    lmStudioTestMutation.reset();
-  }
-
-  function handleLmStudioApiKeyChange(value: string) {
-    setLmStudioApiKey(value);
-    lmStudioTestMutation.reset();
-  }
-
-  function handleOllamaBaseUrlChange(value: string) {
-    setOllamaBaseUrl(value);
-    ollamaTestMutation.reset();
-  }
-
   useEffect(() => {
     setInviteError(null);
     setInviteSnippet(null);
     setSnippetCopied(false);
     setSnippetCopyDelightId(0);
-  }, [selectedCompanyId]);
-
-  useEffect(() => {
-    lmStudioTestMutation.reset();
-    ollamaTestMutation.reset();
   }, [selectedCompanyId]);
 
   const archiveMutation = useMutation({
@@ -499,106 +427,25 @@ export function CompanySettings() {
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           어댑터 기본값
         </div>
-        <div className="space-y-3 rounded-md border border-border px-4 py-4">
-          <p className="text-xs text-muted-foreground">
-            에이전트에 Base URL이 설정되지 않은 경우 여기서 지정한 값이 사용됩니다. 저장하지 않아도 현재 입력값으로 연결 테스트를 실행할 수 있습니다.
-          </p>
-          <div className="space-y-2">
-            <label className="text-xs font-medium">LM Studio Base URL</label>
-            <input
-              type="text"
-              className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
-              placeholder="http://192.168.x.x:1234"
-              value={lmStudioBaseUrl}
-              onChange={(e) => handleLmStudioBaseUrlChange(e.target.value)}
+        <p className="text-xs text-muted-foreground -mt-2">
+          각 provider의 company-level 기본값을 설정합니다. 에이전트에서 해당 필드를 override하지 않으면 여기서 설정한 값이 사용됩니다.
+        </p>
+        <div className="space-y-2">
+          {listUIAdapters().map((adapter) => (
+            <ProviderDefaultCard
+              key={adapter.type}
+              providerId={adapter.type}
+              label={adapter.label}
+              ConfigFields={adapter.ConfigFields}
+              initialDefaults={
+                (selectedCompany.adapterDefaults as Record<string, Record<string, unknown>> | null)?.[adapter.type] ?? {}
+              }
+              companyId={selectedCompanyId!}
+              onSaved={() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+              }}
             />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium">LM Studio API Key</label>
-            <input
-              type="password"
-              className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
-              placeholder="lms-..."
-              value={lmStudioApiKey}
-              onChange={(e) => handleLmStudioApiKeyChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="space-y-1">
-                <div className="text-xs font-medium">LM Studio 연결 테스트</div>
-                <p className="text-[11px] text-muted-foreground">
-                  모델 목록 조회 후, 사용 가능한 첫 모델로 짧은 응답 probe까지 확인합니다.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => lmStudioTestMutation.mutate()}
-                disabled={lmStudioTestMutation.isPending || !selectedCompanyId}
-              >
-                {lmStudioTestMutation.isPending ? "테스트 중..." : "연결 테스트"}
-              </Button>
-            </div>
-            {lmStudioTestMutation.isError && (
-              <p className="text-xs text-destructive">
-                {lmStudioTestMutation.error instanceof Error
-                  ? lmStudioTestMutation.error.message
-                  : "LM Studio 연결 테스트에 실패했습니다."}
-              </p>
-            )}
-            {lmStudioTestMutation.data && (
-              <ProviderEnvironmentResult result={lmStudioTestMutation.data} />
-            )}
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Ollama Base URL</label>
-            <input
-              type="text"
-              className="w-full rounded-md border border-border px-2.5 py-1.5 bg-transparent outline-none text-sm font-mono placeholder:text-muted-foreground/40"
-              placeholder="http://192.168.x.x:11434"
-              value={ollamaBaseUrl}
-              onChange={(e) => handleOllamaBaseUrlChange(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="space-y-1">
-                <div className="text-xs font-medium">Ollama 연결 테스트</div>
-                <p className="text-[11px] text-muted-foreground">
-                  모델 목록 조회 후, 사용 가능한 첫 모델로 짧은 응답 probe까지 확인합니다.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => ollamaTestMutation.mutate()}
-                disabled={ollamaTestMutation.isPending || !selectedCompanyId}
-              >
-                {ollamaTestMutation.isPending ? "테스트 중..." : "연결 테스트"}
-              </Button>
-            </div>
-            {ollamaTestMutation.isError && (
-              <p className="text-xs text-destructive">
-                {ollamaTestMutation.error instanceof Error
-                  ? ollamaTestMutation.error.message
-                  : "Ollama 연결 테스트에 실패했습니다."}
-              </p>
-            )}
-            {ollamaTestMutation.data && (
-              <ProviderEnvironmentResult result={ollamaTestMutation.data} />
-            )}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => adapterDefaultsMutation.mutate()}
-            disabled={!adapterDefaultsDirty || adapterDefaultsMutation.isPending}
-          >
-            {adapterDefaultsMutation.isPending ? "저장 중..." : "저장"}
-          </Button>
+          ))}
         </div>
       </div>
 
@@ -790,6 +637,196 @@ export function CompanySettings() {
   );
 }
 
+// ── ProviderDefaultCard ──────────────────────────────────────────────────────
+
+interface ProviderDefaultCardProps {
+  providerId: string;
+  label: string;
+  ConfigFields: React.ComponentType<AdapterConfigFieldsProps>;
+  /** Current stored defaults for this provider (from company.adapterDefaults). */
+  initialDefaults: Record<string, unknown>;
+  companyId: string;
+  onSaved: () => void;
+}
+
+/**
+ * Collapsible card for editing a single provider's company-level defaults.
+ *
+ * Renders the provider's ConfigFields in edit mode using a synthetic dirty-state
+ * overlay (`eff` + `mark`) so the same component used in agent edit views can be
+ * reused here without modification.
+ *
+ * On save, calls PUT /api/companies/:companyId/adapter-defaults/:providerId with
+ * the merged (initialDefaults + dirty overrides) payload.
+ *
+ * Phase 8 will wire up the "Apply to agents" button to open the bulk-apply modal.
+ */
+function ProviderDefaultCard({
+  providerId,
+  label,
+  ConfigFields,
+  initialDefaults,
+  companyId,
+  onSaved,
+}: ProviderDefaultCardProps) {
+  const { pushToast } = useToast();
+  const [open, setOpen] = useState(false);
+  // dirty holds only fields the user has explicitly changed since last save/load.
+  const [dirty, setDirty] = useState<Record<string, unknown>>({});
+
+  // Reset dirty state when the card is opened or when saved defaults change.
+  // This ensures the card reflects the latest persisted values on re-open.
+  useEffect(() => {
+    setDirty({});
+  }, [initialDefaults]);
+
+  const isDirty = Object.keys(dirty).length > 0;
+
+  // eff: read the effective value — dirty overlay wins, else original default.
+  const eff = <T,>(_group: "adapterConfig", field: string, original: T): T => {
+    return field in dirty ? (dirty[field] as T) : original;
+  };
+
+  // mark: set a dirty override. undefined means "remove from dirty" (reset to default).
+  const mark = (_group: "adapterConfig", field: string, value: unknown) => {
+    setDirty((prev) => {
+      if (value === undefined) {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      }
+      return { ...prev, [field]: value };
+    });
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const payload = { ...initialDefaults, ...dirty };
+      // Remove keys explicitly set to undefined by mark().
+      // (mark() removes undefined keys from dirty, so this handles explicit nulls.)
+      const cleaned = Object.fromEntries(
+        Object.entries(payload).filter(([, v]) => v !== undefined),
+      );
+      return companiesApi.putAdapterDefaults(companyId, providerId, cleaned);
+    },
+    onSuccess: () => {
+      setDirty({});
+      pushToast({ title: `${label} 기본값 저장됨`, tone: "success" });
+      onSaved();
+    },
+    onError: (err) => {
+      pushToast({
+        title: `${label} 기본값 저장 실패`,
+        body: err instanceof Error ? err.message : String(err),
+        tone: "error",
+      });
+    },
+  });
+
+  function handleApplyToAgents() {
+    // Phase 8: open the BulkApplyModal for this provider.
+    // For now, log intent and show a toast.
+    console.info("[Phase 8] bulk apply intent — provider:", providerId);
+    pushToast({
+      title: `${label} — 에이전트에 일괄 적용`,
+      body: "일괄 적용 모달은 Phase 8에서 구현됩니다.",
+      tone: "info",
+    });
+  }
+
+  const hasDefaults = Object.keys(initialDefaults).length > 0;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="rounded-md border border-border">
+        {/* Card header — always visible */}
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left hover:bg-accent/30 transition-colors rounded-md"
+            aria-expanded={open}
+          >
+            <div className="flex items-center gap-2">
+              <ChevronRight
+                className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+                aria-hidden="true"
+              />
+              <span className="text-sm font-medium">{label}</span>
+              <span className="text-[10px] font-mono text-muted-foreground/60">
+                {providerId}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {hasDefaults && (
+                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
+                  설정됨
+                </span>
+              )}
+              {isDirty && (
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20">
+                  미저장
+                </span>
+              )}
+            </div>
+          </button>
+        </CollapsibleTrigger>
+
+        {/* Card body — collapsible */}
+        <CollapsibleContent>
+          <div className="border-t border-border px-4 py-4 space-y-4">
+            {/* Config fields rendered in defaults-edit mode */}
+            <div className="space-y-3">
+              <ConfigFields
+                mode="edit"
+                isCreate={false}
+                adapterType={providerId}
+                values={null}
+                set={null}
+                config={initialDefaults}
+                eff={eff}
+                mark={mark}
+                models={[]}
+              />
+            </div>
+
+            {/* Action row */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleApplyToAgents}
+                className="gap-1.5"
+              >
+                <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                에이전트에 일괄 적용...
+              </Button>
+
+              <div className="flex items-center gap-2">
+                {saveMutation.isError && (
+                  <span className="text-xs text-destructive">
+                    {saveMutation.error instanceof Error
+                      ? saveMutation.error.message
+                      : "저장 실패"}
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={!isDirty || saveMutation.isPending}
+                >
+                  {saveMutation.isPending ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
 function buildAgentSnippet(input: AgentSnippetInput) {
   const candidateUrls = buildCandidateOnboardingUrls(input);
   const resolutionTestUrl = buildResolutionTestUrl(input);
@@ -904,49 +941,3 @@ function buildResolutionTestUrl(input: AgentSnippetInput): string | null {
   }
 }
 
-function ProviderEnvironmentResult({
-  result,
-}: {
-  result: AdapterEnvironmentTestResult;
-}) {
-  const statusLabel =
-    result.status === "pass"
-      ? "정상"
-      : result.status === "warn"
-        ? "경고"
-        : "실패";
-  const statusClass =
-    result.status === "pass"
-      ? "text-green-700 dark:text-green-300 border-green-300 dark:border-green-500/40 bg-green-50 dark:bg-green-500/10"
-      : result.status === "warn"
-        ? "text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10"
-        : "text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10";
-
-  return (
-    <div className={`rounded-md border px-3 py-2 text-xs ${statusClass}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium">{statusLabel}</span>
-        <span className="text-[11px] opacity-80">
-          {new Date(result.testedAt).toLocaleTimeString()}
-        </span>
-      </div>
-      <div className="mt-2 space-y-1.5">
-        {result.checks.map((check, idx) => (
-          <div key={`${check.code}-${idx}`} className="text-[11px] leading-relaxed break-words">
-            <span className="font-medium uppercase tracking-wide opacity-80">
-              {check.level}
-            </span>
-            <span className="mx-1 opacity-60">·</span>
-            <span>{check.message}</span>
-            {check.detail && (
-              <span className="block opacity-75 break-all">({check.detail})</span>
-            )}
-            {check.hint && (
-              <span className="block opacity-90 break-words">Hint: {check.hint}</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
