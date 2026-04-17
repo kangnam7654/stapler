@@ -246,49 +246,74 @@ export const workspacePathSchema = z
 
 - 아이콘 3개 가로 배치
 - 웹 모드(`!isDesktop`): Finder/IDE 비활성 (tooltip "Desktop 앱에서만 동작"), 복사만 활성
-- Desktop 모드: Electron IPC 호출
+- Desktop 모드: Tauri `invoke()` 호출
 
-`runtimeContext.isDesktop` 판정: 기존 desktop wrapper에서 주입하는 전역 플래그 사용
-(없으면 `window.electronAPI` 존재 여부로 판단).
+`isDesktop` 판정: 신규 파일 `ui/src/runtime/desktop.ts`:
+```ts
+export const isDesktop = (): boolean =>
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+```
 
 ### 8.4 DesignGuide 등록
 
 신규 컴포넌트 `WorkspacePathActions`는 `ui/src/pages/DesignGuide.tsx`에 변형(desktop/web,
 빈 경로/긴 경로) 케이스로 등록 (project CLAUDE.md §12.3 요구사항).
 
-## 9. Desktop Integration
+## 9. Desktop Integration (Tauri v2)
 
-`desktop/src/main/ipc/workspace.ts` (신규):
+Stapler desktop은 **Tauri v2 (Rust)** 기반 (Electron 아님).
 
-```ts
-ipcMain.handle("workspace:open-finder", async (_, absPath: string) => {
-  // ~ 확장
-  const expanded = expandTilde(absPath);
-  await ensureDir(expanded); // mkdir -p
-  return shell.openPath(expanded);
-});
+`desktop/src/workspace_commands.rs` (신규):
 
-ipcMain.handle("workspace:open-ide", async (_, absPath: string) => {
-  const expanded = expandTilde(absPath);
-  await ensureDir(expanded);
-  return new Promise((resolve, reject) => {
-    const proc = spawn("code", [expanded], { stdio: "ignore", detached: true });
-    proc.on("error", reject);
-    proc.unref();
-    resolve({ ok: true });
-  });
-});
+```rust
+use std::path::PathBuf;
+use std::process::Command;
+use tauri::command;
 
-ipcMain.handle("workspace:copy-path", async (_, absPath: string) => {
-  clipboard.writeText(expandTilde(absPath));
-  return { ok: true };
-});
+fn expand_tilde(p: &str) -> PathBuf {
+    if let Some(stripped) = p.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(stripped);
+        }
+    }
+    PathBuf::from(p)
+}
+
+fn ensure_dir(p: &PathBuf) -> Result<(), String> {
+    std::fs::create_dir_all(p).map_err(|e| e.to_string())
+}
+
+#[command]
+pub fn workspace_open_finder(abs_path: String) -> Result<(), String> {
+    let path = expand_tilde(&abs_path);
+    ensure_dir(&path)?;
+    let cmd = if cfg!(target_os = "macos") { "open" }
+              else if cfg!(target_os = "windows") { "explorer" }
+              else { "xdg-open" };
+    Command::new(cmd).arg(&path).spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[command]
+pub fn workspace_open_ide(abs_path: String) -> Result<(), String> {
+    let path = expand_tilde(&abs_path);
+    ensure_dir(&path)?;
+    Command::new("code").arg(&path).spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
 ```
 
-Renderer preload에서 `window.electronAPI.workspace = { openFinder, openIde, copyPath }`로
-노출.
+`desktop/src/lib.rs`의 `tauri::generate_handler![...]`에 두 command 등록.
 
-웹 모드: `navigator.clipboard.writeText`로 직접 복사.
+Frontend 호출:
+```ts
+import { invoke } from "@tauri-apps/api/core";
+await invoke("workspace_open_finder", { absPath: "/path" });
+```
+
+복사 액션은 양쪽 모드 동일하게 `navigator.clipboard.writeText` 직접 호출 — Tauri command 불필요.
+
+`Cargo.toml`에 `dirs = "5"` 의존성 추가 필요.
 
 ## 10. 폴더 자동 생성 정책
 
@@ -341,8 +366,10 @@ Renderer preload에서 `window.electronAPI.workspace = { openFinder, openIde, co
 | `ui/src/pages/ProjectDetail.tsx` | 폴더 섹션 추가 |
 | `ui/src/components/WorkspacePathActions.tsx` | 신규 |
 | `ui/src/pages/DesignGuide.tsx` | 새 컴포넌트 등록 |
-| `desktop/src/main/ipc/workspace.ts` | IPC 핸들러 신규 |
-| `desktop/src/preload/index.ts` | renderer 노출 |
+| `desktop/src/workspace_commands.rs` | Tauri commands (open_finder, open_ide) |
+| `desktop/src/lib.rs` | invoke_handler에 새 commands 등록 |
+| `desktop/Cargo.toml` | `dirs` crate 의존성 추가 |
+| `ui/src/runtime/desktop.ts` | `isDesktop()` helper 신규 |
 | `doc/SPEC-implementation.md` | §6.2/§7.5에 컬럼 추가 + §10에 신규 endpoint 명시 |
 
 ## 13. Implementation Order
@@ -351,7 +378,7 @@ Renderer preload에서 `window.electronAPI.workspace = { openFinder, openIde, co
 2. **Shared layer** — resolver, slug, validator, types, unit test
 3. **Server layer** — API 확장, GET workspace-path, integration test
 4. **Heartbeat 통합** — cwd 주입, integration test
-5. **Desktop IPC** — 핸들러 구현, preload 노출
+5. **Desktop Tauri commands** — `workspace_commands.rs` + `lib.rs` 등록 + `isDesktop()` helper
 6. **UI** — `WorkspacePathActions` 컴포넌트, CompanySettings/ProjectDetail 섹션, DesignGuide 등록
 7. **E2E** — Playwright 시나리오
 8. **SPEC-implementation.md** 업데이트
