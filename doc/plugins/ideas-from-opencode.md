@@ -62,7 +62,7 @@ Relevant Paperclip files reviewed for current extension seams:
 - [server/src/secrets/provider-registry.ts](../../server/src/secrets/provider-registry.ts)
 - [server/src/services/run-log-store.ts](../../server/src/services/run-log-store.ts)
 - [server/src/services/activity-log.ts](../../server/src/services/activity-log.ts)
-- [doc/SPEC.md](../SPEC.md)
+- `~/wiki/Projects/Stapler/Spec.md` (Paperclip long-horizon spec)
 - [doc/SPEC-implementation.md](../SPEC-implementation.md)
 
 ## What OpenCode Actually Implements

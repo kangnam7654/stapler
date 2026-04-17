@@ -21,16 +21,26 @@ name only applies to the fork identity (repo name, README, this guide).
 
 ## 2. Read This First
 
+Paperclip의 제품 비전·전략 문서는 wiki(`~/wiki/Projects/Stapler/`)에서 관리되며,
+repo에는 V1 실행 contract와 운영 가이드만 남습니다.
+
 Before making changes, read in this order:
 
-1. `doc/GOAL.md`
-2. `doc/PRODUCT.md`
-3. `doc/SPEC-implementation.md`
-4. `doc/DEVELOPING.md`
-5. `doc/DATABASE.md`
+**Wiki — evergreen 전략 (제품 정체성, upstream 공유):**
+1. `~/wiki/Projects/Stapler/Goal.md` — 장기 비전 (autonomous economy backbone)
+2. `~/wiki/Projects/Stapler/Product.md` — 제품 정의 + 설계 원칙
+3. `~/wiki/Projects/Stapler/Spec.md` — 전체 기술 스펙 (long-horizon)
 
-`doc/SPEC.md` is long-horizon product context.
-`doc/SPEC-implementation.md` is the concrete V1 build contract.
+**Repo — code-coupled 실행:**
+4. `doc/SPEC-implementation.md` — V1 구체 build contract (실행 중 변경됨)
+5. `doc/DEVELOPING.md` — 개발 환경
+6. `doc/DATABASE.md` — DB 운영
+
+참고 wiki 문서: `[[Cliphub]]` (V1 이후 레지스트리 비전), `[[MemoryLandscape]]`
+(메모리 서베이), `[[Philosophy]]` (fork 운영 철학), `[[Architecture]]` (2계층),
+`[[DatabaseSchema]]` (물리 모델), `[[RustPorting]]` (native 포팅 로드맵).
+
+Wiki 접근 전 세션당 1회: `git -C ~/wiki pull --rebase` (global CLAUDE.md NEVER #11).
 
 ## 3. Repo Map
 
@@ -41,7 +51,7 @@ Before making changes, read in this order:
 - `packages/adapters/`: agent adapter implementations (Claude, Codex, Cursor, etc.)
 - `packages/adapter-utils/`: shared adapter utilities
 - `packages/plugins/`: plugin system packages
-- `doc/`: operational and product docs
+- `doc/`: operational docs (V1 build contract, DB ops, deployment modes). 제품 비전은 wiki로 이관됨.
 
 ## 4. Dev Setup (Auto DB)
 
@@ -91,7 +101,9 @@ If you change schema/API behavior, update all impacted layers:
 - Activity logging for mutating actions
 
 4. Do not replace strategic docs wholesale unless asked.
-Prefer additive updates. Keep `doc/SPEC.md` and `doc/SPEC-implementation.md` aligned.
+Prefer additive updates. Keep `~/wiki/Projects/Stapler/Spec.md` (upstream
+long-horizon) and `doc/SPEC-implementation.md` (fork V1 실행) aligned — wiki는
+evergreen, repo는 code-coupled. 스펙 변경 시 wiki 커밋도 함께 생성.
 
 5. Keep plan docs dated and centralized.
 New plan documents belong in `doc/plans/` and should use `YYYY-MM-DD-slug.md` filenames.
