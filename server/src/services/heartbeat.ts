@@ -2143,7 +2143,7 @@ export function heartbeatService(db: Db) {
         {
           runId: run.id,
           companyId: agent.companyId,
-          projectId: executionProjectRow.id,
+          projectId: executionProjectId,
         },
         "Skipping workspace cwd fallback: project row present but company not found",
       );
