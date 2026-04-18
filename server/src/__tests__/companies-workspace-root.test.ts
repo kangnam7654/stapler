@@ -145,5 +145,38 @@ describe("companies — workspaceRootPath round-trip", () => {
     });
     expect(res.status).toBe(201);
     expect(res.body.workspaceRootPath).toBe("~/work/acme");
+    // Verify the route forwards the field to the service, not just echoing the mock
+    expect(mockCompanyService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceRootPath: "~/work/acme" }),
+    );
+  });
+
+  it("PATCH by agent is rejected (board-only field — only CEO agents allowed, non-CEO gets 403)", async () => {
+    // The PATCH /:companyId handler checks actor type:
+    //   agent → calls agentService.getById; if not CEO → throw forbidden (403)
+    //   board → uses updateCompanySchema which includes workspaceRootPath
+    // mockAgentService.getById returns undefined by default → actorAgent is null → 403
+    // This locks down that a generic agent cannot write workspaceRootPath.
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      (req as any).actor = {
+        type: "agent",
+        agentId: "agent-1",
+        companyId: "company-1",
+      };
+      next();
+    });
+    app.use("/api/companies", companyRoutes({} as any));
+    app.use(errorHandler);
+
+    const res = await request(app).patch("/api/companies/company-1").send({
+      workspaceRootPath: "/sneaky/path",
+      brandColor: "#ff0000",
+    });
+
+    // Non-CEO agent is forbidden; service.update must not be reached
+    expect(res.status).toBe(403);
+    expect(mockCompanyService.update).not.toHaveBeenCalled();
   });
 });
