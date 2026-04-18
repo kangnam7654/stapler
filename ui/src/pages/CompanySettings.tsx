@@ -1,5 +1,5 @@
-import React, { ChangeEvent, useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Link } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
@@ -7,6 +7,7 @@ import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
 import { companiesApi } from "../api/companies";
 import { accessApi } from "../api/access";
+import { agentsApi } from "../api/agents";
 import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Settings, Check, Download, Upload, ChevronRight, Users, Layers } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Settings, Check, Download, Upload, ChevronRight, Users, Layers, Plus } from "lucide-react";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import {
   Field,
@@ -629,8 +636,13 @@ interface AdapterDefaultsSectionProps {
 }
 
 /**
- * Section that renders all ProviderDefaultCards plus a top-level
- * "모든 에이전트 일괄 변경" button that opens the global BulkApplyModal.
+ * Section that renders ProviderDefaultCards for adapters that are either
+ * (a) configured (have stored defaults), (b) in use by at least one agent in
+ * this company, or (c) explicitly added by the user via the dropdown.
+ *
+ * Unused adapters are tucked under a "+ 어댑터 기본값 추가" dropdown at the
+ * bottom to keep the section scannable. A top-level "모든 에이전트 일괄 변경"
+ * button opens the global BulkApplyModal.
  */
 function AdapterDefaultsSection({
   selectedCompany,
@@ -638,6 +650,52 @@ function AdapterDefaultsSection({
   onSaved,
 }: AdapterDefaultsSectionProps) {
   const [globalModalOpen, setGlobalModalOpen] = useState(false);
+  const [explicitlyAdded, setExplicitlyAdded] = useState<Set<string>>(new Set());
+  const [autoOpen, setAutoOpen] = useState<Set<string>>(new Set());
+
+  const { data: agents = [] } = useQuery({
+    queryKey: queryKeys.agents.list(selectedCompanyId),
+    queryFn: () => agentsApi.list(selectedCompanyId),
+  });
+
+  const allAdapters = useMemo(() => listUIAdapters(), []);
+  const defaults = (selectedCompany.adapterDefaults as Record<string, Record<string, unknown>> | null) ?? {};
+
+  // An adapter is "in use" if at least one company agent has that adapterType.
+  const inUseTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const agent of agents) {
+      if (agent.adapterType) set.add(agent.adapterType);
+    }
+    return set;
+  }, [agents]);
+
+  // Visible = configured ∪ in-use ∪ explicitly added.
+  const visibleTypes = useMemo(() => {
+    const set = new Set<string>(explicitlyAdded);
+    for (const adapter of allAdapters) {
+      if (inUseTypes.has(adapter.type)) set.add(adapter.type);
+      const stored = defaults[adapter.type];
+      if (stored && Object.keys(stored).length > 0) set.add(adapter.type);
+    }
+    return set;
+  }, [allAdapters, inUseTypes, defaults, explicitlyAdded]);
+
+  const visibleAdapters = allAdapters.filter((a) => visibleTypes.has(a.type));
+  const hiddenAdapters = allAdapters.filter((a) => !visibleTypes.has(a.type));
+
+  const handleAdd = (type: string) => {
+    setExplicitlyAdded((prev) => {
+      const next = new Set(prev);
+      next.add(type);
+      return next;
+    });
+    setAutoOpen((prev) => {
+      const next = new Set(prev);
+      next.add(type);
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -658,23 +716,56 @@ function AdapterDefaultsSection({
         </Button>
       </div>
       <p className="text-xs text-muted-foreground -mt-2">
-        각 provider의 company-level 기본값을 설정합니다. 에이전트에서 해당 필드를 override하지 않으면 여기서 설정한 값이 사용됩니다.
+        에이전트가 사용하거나 기본값이 설정된 어댑터만 표시됩니다. 에이전트에서 해당 필드를 override하지 않으면 여기 값이 사용됩니다.
       </p>
       <div className="space-y-2">
-        {listUIAdapters().map((adapter) => (
-          <ProviderDefaultCard
-            key={adapter.type}
-            providerId={adapter.type}
-            label={adapter.label}
-            ConfigFields={adapter.ConfigFields}
-            initialDefaults={
-              (selectedCompany.adapterDefaults as Record<string, Record<string, unknown>> | null)?.[adapter.type] ?? {}
-            }
-            companyId={selectedCompanyId}
-            onSaved={onSaved}
-          />
-        ))}
+        {visibleAdapters.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic px-1 py-2">
+            아직 설정된 어댑터가 없습니다. 아래에서 추가하세요.
+          </p>
+        ) : (
+          visibleAdapters.map((adapter) => (
+            <ProviderDefaultCard
+              key={adapter.type}
+              providerId={adapter.type}
+              label={adapter.label}
+              ConfigFields={adapter.ConfigFields}
+              initialDefaults={defaults[adapter.type] ?? {}}
+              companyId={selectedCompanyId}
+              onSaved={onSaved}
+              defaultOpen={autoOpen.has(adapter.type)}
+              inUse={inUseTypes.has(adapter.type)}
+            />
+          ))
+        )}
       </div>
+
+      {hiddenAdapters.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+              aria-label="어댑터 기본값 추가"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              어댑터 추가 ({hiddenAdapters.length})
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+            {hiddenAdapters.map((adapter) => (
+              <DropdownMenuItem
+                key={adapter.type}
+                onSelect={() => handleAdd(adapter.type)}
+              >
+                {adapter.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       <BulkApplyModal
         companyId={selectedCompanyId}
@@ -696,6 +787,10 @@ interface ProviderDefaultCardProps {
   initialDefaults: Record<string, unknown>;
   companyId: string;
   onSaved: () => void;
+  /** Whether to render the card expanded by default. */
+  defaultOpen?: boolean;
+  /** True if at least one company agent uses this adapter type. */
+  inUse?: boolean;
 }
 
 /**
@@ -717,9 +812,11 @@ function ProviderDefaultCard({
   initialDefaults,
   companyId,
   onSaved,
+  defaultOpen = false,
+  inUse = false,
 }: ProviderDefaultCardProps) {
   const { pushToast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   // dirty holds only fields the user has explicitly changed since last save/load.
   const [dirty, setDirty] = useState<Record<string, unknown>>({});
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -777,8 +874,6 @@ function ProviderDefaultCard({
   // We pass the persisted initialDefaults to the modal so the diff is accurate.
   const companyDefaults = initialDefaults;
 
-  const hasDefaults = Object.keys(initialDefaults).length > 0;
-
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="rounded-md border border-border">
@@ -795,16 +890,13 @@ function ProviderDefaultCard({
                 aria-hidden="true"
               />
               <span className="text-sm font-medium">{label}</span>
-              <span className="text-[10px] font-mono text-muted-foreground/60">
-                {providerId}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {hasDefaults && (
-                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
-                  설정됨
+              {inUse && (
+                <span className="text-[10px] text-muted-foreground/70">
+                  사용 중
                 </span>
               )}
+            </div>
+            <div className="flex items-center gap-2">
               {isDirty && (
                 <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400 border border-amber-500/20">
                   미저장
