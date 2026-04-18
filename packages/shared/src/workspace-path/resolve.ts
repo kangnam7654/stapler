@@ -18,13 +18,13 @@ function stripTrailingSlash(p: string): string {
 export function resolveProjectWorkspacePath(
   input: ResolveProjectWorkspacePathInput,
 ): ResolvedProjectWorkspacePath {
-  if (input.projectPathOverride) {
+  if (input.projectPathOverride !== null && input.projectPathOverride !== "") {
     return {
       resolvedAbsolutePath: stripTrailingSlash(input.projectPathOverride),
       source: "project_override",
     };
   }
-  if (input.companyRootPath) {
+  if (input.companyRootPath !== null && input.companyRootPath !== "") {
     const root = stripTrailingSlash(input.companyRootPath);
     return {
       resolvedAbsolutePath: `${root}/${input.projectSlug}`,
