@@ -98,7 +98,10 @@ export function projectRoutes(db: Db) {
   router.post("/companies/:companyId/projects", validate(createProjectSchema), async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
-    if (req.body.workspacePathOverride !== undefined && req.body.workspacePathOverride !== null) {
+    // Board-only guard: any presence of workspacePathOverride (including
+    // explicit null to clear) must be authorized as board. The previous guard
+    // skipped null and let agents clear board-set overrides.
+    if (Object.prototype.hasOwnProperty.call(req.body, "workspacePathOverride")) {
       assertBoard(req);
     }
     type CreateProjectPayload = Parameters<typeof svc.create>[1] & {
@@ -144,7 +147,10 @@ export function projectRoutes(db: Db) {
       return;
     }
     assertCompanyAccess(req, existing.companyId);
-    if (req.body.workspacePathOverride !== undefined && req.body.workspacePathOverride !== null) {
+    // Board-only guard: any presence of workspacePathOverride (including
+    // explicit null to clear) must be authorized as board. The previous guard
+    // skipped null and let agents clear board-set overrides.
+    if (Object.prototype.hasOwnProperty.call(req.body, "workspacePathOverride")) {
       assertBoard(req);
     }
     const body = { ...req.body };
