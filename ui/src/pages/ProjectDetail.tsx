@@ -15,6 +15,7 @@ import { useToast } from "../context/ToastContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { ProjectProperties, type ProjectConfigFieldKey, type ProjectFieldSaveState } from "../components/ProjectProperties";
+import { WorkspacePathActions } from "../components/WorkspacePathActions";
 import { InlineEditor } from "../components/InlineEditor";
 import { StatusBadge } from "../components/StatusBadge";
 import { BudgetPolicyCard } from "../components/BudgetPolicyCard";
@@ -315,6 +316,32 @@ export function ProjectDetail() {
     },
   });
 
+  const [overrideInput, setOverrideInput] = useState(project?.workspacePathOverride ?? "");
+
+  useEffect(() => {
+    setOverrideInput(project?.workspacePathOverride ?? "");
+  }, [project?.id, project?.workspacePathOverride]);
+
+  const workspacePathQuery = useQuery({
+    queryKey: ["project-workspace-path", project?.id],
+    queryFn: () => projectsApi.getWorkspacePath(project!.id, resolvedCompanyId ?? undefined),
+    enabled: !!project?.id,
+  });
+
+  const workspacePathOverrideMutation = useMutation({
+    mutationFn: (path: string | null) =>
+      projectsApi.update(project!.id, { workspacePathOverride: path }, resolvedCompanyId ?? undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-workspace-path", project?.id] });
+      invalidateProject();
+    },
+  });
+
+  const onSaveWorkspaceOverride = () => {
+    const trimmed = overrideInput.trim();
+    workspacePathOverrideMutation.mutate(trimmed === "" ? null : trimmed);
+  };
+
   const { data: budgetOverview } = useQuery({
     queryKey: queryKeys.budgets.overview(resolvedCompanyId ?? "__none__"),
     queryFn: () => budgetsApi.overview(resolvedCompanyId!),
@@ -603,6 +630,43 @@ export function ProjectDetail() {
             onArchive={(archived) => archiveProject.mutate(archived)}
             archivePending={archiveProject.isPending}
           />
+          <div className="rounded-lg border border-border p-6 space-y-3 mt-4">
+            <div>
+              <h3 className="text-sm font-semibold">산출물 폴더 (override)</h3>
+              <p className="text-xs text-muted-foreground">
+                이 프로젝트만 별도 폴더를 사용할 때 입력. 비워두면 회사 default를 사용합니다.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={overrideInput}
+                onChange={(e) => setOverrideInput(e.target.value)}
+                placeholder="비워두면 회사 default 사용"
+                className="flex-1 px-3 py-2 text-sm rounded border border-border bg-background"
+              />
+              <button
+                type="button"
+                onClick={onSaveWorkspaceOverride}
+                disabled={workspacePathOverrideMutation.isPending}
+                className="px-3 py-2 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50"
+              >
+                저장
+              </button>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>현재 사용 경로:</span>
+              {workspacePathQuery.data ? (
+                <>
+                  <span className="font-mono">{workspacePathQuery.data.resolvedAbsolutePath}</span>
+                  <span className="text-[10px]">({workspacePathQuery.data.source})</span>
+                  <WorkspacePathActions absolutePath={workspacePathQuery.data.resolvedAbsolutePath} />
+                </>
+              ) : (
+                <span>로딩 중...</span>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
