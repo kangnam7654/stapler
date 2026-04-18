@@ -124,6 +124,7 @@ Human auth tables (`users`, `sessions`, and provider-specific auth artifacts) ar
 - `description` text null
 - `status` enum: `active | paused | archived`
 - `adapter_defaults` jsonb null — per-provider partial adapter config used as inheritance source (see §22)
+- `workspace_root_path` text null — company-level default workspace folder. When set, all projects in this company resolve their working directory under this root unless the project sets its own override. Accepts `~/...` paths (expanded against the heartbeat host's home directory at resolve time). When null, the resolver falls back to `STAPLER_WORKSPACE_ROOT` env or `~/Stapler/<company-slug>/`.
 
 Invariant: every business record belongs to exactly one company.
 
@@ -237,6 +238,7 @@ Invariant: at least one root `company` level goal per company.
 - `status` enum: `backlog | planned | in_progress | completed | cancelled`
 - `lead_agent_id` uuid fk `agents.id` null
 - `target_date` date null
+- `workspace_path_override` text null — project-level workspace folder override. When set, takes precedence over `companies.workspace_root_path` for this project's resolved cwd. Accepts `~/...` paths. When null, the resolver falls back to the company root (or default).
 
 ## 7.6 `issues` (core task entity)
 
@@ -491,9 +493,9 @@ All endpoints are under `/api` and return JSON.
 ## 10.1 Companies
 
 - `GET /companies`
-- `POST /companies`
+- `POST /companies` — body accepts `name`, `description?`, `budgetMonthlyCents?`, `workspaceRootPath?` (`null` clears, `~/...` allowed)
 - `GET /companies/:companyId`
-- `PATCH /companies/:companyId`
+- `PATCH /companies/:companyId` — body accepts the same fields as POST plus governance/branding fields. `workspaceRootPath: null` clears the company default.
 - `PATCH /companies/:companyId/branding`
 - `POST /companies/:companyId/archive`
 - `GET /companies/:companyId/adapter-defaults`
@@ -583,9 +585,10 @@ Server behavior:
 ## 10.5 Projects
 
 - `GET /companies/:companyId/projects`
-- `POST /companies/:companyId/projects`
+- `POST /companies/:companyId/projects` — body may include `workspacePathOverride?` (`null` to clear)
 - `GET /projects/:projectId`
-- `PATCH /projects/:projectId`
+- `PATCH /projects/:projectId` — body may include `workspacePathOverride?` (`null` to clear)
+- `GET /projects/:projectId/workspace-path` — returns `{ resolvedAbsolutePath: string, source: "project_override" | "company_root" | "system_default" }` for the project's currently resolved cwd. Same company-access rules as other project endpoints.
 
 ## 10.6 Approvals
 
@@ -698,6 +701,30 @@ Scheduler must skip invocation when:
 - agent is paused/terminated
 - an existing run is active
 - hard budget limit has been hit
+
+## 11.6 Workspace folder resolution
+
+When the heartbeat invokes an adapter and the merged adapter `cwd` is empty
+(`undefined`, `""`, or whitespace-only), the server resolves a working
+directory using the two-layer policy below and injects it into the runtime
+config before adapter execution. If `cwd` is explicitly set, the merged value
+wins and resolution is skipped.
+
+Resolution order (first non-empty wins):
+
+1. `projects.workspace_path_override` — project-level explicit folder → source `project_override`
+2. `companies.workspace_root_path` joined with the project slug → source `company_root`
+3. `STAPLER_WORKSPACE_ROOT` env (or `~/Stapler` when env is unset) joined with `<company-slug>/<project-slug>` → source `system_default`
+
+The resolver returns `{ resolvedAbsolutePath, source }`. `~/...` paths are
+expanded against the heartbeat host's home directory. The resolved directory
+is best-effort `mkdir -p`'d before adapter spawn; an mkdir failure is logged
+as a warning but does not abort the run (the adapter sees the same absolute
+path it would otherwise have received).
+
+Slugs are derived deterministically from the entity name (lowercased, ASCII
+hyphens, collisions disambiguated with the entity id suffix). The resolver is
+exposed at `GET /api/projects/:projectId/workspace-path` for UI preview.
 
 ## 12. Governance and Approval Flows
 
