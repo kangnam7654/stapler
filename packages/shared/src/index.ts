@@ -652,6 +652,12 @@ export {
 export { normalizeAgentUrlKey, deriveAgentUrlKey, isUuidLike } from "./agent-url-key.js";
 export { deriveProjectUrlKey, normalizeProjectUrlKey } from "./project-url-key.js";
 export {
+  toWorkspaceSlug,
+  resolveProjectWorkspacePath,
+  type ResolveProjectWorkspacePathInput,
+  type ResolvedProjectWorkspacePath,
+} from "./workspace-path/index.js";
+export {
   AGENT_MENTION_SCHEME,
   PROJECT_MENTION_SCHEME,
   buildAgentMentionHref,
