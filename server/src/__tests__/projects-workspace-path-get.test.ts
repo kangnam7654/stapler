@@ -30,16 +30,20 @@ vi.mock("../services/index.js", () => ({
 import { projectRoutes } from "../routes/projects.js";
 import { errorHandler } from "../middleware/index.js";
 
-function createApp() {
+type Actor = Record<string, unknown>;
+
+const defaultActor: Actor = {
+  type: "board",
+  userId: "user-1",
+  source: "local_implicit",
+  isInstanceAdmin: true,
+};
+
+function createApp(actor: Actor = defaultActor) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    (req as any).actor = {
-      type: "board",
-      userId: "user-1",
-      source: "local_implicit",
-      isInstanceAdmin: true,
-    };
+    (req as any).actor = actor;
     next();
   });
   app.use("/api", projectRoutes({} as any));
@@ -121,5 +125,39 @@ describe("GET /api/projects/:id/workspace-path", () => {
       "/api/projects/550e8400-e29b-41d4-a716-446655440004/workspace-path",
     );
     expect(res.status).toBe(404);
+  });
+
+  it("403 when agent actor belongs to a different company", async () => {
+    mockProjectService.getById.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440005",
+      companyId: "c1",
+      name: "Calc",
+      workspacePathOverride: null,
+    });
+    const agentActor: Actor = {
+      type: "agent",
+      agentId: "agent-1",
+      companyId: "c2",
+      source: "api_key",
+    };
+    const res = await request(createApp(agentActor)).get(
+      "/api/projects/550e8400-e29b-41d4-a716-446655440005/workspace-path",
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("404 when company not found", async () => {
+    mockProjectService.getById.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440006",
+      companyId: "c1",
+      name: "Calc",
+      workspacePathOverride: null,
+    });
+    mockCompanyService.getById.mockResolvedValue(null);
+    const res = await request(createApp()).get(
+      "/api/projects/550e8400-e29b-41d4-a716-446655440006/workspace-path",
+    );
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBeTruthy();
   });
 });

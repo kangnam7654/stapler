@@ -17,6 +17,7 @@ import { t } from "../i18n/index.js";
 export function projectRoutes(db: Db) {
   const router = Router();
   const svc = projectService(db);
+  const companies = companyService(db);
 
   async function resolveCompanyIdForProjectReference(req: Request) {
     const companyIdQuery = req.query.companyId;
@@ -80,7 +81,7 @@ export function projectRoutes(db: Db) {
       return;
     }
     assertCompanyAccess(req, project.companyId);
-    const company = await companyService(db).getById(project.companyId);
+    const company = await companies.getById(project.companyId);
     if (!company) {
       res.status(404).json({ error: t("error.companyNotFound") });
       return;
