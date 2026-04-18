@@ -41,4 +41,21 @@ describe("workspacePathSchema", () => {
     const r = workspacePathSchema.safeParse(long);
     expect(r.success).toBe(false);
   });
+
+  it("rejects bare tilde (no slash)", () => {
+    const r = workspacePathSchema.safeParse("~");
+    expect(r.success).toBe(false);
+  });
+
+  it("accepts boundary case: exactly 1024 chars", () => {
+    const path = "/" + "x".repeat(1023); // 1024 total
+    const r = workspacePathSchema.safeParse(path);
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects boundary case: 1025 chars", () => {
+    const path = "/" + "x".repeat(1024); // 1025 total — duplicate of original >1024 test, but explicitly named
+    const r = workspacePathSchema.safeParse(path);
+    expect(r.success).toBe(false);
+  });
 });

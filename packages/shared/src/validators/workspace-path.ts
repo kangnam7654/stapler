@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const workspacePathSchema = z
-  .union([z.string(), z.null()])
+  .string()
+  .nullable()
   .transform((v) => {
     if (v === null) return null;
     const trimmed = v.trim();
@@ -10,13 +11,16 @@ export const workspacePathSchema = z
   .superRefine((v, ctx) => {
     if (v === null) return;
     if (v.length > 1024) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "path > 1024 chars" });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Path must be 1024 characters or fewer.",
+      });
       return;
     }
     if (!/^(\/|~\/)/.test(v)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "absolute path required (/... or ~/...)",
+        message: "Path must be an absolute POSIX path starting with / or ~/.",
       });
     }
   });
