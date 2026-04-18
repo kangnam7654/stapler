@@ -4,6 +4,7 @@ import {
   toWorkspaceSlug,
   type ResolvedProjectWorkspacePath,
 } from "@paperclipai/shared";
+import { resolveHomeAwarePath } from "../home-paths.js";
 
 export function systemDefaultRoot(): string {
   const env = process.env.STAPLER_WORKSPACE_ROOT;
@@ -19,11 +20,18 @@ export interface ResolveForProjectInput {
 }
 
 export function resolveForProject(input: ResolveForProjectInput): ResolvedProjectWorkspacePath {
-  return resolveProjectWorkspacePath({
+  const resolved = resolveProjectWorkspacePath({
     companySlug: toWorkspaceSlug(input.companyName),
     projectSlug: toWorkspaceSlug(input.projectName),
     companyRootPath: input.companyRootPath,
     projectPathOverride: input.projectPathOverride,
     systemDefaultRoot: systemDefaultRoot(),
   });
+  // Expand `~` and resolve to an absolute path so consumers (UI clipboard,
+  // Finder/IDE openers) get a usable absolute path. Pure shared resolver stays
+  // browser-safe by leaving home expansion to the platform layer.
+  return {
+    ...resolved,
+    resolvedAbsolutePath: resolveHomeAwarePath(resolved.resolvedAbsolutePath),
+  };
 }

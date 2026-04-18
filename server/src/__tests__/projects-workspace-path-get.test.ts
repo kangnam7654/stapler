@@ -146,6 +146,29 @@ describe("GET /api/projects/:id/workspace-path", () => {
     expect(res.status).toBe(403);
   });
 
+  it("expands ~ in project_override to absolute home path", async () => {
+    // Regression: GET /workspace-path must return a usable absolute path so
+    // the UI clipboard / Finder / IDE openers don't see a literal "~/...".
+    mockProjectService.getById.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440007",
+      companyId: "c1",
+      name: "Calc",
+      workspacePathOverride: "~/dev/legacy",
+    });
+    mockCompanyService.getById.mockResolvedValue({
+      id: "c1",
+      name: "Acme",
+      workspaceRootPath: null,
+    });
+    const res = await request(createApp()).get(
+      "/api/projects/550e8400-e29b-41d4-a716-446655440007/workspace-path",
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.source).toBe("project_override");
+    expect(res.body.resolvedAbsolutePath.startsWith("~")).toBe(false);
+    expect(res.body.resolvedAbsolutePath.endsWith("/dev/legacy")).toBe(true);
+  });
+
   it("404 when company not found", async () => {
     mockProjectService.getById.mockResolvedValue({
       id: "550e8400-e29b-41d4-a716-446655440006",
