@@ -39,6 +39,7 @@ export interface Company {
   logoAssetId: string | null;
   logoUrl: string | null;
   adapterDefaults: CompanyAdapterDefaults | null;
+  workspaceRootPath: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

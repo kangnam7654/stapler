@@ -19,6 +19,7 @@ function makeCompany(overrides: Partial<Company>): Company {
     logoAssetId: null,
     logoUrl: null,
     adapterDefaults: null,
+    workspaceRootPath: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
