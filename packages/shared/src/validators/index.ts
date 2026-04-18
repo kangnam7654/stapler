@@ -338,3 +338,8 @@ export {
   sendAgentMessageSchema,
   type SendAgentMessage,
 } from "./agent-message.js";
+
+export {
+  workspacePathSchema,
+  type WorkspacePath,
+} from "./workspace-path.js";
