@@ -659,8 +659,8 @@ interface AdapterDefaultsSectionProps {
  * this company, or (c) explicitly added by the user via the dropdown.
  *
  * Unused adapters are tucked under a "+ 어댑터 기본값 추가" dropdown at the
- * bottom to keep the section scannable. A top-level "모든 에이전트 일괄 변경"
- * button opens the global BulkApplyModal.
+ * bottom to keep the section scannable. A top-level "어댑터 교체..." button
+ * opens the global BulkApplyModal (swap-adapter wizard).
  */
 function AdapterDefaultsSection({
   selectedCompany,
@@ -679,25 +679,26 @@ function AdapterDefaultsSection({
   const allAdapters = useMemo(() => listUIAdapters(), []);
   const defaults = (selectedCompany.adapterDefaults as Record<string, Record<string, unknown>> | null) ?? {};
 
-  // An adapter is "in use" if at least one company agent has that adapterType.
-  const inUseTypes = useMemo(() => {
-    const set = new Set<string>();
+  // Per-adapter-type count of company agents currently using it.
+  const agentCountByType = useMemo(() => {
+    const map = new Map<string, number>();
     for (const agent of agents) {
-      if (agent.adapterType) set.add(agent.adapterType);
+      if (!agent.adapterType) continue;
+      map.set(agent.adapterType, (map.get(agent.adapterType) ?? 0) + 1);
     }
-    return set;
+    return map;
   }, [agents]);
 
   // Visible = configured ∪ in-use ∪ explicitly added.
   const visibleTypes = useMemo(() => {
     const set = new Set<string>(explicitlyAdded);
     for (const adapter of allAdapters) {
-      if (inUseTypes.has(adapter.type)) set.add(adapter.type);
+      if ((agentCountByType.get(adapter.type) ?? 0) > 0) set.add(adapter.type);
       const stored = defaults[adapter.type];
       if (stored && Object.keys(stored).length > 0) set.add(adapter.type);
     }
     return set;
-  }, [allAdapters, inUseTypes, defaults, explicitlyAdded]);
+  }, [allAdapters, agentCountByType, defaults, explicitlyAdded]);
 
   const visibleAdapters = allAdapters.filter((a) => visibleTypes.has(a.type));
   const hiddenAdapters = allAdapters.filter((a) => !visibleTypes.has(a.type));
@@ -727,10 +728,11 @@ function AdapterDefaultsSection({
           size="sm"
           onClick={() => setGlobalModalOpen(true)}
           className="gap-1.5"
-          aria-label="모든 에이전트 어댑터 일괄 변경"
+          title="에이전트 그룹의 어댑터를 다른 종류로 교체합니다 (예: Claude → Codex)"
+          aria-label="에이전트 어댑터 교체"
         >
           <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-          모든 에이전트 일괄 변경
+          어댑터 교체...
         </Button>
       </div>
       <p className="text-xs text-muted-foreground -mt-2">
@@ -752,7 +754,7 @@ function AdapterDefaultsSection({
               companyId={selectedCompanyId}
               onSaved={onSaved}
               defaultOpen={autoOpen.has(adapter.type)}
-              inUse={inUseTypes.has(adapter.type)}
+              agentCount={agentCountByType.get(adapter.type) ?? 0}
             />
           ))
         )}
@@ -807,8 +809,8 @@ interface ProviderDefaultCardProps {
   onSaved: () => void;
   /** Whether to render the card expanded by default. */
   defaultOpen?: boolean;
-  /** True if at least one company agent uses this adapter type. */
-  inUse?: boolean;
+  /** Number of company agents currently using this adapter type. */
+  agentCount?: number;
 }
 
 /**
@@ -831,8 +833,9 @@ function ProviderDefaultCard({
   companyId,
   onSaved,
   defaultOpen = false,
-  inUse = false,
+  agentCount = 0,
 }: ProviderDefaultCardProps) {
+  const inUse = agentCount > 0;
   const { pushToast } = useToast();
   const [open, setOpen] = useState(defaultOpen);
   // dirty holds only fields the user has explicitly changed since last save/load.
@@ -966,17 +969,20 @@ function ProviderDefaultCard({
             {/* Action row */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50">
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setBulkModalOpen(true)}
-                  className="gap-1.5"
-                  aria-label={`${label} 기본값을 에이전트에 일괄 적용`}
-                >
-                  <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                  에이전트에 일괄 적용...
-                </Button>
+                {agentCount > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkModalOpen(true)}
+                    className="gap-1.5"
+                    title={`이 카드의 기본값을 ${label}을(를) 사용 중인 ${agentCount}개 에이전트에 반영합니다 (상속 또는 덮어쓰기 선택)`}
+                    aria-label={`${label} 기본값을 ${agentCount}개 에이전트에 반영`}
+                  >
+                    <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                    {agentCount}개 에이전트에 반영...
+                  </Button>
+                )}
                 {supportsTestEnv && (
                   <Button
                     type="button"

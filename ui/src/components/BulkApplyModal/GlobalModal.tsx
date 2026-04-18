@@ -178,7 +178,7 @@ export function GlobalModal({ companyId, onClose }: GlobalModalProps) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>모든 에이전트 일괄 변경</DialogTitle>
+        <DialogTitle>에이전트 어댑터 교체</DialogTitle>
         <DialogDescription>
           <WizardStepIndicator current={step} total={4} />
         </DialogDescription>

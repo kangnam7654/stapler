@@ -226,7 +226,7 @@ function BulkApplyModalShowcase() {
           using that provider, lets admin pick fields and preview the diff.
         </p>
         <Button size="sm" variant="outline" onClick={() => setProviderOpen(true)}>
-          에이전트에 일괄 적용... (showcase)
+          기본값을 N개 에이전트에 반영... (showcase)
         </Button>
         <BulkApplyModal
           companyId="showcase-company-id"
@@ -249,7 +249,7 @@ function BulkApplyModalShowcase() {
           Sends POST /bulk-apply mode=swap-adapter.
         </p>
         <Button size="sm" variant="outline" onClick={() => setGlobalOpen(true)}>
-          모든 에이전트 일괄 변경 (showcase)
+          어댑터 교체... (showcase)
         </Button>
         <BulkApplyModal
           companyId="showcase-company-id"

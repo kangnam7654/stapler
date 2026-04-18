@@ -198,7 +198,7 @@ export function ProviderScopedModal({
     return (
       <>
         <DialogHeader>
-          <DialogTitle>{providerLabel} — 에이전트에 일괄 적용</DialogTitle>
+          <DialogTitle>{providerLabel} — 기본값을 에이전트에 반영</DialogTitle>
           <DialogDescription>
             에이전트 목록을 불러오는 중...
           </DialogDescription>
@@ -214,7 +214,7 @@ export function ProviderScopedModal({
     return (
       <>
         <DialogHeader>
-          <DialogTitle>{providerLabel} — 에이전트에 일괄 적용</DialogTitle>
+          <DialogTitle>{providerLabel} — 기본값을 에이전트에 반영</DialogTitle>
         </DialogHeader>
         <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -234,7 +234,7 @@ export function ProviderScopedModal({
     return (
       <>
         <DialogHeader>
-          <DialogTitle>{providerLabel} — 에이전트에 일괄 적용</DialogTitle>
+          <DialogTitle>{providerLabel} — 기본값을 에이전트에 반영</DialogTitle>
           <DialogDescription>
             이 provider를 사용하는 에이전트가 없습니다.
           </DialogDescription>
@@ -259,7 +259,7 @@ export function ProviderScopedModal({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{providerLabel} — 에이전트에 일괄 적용</DialogTitle>
+        <DialogTitle>{providerLabel} — 기본값을 에이전트에 반영</DialogTitle>
         <DialogDescription>
           선택한 에이전트에 회사 기본값을 적용하거나 상속하도록 설정합니다.
         </DialogDescription>
