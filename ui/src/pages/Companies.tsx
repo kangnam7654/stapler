@@ -270,17 +270,11 @@ export function Companies() {
               {/* Header row: bulk-select checkbox + name + menu */}
               <div className="flex items-start justify-between gap-3">
                 {/*
-                  Bulk-select checkbox. Hidden until hovered or already
-                  selected, so it doesn't compete with the company name in
-                  the resting state. Click is stopped from bubbling to the
+                  Bulk-select checkbox — always visible so the feature is
+                  discoverable. Click is stopped from bubbling to the
                   card-level row click that switches active company.
                 */}
-                <div
-                  className={`pt-0.5 ${
-                    isBulkSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                  }`}
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     aria-label={`Select ${company.name}`}
                     checked={isBulkSelected}
