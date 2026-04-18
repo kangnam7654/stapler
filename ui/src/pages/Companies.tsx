@@ -4,11 +4,13 @@ import { useTranslation } from "react-i18next";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { useToast } from "../context/ToastContext";
 import { companiesApi } from "../api/companies";
 import { queryKeys } from "../lib/queryKeys";
 import { formatCents, relativeTime } from "../lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +42,7 @@ export function Companies() {
   } = useCompany();
   const { openOnboarding } = useDialog();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const { pushToast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: stats } = useQuery({
@@ -52,6 +55,26 @@ export function Companies() {
   const [editName, setEditName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+  // Bulk-select state. Set of company IDs the user has checkbox-selected for
+  // potential deletion. Independent from `selectedCompanyId` (which is the
+  // global "currently active" company in app context).
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(() => new Set());
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
+
+  function toggleBulkSelected(companyId: string) {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(companyId)) next.delete(companyId);
+      else next.add(companyId);
+      return next;
+    });
+  }
+
+  function clearBulkSelection() {
+    setBulkSelected(new Set());
+    setConfirmingBulkDelete(false);
+  }
+
   const editMutation = useMutation({
     mutationFn: ({ id, newName }: { id: string; newName: string }) =>
       companiesApi.update(id, { name: newName }),
@@ -63,10 +86,57 @@ export function Companies() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => companiesApi.remove(id),
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.stats });
       setConfirmDeleteId(null);
+      // Drop from bulk-selection if user single-deleted via dropdown.
+      setBulkSelected((prev) => {
+        if (!prev.has(deletedId)) return prev;
+        const next = new Set(prev);
+        next.delete(deletedId);
+        return next;
+      });
+    },
+  });
+
+  // Bulk delete: fan out to the existing single-delete endpoint with
+  // Promise.allSettled so one failure doesn't abort the rest. For 2-3 companies
+  // this is fine; if/when batches grow, swap to a server-side bulk endpoint.
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(
+        ids.map((id) => companiesApi.remove(id)),
+      );
+      const failures: string[] = [];
+      const succeeded: string[] = [];
+      results.forEach((result, i) => {
+        if (result.status === "fulfilled") succeeded.push(ids[i]);
+        else failures.push(ids[i]);
+      });
+      return { succeeded, failures };
+    },
+    onSuccess: ({ succeeded, failures }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.companies.stats });
+      // If the active company was among the deleted ones, switch to whichever
+      // remains. CompanyContext re-fetches and clears selection itself when
+      // none survive; we only switch eagerly if a survivor exists.
+      if (selectedCompanyId && succeeded.includes(selectedCompanyId)) {
+        const survivor = companies.find((c) => !succeeded.includes(c.id));
+        if (survivor) setSelectedCompanyId(survivor.id);
+      }
+      if (failures.length === 0) {
+        clearBulkSelection();
+      } else {
+        // Keep failed IDs selected so the user can retry; drop succeeded.
+        setBulkSelected(new Set(failures));
+        setConfirmingBulkDelete(false);
+        pushToast({
+          title: t("companies.bulkDeleteFailed", { count: failures.length }),
+          tone: "error",
+        });
+      }
     },
   });
 
@@ -89,6 +159,9 @@ export function Companies() {
     setEditName("");
   }
 
+  const bulkSelectedCount = bulkSelected.size;
+  const selectedIdsList = Array.from(bulkSelected);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
@@ -103,11 +176,69 @@ export function Companies() {
         {error && <p className="text-sm text-destructive">{error.message}</p>}
       </div>
 
+      {bulkSelectedCount > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-2 shadow-sm"
+        >
+          <span className="text-sm font-medium">
+            {t("companies.selectedCount", { count: bulkSelectedCount })}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearBulkSelection}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              {t("companies.clearSelection")}
+            </Button>
+            {confirmingBulkDelete ? (
+              <>
+                <span className="text-xs text-destructive font-medium mr-2">
+                  {t("companies.bulkDeleteConfirm", { count: bulkSelectedCount })}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmingBulkDelete(false)}
+                  disabled={bulkDeleteMutation.isPending}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => bulkDeleteMutation.mutate(selectedIdsList)}
+                  disabled={bulkDeleteMutation.isPending}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  {bulkDeleteMutation.isPending
+                    ? t("common.deleting")
+                    : t("common.delete")}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirmingBulkDelete(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                {t("companies.deleteSelected")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4">
         {companies.map((company) => {
           const selected = company.id === selectedCompanyId;
           const isEditing = editingId === company.id;
           const isConfirmingDelete = confirmDeleteId === company.id;
+          const isBulkSelected = bulkSelected.has(company.id);
           const companyStats = stats?.[company.id];
           const agentCount = companyStats?.agentCount ?? 0;
           const issueCount = companyStats?.issueCount ?? 0;
@@ -136,8 +267,26 @@ export function Companies() {
                   : "border-border hover:border-muted-foreground/30"
               }`}
             >
-              {/* Header row: name + menu */}
+              {/* Header row: bulk-select checkbox + name + menu */}
               <div className="flex items-start justify-between gap-3">
+                {/*
+                  Bulk-select checkbox. Hidden until hovered or already
+                  selected, so it doesn't compete with the company name in
+                  the resting state. Click is stopped from bubbling to the
+                  card-level row click that switches active company.
+                */}
+                <div
+                  className={`pt-0.5 ${
+                    isBulkSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    aria-label={`Select ${company.name}`}
+                    checked={isBulkSelected}
+                    onCheckedChange={() => toggleBulkSelected(company.id)}
+                  />
+                </div>
                 <div className="flex-1 min-w-0">
                   {isEditing ? (
                     <div

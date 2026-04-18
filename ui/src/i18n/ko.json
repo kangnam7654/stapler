@@ -519,7 +519,12 @@
     "unlimitedBudget": "무제한 예산",
     "created": "생성됨 ",
     "deleteConfirm": "이 회사와 모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-    "deleteCompany": "회사 삭제"
+    "deleteCompany": "회사 삭제",
+    "selectedCount": "{{count}}개 선택됨",
+    "deleteSelected": "선택 삭제",
+    "clearSelection": "선택 해제",
+    "bulkDeleteConfirm": "선택한 {{count}}개 회사와 모든 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+    "bulkDeleteFailed": "일부 회사 삭제 실패: {{count}}건"
   },
   "documents": {
     "title": "문서",
