@@ -43,6 +43,7 @@ import {
 import { listUIAdapters } from "../adapters/registry";
 import type { AdapterConfigFieldsProps } from "../adapters/types";
 import { BulkApplyModal } from "../components/BulkApplyModal";
+import { WorkspacePathActions } from "../components/WorkspacePathActions";
 import type { AdapterEnvironmentTestResult } from "@paperclipai/shared";
 
 /** Adapter types whose servers expose a runtime model list (GET /adapters/:type/models). */
@@ -74,6 +75,8 @@ export function CompanySettings() {
   const [brandColor, setBrandColor] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const [workspaceRootPath, setWorkspaceRootPath] = useState("");
+  const [workspacePathError, setWorkspacePathError] = useState<string | null>(null);
 
   // Sync local state from selected company
   useEffect(() => {
@@ -82,6 +85,7 @@ export function CompanySettings() {
     setDescription(selectedCompany.description ?? "");
     setBrandColor(selectedCompany.brandColor ?? "");
     setLogoUrl(selectedCompany.logoUrl ?? "");
+    setWorkspaceRootPath(selectedCompany.workspaceRootPath ?? "");
   }, [selectedCompany]);
 
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -192,6 +196,29 @@ export function CompanySettings() {
       syncLogoState(company.logoUrl);
     }
   });
+
+  const workspacePathMutation = useMutation({
+    mutationFn: (path: string | null) =>
+      companiesApi.update(selectedCompanyId!, { workspaceRootPath: path }),
+    onSuccess: () => {
+      setWorkspacePathError(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+      pushToast({ title: "산출물 폴더 저장됨", tone: "success" });
+    },
+    onError: (e: unknown) => {
+      setWorkspacePathError(e instanceof Error ? e.message : "저장 실패");
+    },
+  });
+
+  const onSaveWorkspaceRoot = () => {
+    const trimmed = workspaceRootPath.trim();
+    workspacePathMutation.mutate(trimmed === "" ? null : trimmed);
+  };
+
+  const defaultPreview =
+    workspaceRootPath.trim() === ""
+      ? `~/Stapler/<회사-slug>`
+      : workspaceRootPath.trim();
 
   function handleLogoFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
@@ -432,6 +459,47 @@ export function CompanySettings() {
           )}
         </div>
       )}
+
+      {/* Workspace Root Path */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          산출물 폴더
+        </div>
+        <div className="rounded-lg border border-border p-6 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold">산출물 폴더 (회사 default)</h3>
+            <p className="text-xs text-muted-foreground">
+              이 회사의 모든 프로젝트가 기본으로 사용할 폴더. 비워두면
+              <code> ~/Stapler/&lt;회사-slug&gt; </code>이 사용됩니다.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={workspaceRootPath}
+              onChange={(e) => setWorkspaceRootPath(e.target.value)}
+              placeholder="~/work/acme 또는 /Users/me/work/acme"
+              className="flex-1 px-3 py-2 text-sm rounded border border-border bg-background"
+            />
+            <button
+              type="button"
+              onClick={onSaveWorkspaceRoot}
+              disabled={workspacePathMutation.isPending}
+              className="px-3 py-2 text-sm rounded bg-primary text-primary-foreground disabled:opacity-50"
+            >
+              저장
+            </button>
+          </div>
+          {workspacePathError && (
+            <p className="text-xs text-destructive">{workspacePathError}</p>
+          )}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>현재 default:</span>
+            <span className="font-mono">{defaultPreview}</span>
+            <WorkspacePathActions absolutePath={defaultPreview} />
+          </div>
+        </div>
+      </div>
 
       {/* Hiring */}
       <div className="space-y-4">
