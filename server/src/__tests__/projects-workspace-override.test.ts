@@ -15,10 +15,15 @@ const mockProjectService = vi.hoisted(() => ({
   resolveByReference: vi.fn(),
 }));
 
+const mockCompanyService = vi.hoisted(() => ({
+  getById: vi.fn(),
+}));
+
 const mockLogActivity = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock("../services/index.js", () => ({
   projectService: () => mockProjectService,
+  companyService: () => mockCompanyService,
   logActivity: mockLogActivity,
 }));
 
