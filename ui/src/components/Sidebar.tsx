@@ -15,6 +15,7 @@ import {
   Gamepad2,
   Workflow,
   UsersRound,
+  Building2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -115,6 +116,7 @@ export function Sidebar() {
         <SidebarAgents />
 
         <SidebarSection label="관리">
+          <SidebarNavItem to="/companies" label={t("nav.companies")} icon={Building2} />
           <SidebarNavItem to="/org" label={t("nav.org")} icon={Network} />
           <SidebarNavItem to="/teams" label={t("nav.teams")} icon={UsersRound} />
           <SidebarNavItem to="/skills" label={t("nav.skills")} icon={Boxes} />
