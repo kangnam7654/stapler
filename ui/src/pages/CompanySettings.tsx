@@ -22,7 +22,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, Check, Download, Upload, ChevronRight, Users, Layers, Plus } from "lucide-react";
+import {
+  Settings,
+  Check,
+  Download,
+  Upload,
+  ChevronRight,
+  Users,
+  Layers,
+  Plus,
+  PlugZap,
+  ListChecks,
+} from "lucide-react";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import {
   Field,
@@ -32,6 +43,13 @@ import {
 import { listUIAdapters } from "../adapters/registry";
 import type { AdapterConfigFieldsProps } from "../adapters/types";
 import { BulkApplyModal } from "../components/BulkApplyModal";
+import type { AdapterEnvironmentTestResult } from "@paperclipai/shared";
+
+/** Adapter types whose servers expose a runtime model list (GET /adapters/:type/models). */
+const ADAPTERS_WITH_MODEL_LIST = new Set<string>(["ollama_local", "lm_studio_local"]);
+
+/** Adapter types whose servers do NOT implement testEnvironment meaningfully. */
+const ADAPTERS_WITHOUT_TEST_ENV = new Set<string>(["process", "http", "hermes_local"]);
 
 type AgentSnippetInput = {
   onboardingTextUrl: string;
@@ -846,15 +864,18 @@ function ProviderDefaultCard({
     });
   };
 
+  // Build the effective adapter config (persisted + unsaved dirty), used by both
+  // save and test-environment so the user tests what they would be saving.
+  const buildEffectiveConfig = () => {
+    const merged = { ...initialDefaults, ...dirty };
+    return Object.fromEntries(
+      Object.entries(merged).filter(([, v]) => v !== undefined),
+    );
+  };
+
   const saveMutation = useMutation({
     mutationFn: () => {
-      const payload = { ...initialDefaults, ...dirty };
-      // Remove keys explicitly set to undefined by mark().
-      // (mark() removes undefined keys from dirty, so this handles explicit nulls.)
-      const cleaned = Object.fromEntries(
-        Object.entries(payload).filter(([, v]) => v !== undefined),
-      );
-      return companiesApi.putAdapterDefaults(companyId, providerId, cleaned);
+      return companiesApi.putAdapterDefaults(companyId, providerId, buildEffectiveConfig());
     },
     onSuccess: () => {
       setDirty({});
@@ -867,6 +888,24 @@ function ProviderDefaultCard({
         body: err instanceof Error ? err.message : String(err),
         tone: "error",
       });
+    },
+  });
+
+  const supportsTestEnv = !ADAPTERS_WITHOUT_TEST_ENV.has(providerId);
+  const supportsModelList = ADAPTERS_WITH_MODEL_LIST.has(providerId);
+
+  const testMutation = useMutation<AdapterEnvironmentTestResult, Error>({
+    mutationFn: () =>
+      agentsApi.testEnvironment(companyId, providerId, {
+        adapterConfig: buildEffectiveConfig(),
+      }),
+  });
+
+  const modelsMutation = useMutation<{ id: string; label: string }[], Error>({
+    mutationFn: () => {
+      const cfg = buildEffectiveConfig();
+      const baseUrl = typeof cfg.baseUrl === "string" ? cfg.baseUrl : undefined;
+      return agentsApi.adapterModels(companyId, providerId, baseUrl);
     },
   });
 
@@ -926,17 +965,47 @@ function ProviderDefaultCard({
 
             {/* Action row */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/50">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setBulkModalOpen(true)}
-                className="gap-1.5"
-                aria-label={`${label} 기본값을 에이전트에 일괄 적용`}
-              >
-                <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                에이전트에 일괄 적용...
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkModalOpen(true)}
+                  className="gap-1.5"
+                  aria-label={`${label} 기본값을 에이전트에 일괄 적용`}
+                >
+                  <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                  에이전트에 일괄 적용...
+                </Button>
+                {supportsTestEnv && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testMutation.mutate()}
+                    disabled={testMutation.isPending}
+                    className="gap-1.5"
+                    aria-label={`${label} 연결 테스트`}
+                  >
+                    <PlugZap className="h-3.5 w-3.5" aria-hidden="true" />
+                    {testMutation.isPending ? "테스트 중..." : "연결 테스트"}
+                  </Button>
+                )}
+                {supportsModelList && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => modelsMutation.mutate()}
+                    disabled={modelsMutation.isPending}
+                    className="gap-1.5"
+                    aria-label={`${label} 사용 가능한 모델 조회`}
+                  >
+                    <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+                    {modelsMutation.isPending ? "조회 중..." : "모델 조회"}
+                  </Button>
+                )}
+              </div>
 
               <div className="flex items-center gap-2">
                 {saveMutation.isError && (
@@ -956,6 +1025,30 @@ function ProviderDefaultCard({
                 </Button>
               </div>
             </div>
+
+            {/* Test environment result / error */}
+            {testMutation.error && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {testMutation.error instanceof Error
+                  ? testMutation.error.message
+                  : "연결 테스트 실패"}
+              </div>
+            )}
+            {testMutation.data && (
+              <CompactEnvironmentResult result={testMutation.data} />
+            )}
+
+            {/* Models result / error */}
+            {modelsMutation.error && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {modelsMutation.error instanceof Error
+                  ? modelsMutation.error.message
+                  : "모델 조회 실패"}
+              </div>
+            )}
+            {modelsMutation.data && (
+              <ModelListResult models={modelsMutation.data} />
+            )}
           </div>
         </CollapsibleContent>
       </div>
@@ -972,6 +1065,86 @@ function ProviderDefaultCard({
         onOpenChange={setBulkModalOpen}
       />
     </Collapsible>
+  );
+}
+
+// ── Result panels ───────────────────────────────────────────────────────────
+
+/**
+ * Compact rendering of an AdapterEnvironmentTestResult — overall status pill
+ * with timestamp, then a list of individual checks (level + message + detail/hint).
+ */
+function CompactEnvironmentResult({ result }: { result: AdapterEnvironmentTestResult }) {
+  const statusLabel =
+    result.status === "pass" ? "정상" : result.status === "warn" ? "경고" : "실패";
+  const statusClass =
+    result.status === "pass"
+      ? "border-green-500/40 bg-green-500/10 text-green-600 dark:text-green-300"
+      : result.status === "warn"
+      ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-300"
+      : "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300";
+
+  return (
+    <div className={`rounded-md border px-3 py-2 text-xs ${statusClass}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">{statusLabel}</span>
+        <span className="opacity-70">
+          {new Date(result.testedAt).toLocaleTimeString()}
+        </span>
+      </div>
+      <div className="mt-1.5 space-y-1">
+        {result.checks.map((check, idx) => (
+          <div key={`${check.code}-${idx}`} className="leading-relaxed break-words">
+            <span className="font-medium uppercase tracking-wide opacity-70">
+              {check.level}
+            </span>
+            <span className="mx-1 opacity-50">·</span>
+            <span>{check.message}</span>
+            {check.detail && (
+              <span className="block opacity-70 break-all">({check.detail})</span>
+            )}
+            {check.hint && (
+              <span className="block opacity-80 break-words">힌트: {check.hint}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Compact list of available models returned from the adapter's runtime.
+ * Click-to-copy each row's model id.
+ */
+function ModelListResult({ models }: { models: { id: string; label: string }[] }) {
+  if (models.length === 0) {
+    return (
+      <p className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        사용 가능한 모델이 없습니다. 어댑터 서버가 실행 중이고 모델이 로드됐는지 확인하세요.
+      </p>
+    );
+  }
+  return (
+    <div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground mb-1.5">
+        사용 가능한 모델 ({models.length})
+      </div>
+      <ul className="space-y-0.5 max-h-48 overflow-y-auto">
+        {models.map((m) => (
+          <li key={m.id}>
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(m.id).catch(() => {})}
+              title="클릭하여 모델 id 복사"
+              className="w-full text-left font-mono text-xs px-2 py-1 rounded hover:bg-accent/50 transition-colors truncate"
+            >
+              {m.label}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
