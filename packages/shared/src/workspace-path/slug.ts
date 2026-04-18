@@ -1,5 +1,16 @@
 import { createHash } from "node:crypto";
 
+/**
+ * Converts a name to a filesystem-safe slug.
+ *
+ * - ASCII names are lowercased, kebab-cased, and trimmed of leading/trailing dashes.
+ * - Non-ASCII names (e.g. Korean) fall back to a deterministic sha256-derived
+ *   slug (`name-XXXXXXXX`) — preserving stability over lossy transliteration.
+ * - Empty / whitespace-only / non-alphanumeric inputs also fall through to the hash path.
+ *
+ * Used by the workspace-path resolver to derive default folder names from
+ * company and project names.
+ */
 export function toWorkspaceSlug(name: string): string {
   const ascii = name
     .toLowerCase()
