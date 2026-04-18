@@ -9,8 +9,8 @@ import {
 } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
 import { projectService, logActivity } from "../services/index.js";
-import { conflict } from "../errors.js";
-import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { conflict, forbidden } from "../errors.js";
+import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { t } from "../i18n/index.js";
 
 export function projectRoutes(db: Db) {
@@ -74,6 +74,9 @@ export function projectRoutes(db: Db) {
   router.post("/companies/:companyId/projects", validate(createProjectSchema), async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
+    if (req.body.workspacePathOverride !== undefined && req.body.workspacePathOverride !== null) {
+      assertBoard(req);
+    }
     type CreateProjectPayload = Parameters<typeof svc.create>[1] & {
       workspace?: Parameters<typeof svc.createWorkspace>[1];
     };
@@ -117,6 +120,9 @@ export function projectRoutes(db: Db) {
       return;
     }
     assertCompanyAccess(req, existing.companyId);
+    if (req.body.workspacePathOverride !== undefined && req.body.workspacePathOverride !== null) {
+      assertBoard(req);
+    }
     const body = { ...req.body };
     if (typeof body.archivedAt === "string") {
       body.archivedAt = new Date(body.archivedAt);

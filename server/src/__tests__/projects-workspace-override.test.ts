@@ -115,4 +115,52 @@ describe("projects — workspacePathOverride round-trip", () => {
       expect.objectContaining({ workspacePathOverride: "~/dev/legacy" }),
     );
   });
+
+  it("PATCH by non-board agent with workspacePathOverride is rejected (board-only field)", async () => {
+    // Use a valid UUIDv4 so router.param skips resolveByReference; getById returns a company-1 project
+    const projectUuid = "550e8400-e29b-41d4-a716-446655440000";
+    mockProjectService.getById.mockResolvedValue(baseProject({ id: projectUuid }));
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      (req as any).actor = {
+        type: "agent",
+        agentId: "agent-1",
+        companyId: "company-1",
+      };
+      next();
+    });
+    app.use("/api", projectRoutes({} as any));
+    app.use(errorHandler);
+
+    const res = await request(app).patch(`/api/projects/${projectUuid}`).send({
+      workspacePathOverride: "/sneaky/path",
+    });
+
+    expect(res.status).toBe(403);
+    expect(mockProjectService.update).not.toHaveBeenCalled();
+  });
+
+  it("POST by non-board agent with workspacePathOverride is rejected (board-only field)", async () => {
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      (req as any).actor = {
+        type: "agent",
+        agentId: "agent-1",
+        companyId: "company-1",
+      };
+      next();
+    });
+    app.use("/api", projectRoutes({} as any));
+    app.use(errorHandler);
+
+    const res = await request(app).post("/api/companies/company-1/projects").send({
+      name: "Calc",
+      workspacePathOverride: "/sneaky/path",
+    });
+
+    expect(res.status).toBe(403);
+    expect(mockProjectService.create).not.toHaveBeenCalled();
+  });
 });
