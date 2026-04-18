@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import os from "node:os";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
@@ -31,7 +30,7 @@ import { companySkillService } from "./company-skills.js";
 import { companyService } from "./companies.js";
 import { budgetService, type BudgetEnforcementScope } from "./budgets.js";
 import { secretService } from "./secrets.js";
-import { resolveDefaultAgentWorkspaceDir, resolveManagedProjectWorkspaceDir } from "../home-paths.js";
+import { resolveDefaultAgentWorkspaceDir, resolveManagedProjectWorkspaceDir, resolveHomeAwarePath } from "../home-paths.js";
 import { summarizeHeartbeatRunResultJson } from "./heartbeat-run-summary.js";
 import {
   buildWorkspaceReadyComment,
@@ -2145,12 +2144,23 @@ export function heartbeatService(db: Db) {
         })
       : runtimeConfig;
     // Ensure the resolved fallback directory exists before the adapter starts.
-    const runtimeConfigRecord = runtimeConfigWithCwd as Record<string, unknown>;
-    if (typeof runtimeConfigRecord.cwd === "string" && runtimeConfigRecord.cwd.length > 0) {
-      const cwdToMake = runtimeConfigRecord.cwd.startsWith("~/")
-        ? path.resolve(os.homedir(), runtimeConfigRecord.cwd.slice(2))
-        : runtimeConfigRecord.cwd;
-      await fs.mkdir(cwdToMake, { recursive: true });
+    // runtimeConfigWithCwd is a union of T (with cwd?: string) and runtimeConfig
+    // (which may not carry cwd in its static type); cast to extract the optional field.
+    const cwdValue = (runtimeConfigWithCwd as { cwd?: string }).cwd;
+    if (typeof cwdValue === "string" && cwdValue.length > 0) {
+      const cwdToMake = resolveHomeAwarePath(cwdValue);
+      try {
+        await fs.mkdir(cwdToMake, { recursive: true });
+      } catch (mkdirErr) {
+        logger.warn(
+          {
+            runId: run.id,
+            cwd: cwdToMake,
+            error: mkdirErr instanceof Error ? mkdirErr.message : String(mkdirErr),
+          },
+          "Failed to pre-create resolved workspace cwd; adapter will proceed without mkdir",
+        );
+      }
     }
     const issueRef = issueContext
       ? {
