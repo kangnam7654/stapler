@@ -8,8 +8,9 @@ import {
   updateProjectWorkspaceSchema,
 } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
-import { projectService, logActivity } from "../services/index.js";
+import { projectService, companyService, logActivity } from "../services/index.js";
 import { conflict, forbidden } from "../errors.js";
+import { resolveForProject } from "../services/workspace-path-service.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { t } from "../i18n/index.js";
 
@@ -69,6 +70,28 @@ export function projectRoutes(db: Db) {
     }
     assertCompanyAccess(req, project.companyId);
     res.json(project);
+  });
+
+  router.get("/projects/:id/workspace-path", async (req, res) => {
+    const id = req.params.id as string;
+    const project = await svc.getById(id);
+    if (!project) {
+      res.status(404).json({ error: t("error.projectNotFound") });
+      return;
+    }
+    assertCompanyAccess(req, project.companyId);
+    const company = await companyService(db).getById(project.companyId);
+    if (!company) {
+      res.status(404).json({ error: t("error.companyNotFound") });
+      return;
+    }
+    const resolved = resolveForProject({
+      companyName: company.name,
+      companyRootPath: company.workspaceRootPath ?? null,
+      projectName: project.name,
+      projectPathOverride: project.workspacePathOverride ?? null,
+    });
+    res.json(resolved);
   });
 
   router.post("/companies/:companyId/projects", validate(createProjectSchema), async (req, res) => {
