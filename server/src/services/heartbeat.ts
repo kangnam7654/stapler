@@ -2135,6 +2135,19 @@ export function heartbeatService(db: Db) {
     // Inject resolved workspace cwd when adapter config has no explicit cwd.
     // This allows company-level and project-level workspace paths to drive
     // adapter execution without requiring a project_workspace record.
+    if (executionProjectRow && !company) {
+      // Should not happen — companyService.getById is called above for the
+      // same companyId. Log so a missing company row is observable instead of
+      // silently dropping the cwd fallback.
+      logger.warn(
+        {
+          runId: run.id,
+          companyId: agent.companyId,
+          projectId: executionProjectRow.id,
+        },
+        "Skipping workspace cwd fallback: project row present but company not found",
+      );
+    }
     const runtimeConfigWithCwd = executionProjectRow && company
       ? applyWorkspaceCwdFallback(runtimeConfig, {
           companyName: company.name,
