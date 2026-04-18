@@ -128,6 +128,7 @@ import { PromptTemplateGenerateDialog } from "@/components/PromptTemplateGenerat
 import { InheritableField } from "@/components/InheritableField";
 import { DraftInput } from "@/components/agent-config-primitives";
 import { BulkApplyModal } from "@/components/BulkApplyModal";
+import { WorkspacePathActions } from "../components/WorkspacePathActions.js";
 
 /* ------------------------------------------------------------------ */
 /*  Section wrapper                                                    */
@@ -259,6 +260,31 @@ function BulkApplyModalShowcase() {
         />
       </SubSection>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  WorkspacePathActions showcase                                      */
+/* ------------------------------------------------------------------ */
+
+function WorkspacePathActionsShowcase() {
+  return (
+    <SubSection title="Workspace Path Actions">
+      <p className="text-xs text-muted-foreground">
+        회사 설정 / 프로젝트 상세에서 산출물 폴더 옆에 표시되는 바로가기 버튼 그룹.
+        웹 모드에서는 Finder/IDE 비활성, Desktop 모드에서 모두 활성.
+      </p>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-mono">/Users/me/Stapler/acme/calc</span>
+          <WorkspacePathActions absolutePath="/Users/me/Stapler/acme/calc" />
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-mono text-muted-foreground italic">(빈 경로)</span>
+          <WorkspacePathActions absolutePath="" />
+        </div>
+      </div>
+    </SubSection>
   );
 }
 
@@ -1514,6 +1540,13 @@ export function DesignGuide() {
       {/* ============================================================ */}
       <Section title="BulkApplyModal">
         <BulkApplyModalShowcase />
+      </Section>
+
+      {/* ============================================================ */}
+      {/*  WORKSPACE                                                    */}
+      {/* ============================================================ */}
+      <Section title="Workspace">
+        <WorkspacePathActionsShowcase />
       </Section>
 
       {/* ============================================================ */}
