@@ -496,7 +496,14 @@ export function CompanySettings() {
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>현재 default:</span>
             <span className="font-mono">{defaultPreview}</span>
-            <WorkspacePathActions absolutePath={defaultPreview} />
+            {/*
+              Only pass an absolutePath when the user has set one. The default
+              preview literal "~/Stapler/<회사-slug>" is a placeholder, not a
+              real path — copy/Finder/IDE buttons must be disabled until a
+              concrete root is saved. Empty string triggers the
+              !absolutePath disabled branch in WorkspacePathActions.
+            */}
+            <WorkspacePathActions absolutePath={workspaceRootPath.trim()} />
           </div>
         </div>
       </div>
