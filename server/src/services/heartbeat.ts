@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
@@ -59,6 +60,7 @@ import {
   resolveSessionCompactionPolicy,
   type SessionCompactionPolicy,
 } from "@paperclipai/adapter-utils";
+import { applyWorkspaceCwdFallback } from "./heartbeat-cwd-fallback.js";
 
 const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
@@ -2056,16 +2058,22 @@ export function heartbeatService(db: Db) {
       : null;
     const contextProjectId = readNonEmptyString(context.projectId);
     const executionProjectId = issueContext?.projectId ?? contextProjectId;
-    const projectExecutionWorkspacePolicy = executionProjectId
+    const executionProjectRow = executionProjectId
       ? await db
-          .select({ executionWorkspacePolicy: projects.executionWorkspacePolicy })
+          .select({
+            executionWorkspacePolicy: projects.executionWorkspacePolicy,
+            name: projects.name,
+            workspacePathOverride: projects.workspacePathOverride,
+          })
           .from(projects)
           .where(and(eq(projects.id, executionProjectId), eq(projects.companyId, agent.companyId)))
-          .then((rows) =>
-            gateProjectExecutionWorkspacePolicy(
-              parseProjectExecutionWorkspacePolicy(rows[0]?.executionWorkspacePolicy),
-              isolatedWorkspacesEnabled,
-            ))
+          .then((rows) => rows[0] ?? null)
+      : null;
+    const projectExecutionWorkspacePolicy = executionProjectRow
+      ? gateProjectExecutionWorkspacePolicy(
+          parseProjectExecutionWorkspacePolicy(executionProjectRow.executionWorkspacePolicy),
+          isolatedWorkspacesEnabled,
+        )
       : null;
     const taskSession = taskKey
       ? await getTaskSession(agent.companyId, agent.id, agent.adapterType, taskKey)
@@ -2125,6 +2133,25 @@ export function heartbeatService(db: Db) {
       ...resolvedConfig,
       paperclipRuntimeSkills: runtimeSkillEntries,
     };
+    // Inject resolved workspace cwd when adapter config has no explicit cwd.
+    // This allows company-level and project-level workspace paths to drive
+    // adapter execution without requiring a project_workspace record.
+    const runtimeConfigWithCwd = executionProjectRow && company
+      ? applyWorkspaceCwdFallback(runtimeConfig, {
+          companyName: company.name,
+          companyRootPath: company.workspaceRootPath ?? null,
+          projectName: executionProjectRow.name,
+          projectPathOverride: executionProjectRow.workspacePathOverride ?? null,
+        })
+      : runtimeConfig;
+    // Ensure the resolved fallback directory exists before the adapter starts.
+    const runtimeConfigRecord = runtimeConfigWithCwd as Record<string, unknown>;
+    if (typeof runtimeConfigRecord.cwd === "string" && runtimeConfigRecord.cwd.length > 0) {
+      const cwdToMake = runtimeConfigRecord.cwd.startsWith("~/")
+        ? path.resolve(os.homedir(), runtimeConfigRecord.cwd.slice(2))
+        : runtimeConfigRecord.cwd;
+      await fs.mkdir(cwdToMake, { recursive: true });
+    }
     const issueRef = issueContext
       ? {
           id: issueContext.id,
@@ -2152,7 +2179,7 @@ export function heartbeatService(db: Db) {
         repoUrl: resolvedWorkspace.repoUrl,
         repoRef: resolvedWorkspace.repoRef,
       },
-      config: runtimeConfig,
+      config: runtimeConfigWithCwd,
       issue: issueRef,
       agent: {
         id: agent.id,
@@ -2578,13 +2605,13 @@ export function heartbeatService(db: Db) {
         );
       }
       // Company defaults were merged early (before workspace-policy and issue
-      // overrides) into `config`.  The runtimeConfig already carries the full
-      // resolved value; pass it directly to the adapter.
+      // overrides) into `config`.  The runtimeConfigWithCwd carries the full
+      // resolved value with workspace cwd fallback injected; pass it to the adapter.
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
         runtime: runtimeForAdapter,
-        config: runtimeConfig as Record<string, unknown>,
+        config: runtimeConfigWithCwd as Record<string, unknown>,
         context,
         onLog,
         onMeta: onAdapterMeta,
