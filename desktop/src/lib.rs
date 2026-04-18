@@ -1,5 +1,6 @@
 mod config;
 mod server_manager;
+mod workspace_commands;
 
 use server_manager::ServerManager;
 use std::sync::Mutex;
@@ -9,6 +10,10 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![
+            workspace_commands::workspace_open_finder,
+            workspace_commands::workspace_open_ide,
+        ])
         .setup(|app| {
             let app_handle = app.handle().clone();
 
