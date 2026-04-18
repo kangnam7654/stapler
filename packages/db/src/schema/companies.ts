@@ -18,6 +18,7 @@ export const companies = pgTable(
       .default(true),
     brandColor: text("brand_color"),
     adapterDefaults: jsonb("adapter_defaults"),
+    workspaceRootPath: text("workspace_root_path"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
