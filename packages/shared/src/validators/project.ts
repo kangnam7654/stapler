@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PROJECT_STATUSES } from "../constants.js";
+import { workspacePathSchema } from "./workspace-path.js";
 
 const executionWorkspaceStrategySchema = z
   .object({
@@ -98,6 +99,7 @@ const projectFields = {
   color: z.string().optional().nullable(),
   executionWorkspacePolicy: projectExecutionWorkspacePolicySchema.optional().nullable(),
   archivedAt: z.string().datetime().optional().nullable(),
+  workspacePathOverride: workspacePathSchema.optional(),
 };
 
 export const createProjectSchema = z.object({

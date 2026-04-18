@@ -48,6 +48,7 @@ function makeProject(id: string, name: string): Project {
     pauseReason: null,
     pausedAt: null,
     executionWorkspacePolicy: null,
+    workspacePathOverride: null,
     archivedAt: null,
     goalIds: [],
     goals: [],
