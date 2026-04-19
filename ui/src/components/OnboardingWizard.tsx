@@ -203,6 +203,22 @@ export function OnboardingWizard() {
     if (step === 3) autoResizeTextarea();
   }, [step, taskDescription, autoResizeTextarea]);
 
+  // Debounce the URL so each keystroke in the LM Studio / Ollama Base URL
+  // input doesn't fire a model-list fetch. 350ms balances "feels live" with
+  // not hammering the remote server.
+  const [debouncedUrl, setDebouncedUrl] = useState(url);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedUrl(url), 350);
+    return () => clearTimeout(timer);
+  }, [url]);
+
+  const remoteServerAdapter =
+    adapterType === "lm_studio_local" || adapterType === "ollama_local";
+  const adapterModelsBaseUrl =
+    remoteServerAdapter && debouncedUrl.trim().length > 0
+      ? debouncedUrl.trim()
+      : undefined;
+
   const {
     data: adapterModels,
     error: adapterModelsError,
@@ -210,9 +226,13 @@ export function OnboardingWizard() {
     isFetching: adapterModelsFetching
   } = useQuery({
     queryKey: createdCompanyId
-      ? queryKeys.agents.adapterModels(createdCompanyId, adapterType)
-      : ["agents", "none", "adapter-models", adapterType],
-    queryFn: () => agentsApi.adapterModels(createdCompanyId!, adapterType),
+      ? [
+          ...queryKeys.agents.adapterModels(createdCompanyId, adapterType),
+          adapterModelsBaseUrl ?? "default",
+        ]
+      : ["agents", "none", "adapter-models", adapterType, adapterModelsBaseUrl ?? "default"],
+    queryFn: () =>
+      agentsApi.adapterModels(createdCompanyId!, adapterType, adapterModelsBaseUrl),
     enabled: Boolean(createdCompanyId) && effectiveOnboardingOpen && step === 2
   });
   const isLocalAdapter =
@@ -338,6 +358,7 @@ export function OnboardingWizard() {
 
   function buildAdapterConfig(): Record<string, unknown> {
     const adapter = getUIAdapter(adapterType);
+    const trimmedUrl = url.trim();
     const config = adapter.buildAdapterConfig({
       ...defaultCreateValues,
       adapterType,
@@ -352,6 +373,14 @@ export function OnboardingWizard() {
       command,
       args,
       url,
+      // LM Studio defaults `lmStudioBaseUrlMode` to "company" which blocks
+      // build-config from persisting `baseUrl`. In onboarding there is no
+      // company default to inherit, so when the user enters a URL we treat
+      // it as an explicit custom override.
+      lmStudioBaseUrlMode:
+        adapterType === "lm_studio_local" && trimmedUrl.length > 0
+          ? "custom"
+          : defaultCreateValues.lmStudioBaseUrlMode,
       dangerouslySkipPermissions:
         adapterType === "claude_local" || adapterType === "opencode_local",
       dangerouslyBypassSandbox:
@@ -1032,7 +1061,9 @@ export function OnboardingWizard() {
                           adapterType === "hermes_local" ||
                           adapterType === "opencode_local" ||
                           adapterType === "pi_local" ||
-                          adapterType === "cursor") && (
+                          adapterType === "cursor" ||
+                          adapterType === "lm_studio_local" ||
+                          adapterType === "ollama_local") && (
                           <div className="space-y-3">
                             <div>
                               <label className="text-xs text-muted-foreground mb-1 block">
