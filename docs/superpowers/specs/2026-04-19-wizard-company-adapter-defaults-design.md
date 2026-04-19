@@ -86,8 +86,9 @@ new mode flag needed.
 | File | Action | What changes |
 |---|---|---|
 | `ui/src/components/OnboardingWizard.tsx` | Modify | (1) Add `COMPANY_DEFAULT_FIELDS` map, `buildCompanyAdapterDefaultsPatch`, and `stripCompanyDefaultFields` helpers. (2) Remove the force-`"custom"` line in `buildAdapterConfig`. (3) Apply `stripCompanyDefaultFields` to the returned config. (4) In `handleStep2Next`, PATCH the company with built defaults before creating the CEO agent. |
-| `ui/src/components/__tests__/OnboardingWizard.test.tsx` | Create | 8 wizard component tests (W-1 through W-8) covering all 4 adapter types, scope-out cases, error handling, and incremental PATCH. |
-| `ui/src/components/__tests__/wizard-helpers.test.ts` | Create | 6 pure-function tests (H-1 through H-6) for `buildCompanyAdapterDefaultsPatch` and `stripCompanyDefaultFields`. |
+| `ui/src/components/onboarding-wizard-helpers.ts` | Create | Sibling helper module exporting `COMPANY_DEFAULT_FIELDS`, `isInScopeAdapterType`, `buildCompanyAdapterDefaultsPatch`, `stripCompanyDefaultFields`. Extracted as a separate file (per codebase convention) so pure-function unit tests can target it directly. |
+| `ui/src/components/onboarding-wizard-helpers.test.ts` | Create | 6 pure-function tests (H-1 through H-6) for the helpers. Co-located sibling `.test.ts`. |
+| `ui/src/components/OnboardingWizard.test.tsx` | Create | 8 wizard component tests (W-1 through W-8) covering all 4 adapter types, scope-out cases, error handling, and incremental PATCH. Co-located sibling `.test.tsx`. |
 | `tests/e2e/wizard-company-adapter-defaults.spec.ts` | Create | Playwright E2E: complete wizard with LM Studio + remote URL + model → assert `companies.adapterDefaults` populated → create second agent → assert resolved config inherits from company default. |
 
 ---
@@ -207,7 +208,7 @@ return stripCompanyDefaultFields(adapterType, config);
 - **No new mode flag for Ollama.** Deep-merge inherit works without one.
 - **No backend changes.** Schema, types, validators, services, routes — all already accept this shape from the 2026-04-14 work.
 - **No migration of existing companies** (Q3 = a). The two existing companies were either already correct or were patched manually during this debug session.
-- **Helpers stay private to the file.** Not exported. Reused only by the wizard. If a future agent-creation flow (e.g. `NewAgent.tsx`) needs the same logic, lift to a shared module then.
+- **Helpers live in a sibling module** (`onboarding-wizard-helpers.ts`), not lifted to `ui/src/lib/`. Single consumer (`OnboardingWizard.tsx`). The sibling-module placement follows codebase convention so the pure functions can have a co-located `.test.ts`. If a future agent-creation flow (e.g. `NewAgent.tsx`) needs the same logic, lift to `ui/src/lib/` then.
 
 ---
 
@@ -220,5 +221,5 @@ return stripCompanyDefaultFields(adapterType, config);
 | When to PATCH the company | Step 2, immediately before `agentsApi.create` | Step 1 (URL not known yet) / Step 3 (CEO already exists, race) | Step 2 is the first moment URL+model are known AND the CEO is about to inherit them. |
 | Failure mode if PATCH fails | Step 2 fails entirely; CEO not created; user retries | Continue to create CEO without company defaults (silent half-fix) | A half-fixed company is worse than a clean retry — it would re-introduce the bug for the next agent. |
 | Existing companies | No auto-migration (a) | One-shot backfill script (b) | Both existing companies are already in good state. Risk of script misinference > zero benefit. |
-| Helper location | Private functions in `OnboardingWizard.tsx` | New file in `ui/src/lib/` | YAGNI. No second consumer right now. |
+| Helper location | Sibling module `onboarding-wizard-helpers.ts` (single-consumer, exported only for tests) | (a) Inline in `OnboardingWizard.tsx`: blocks unit testing. (b) New file in `ui/src/lib/`: implies cross-cutting reuse that doesn't exist yet. | Sibling module is the codebase's standard pattern (see `agent-config-defaults.ts`, `onboarding-launch.ts`) and lets us co-locate `.test.ts`. |
 | `gemini_local` and others | Out of scope this round | Include in COMPANY_DEFAULT_FIELDS | User specified 4 adapters. Adding more later is one map entry — trivial extension. |
