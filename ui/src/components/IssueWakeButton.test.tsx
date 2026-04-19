@@ -139,3 +139,117 @@ describe("IssueWakeButton — fresh wake (no active run)", () => {
     });
   });
 });
+
+import type { ActiveRunForIssue } from "../api/heartbeats";
+
+function makeActiveRun(): ActiveRunForIssue {
+  return {
+    id: "run-prev",
+    companyId: "company-1",
+    agentId: "agent-1",
+    agentName: "Tester",
+    adapterType: "codex_local",
+    invocationSource: "automation",
+    triggerDetail: "system",
+    status: "running",
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    error: null,
+    wakeupRequestId: null,
+    exitCode: null,
+    signal: null,
+    usageJson: null,
+    resultJson: null,
+    sessionIdBefore: null,
+    sessionIdAfter: null,
+    logStore: "local_file",
+    logRef: "x",
+    logBytes: 0,
+    logSha256: null,
+    logCompressed: false,
+    stdoutExcerpt: null,
+    stderrExcerpt: null,
+    errorCode: null,
+    externalRunId: null,
+    processPid: null,
+    processStartedAt: null,
+    retryOfRunId: null,
+    processLossRetryCount: 0,
+    contextSnapshot: { issueId: "issue-1" },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as unknown as ActiveRunForIssue;
+}
+
+describe("IssueWakeButton — active-run state", () => {
+  it("uses the active-run aria-label and shows green pulse", async () => {
+    mockActiveRun.mockResolvedValue(makeActiveRun());
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+    const btn = await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" });
+    expect(btn).toBeTruthy();
+    const icon = btn.querySelector("svg");
+    // SVG className is SVGAnimatedString in jsdom — use getAttribute("class") for string assertions
+    const iconClass = icon?.getAttribute("class") ?? "";
+    expect(iconClass).toContain("text-green-500");
+    expect(iconClass).toContain("animate-pulse");
+  });
+
+  it("opens confirm dialog when clicked while active; cancel does nothing", async () => {
+    mockActiveRun.mockResolvedValue(makeActiveRun());
+    const user = userEvent.setup();
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+
+    const btn = await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" });
+    await user.click(btn);
+
+    expect(await screen.findByText("현재 실행 중입니다")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "취소" }));
+    expect(mockCancel).not.toHaveBeenCalled();
+    expect(mockWakeup).not.toHaveBeenCalled();
+  });
+
+  it("confirm restart cancels the previous run then wakes; restart toast appears", async () => {
+    mockActiveRun.mockResolvedValue(makeActiveRun());
+    const user = userEvent.setup();
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+
+    const btn = await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" });
+    await user.click(btn);
+    await user.click(await screen.findByRole("button", { name: "재시작" }));
+
+    await waitFor(() => expect(mockCancel).toHaveBeenCalledWith("run-prev"));
+    await waitFor(() => expect(mockWakeup).toHaveBeenCalled());
+
+    // cancel must run before wakeup
+    const cancelOrder = mockCancel.mock.invocationCallOrder[0];
+    const wakeupOrder = mockWakeup.mock.invocationCallOrder[0];
+    expect(cancelOrder).toBeLessThan(wakeupOrder);
+
+    await waitFor(() => {
+      expect(mockPushToast).toHaveBeenCalledWith({
+        tone: "success",
+        title: "이전 run을 취소하고 새로 시작했습니다",
+      });
+    });
+  });
+
+  it("aborts wakeup if cancel(prevRunId) fails; surfaces cancel error toast", async () => {
+    mockActiveRun.mockResolvedValue(makeActiveRun());
+    mockCancel.mockRejectedValue(new Error("boom"));
+    const user = userEvent.setup();
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+
+    await user.click(await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" }));
+    await user.click(await screen.findByRole("button", { name: "재시작" }));
+
+    await waitFor(() => {
+      expect(mockPushToast).toHaveBeenCalledWith({
+        tone: "error",
+        title: "이전 run 취소 실패",
+        body: "boom",
+      });
+    });
+    expect(mockWakeup).not.toHaveBeenCalled();
+  });
+});
