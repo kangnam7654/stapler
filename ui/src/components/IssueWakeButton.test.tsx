@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Issue } from "@paperclipai/shared";
 import { ToastProvider } from "../context/ToastContext";
@@ -17,6 +18,20 @@ vi.mock("../api/agents", () => ({
     wakeup: vi.fn(),
   },
 }));
+
+const mockPushToast = vi.fn();
+vi.mock("../context/ToastContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../context/ToastContext")>();
+  return {
+    ...actual,
+    useToast: () => ({
+      pushToast: mockPushToast,
+      toasts: [],
+      dismissToast: vi.fn(),
+      clearToasts: vi.fn(),
+    }),
+  };
+});
 
 import { IssueWakeButton } from "./IssueWakeButton";
 import { heartbeatsApi } from "../api/heartbeats";
@@ -92,5 +107,35 @@ describe("IssueWakeButton — visibility & idle render", () => {
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
     const btn = await screen.findByRole("button", { name: "에이전트 깨우기" });
     expect(btn).toBeTruthy();
+  });
+});
+
+describe("IssueWakeButton — fresh wake (no active run)", () => {
+  it("calls agentsApi.wakeup with issueId payload and shows success toast", async () => {
+    const user = userEvent.setup();
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+
+    const btn = await screen.findByRole("button", { name: "에이전트 깨우기" });
+    await user.click(btn);
+
+    await waitFor(() => {
+      expect(mockWakeup).toHaveBeenCalledWith(
+        "agent-1",
+        {
+          source: "on_demand",
+          triggerDetail: "manual",
+          reason: "manual_wake_from_issue",
+          payload: { issueId: "issue-1" },
+        },
+        "company-1",
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockPushToast).toHaveBeenCalledWith({
+        tone: "success",
+        title: "에이전트를 깨웠습니다",
+      });
+    });
   });
 });
