@@ -134,6 +134,23 @@ describe("ollama-local execute — cwd resolution", () => {
     expect(meta.cwd).toBe("/Users/x/Stapler/co/proj");
   });
 
+  it("U11: cwd in projects/ subtree (managed project workspace) passes guard", async () => {
+    // ensureManagedProjectWorkspace builds cwd under
+    // ${INSTANCE_ROOT}/projects/{companyId}/{projectId}/{repoName or _default}
+    // and heartbeat passes that as paperclipWorkspace.cwd with source "project_primary".
+    // The guard must allow this — it is a legitimate Paperclip-managed project workspace,
+    // distinct from the read-only instructions/ bundle that CMP-12 was about.
+    const { ctx, meta } = makeCtx({
+      paperclipWorkspace: {
+        cwd: "/i/projects/c1/p1/_default",
+        source: "project_primary",
+      },
+      paperclipInstanceRoot: "/i",
+    });
+    await execute(ctx as never);
+    expect(meta.cwd).toBe("/i/projects/c1/p1/_default");
+  });
+
   it("U9: guard disabled when PAPERCLIP_INSTANCE_ROOT is empty", async () => {
     const { ctx, meta } = makeCtx({
       paperclipWorkspace: { cwd: "/i/companies/c/agents/a/instructions", source: "agent_home" },

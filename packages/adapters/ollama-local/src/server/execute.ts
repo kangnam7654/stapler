@@ -29,9 +29,19 @@ import {
 
 /**
  * Refuse adapter cwd that resolves inside `${PAPERCLIP_INSTANCE_ROOT}/`
- * unless it's under `${PAPERCLIP_INSTANCE_ROOT}/workspaces/`.
- * Defense-in-depth against regressions like the CMP-12 instructionsRootPath
- * fallback that wrote tool output into the read-only AGENTS.md bundle dir.
+ * unless it's under one of the legitimate Paperclip-managed workspace subtrees:
+ *
+ *   - `${PAPERCLIP_INSTANCE_ROOT}/workspaces/{agentId}/`
+ *     — agent home, built by `resolveDefaultAgentWorkspaceDir`.
+ *   - `${PAPERCLIP_INSTANCE_ROOT}/projects/{companyId}/{projectId}/{repoName or _default}/`
+ *     — managed project workspace, built by `resolveManagedProjectWorkspaceDir`
+ *       and ensured by `ensureManagedProjectWorkspace` in heartbeat.
+ *
+ * Defense-in-depth against regressions like CMP-12, where an
+ * `instructionsRootPath` fallback caused tool output to be written into the
+ * read-only `agents/{id}/instructions/` AGENTS.md bundle dir. Other
+ * Paperclip-internal locations (`db/`, `secrets/`, `logs/`, `data/`,
+ * `config.json`) are also refused.
  */
 function assertCwdNotInPaperclipManaged(cwd: string, instanceRoot: string): void {
   if (instanceRoot.length === 0) return;
@@ -41,14 +51,18 @@ function assertCwdNotInPaperclipManaged(cwd: string, instanceRoot: string): void
     normalizedCwd === normalizedRoot ||
     normalizedCwd.startsWith(normalizedRoot + path.sep);
   if (!isInsideRoot) return;
-  const workspacesDir = path.resolve(normalizedRoot, "workspaces");
-  const isInWorkspaces =
-    normalizedCwd === workspacesDir ||
-    normalizedCwd.startsWith(workspacesDir + path.sep);
-  if (isInWorkspaces) return;
+  const allowedSubtrees = [
+    path.resolve(normalizedRoot, "workspaces"),
+    path.resolve(normalizedRoot, "projects"),
+  ];
+  for (const allowed of allowedSubtrees) {
+    if (normalizedCwd === allowed || normalizedCwd.startsWith(allowed + path.sep)) {
+      return;
+    }
+  }
   throw new Error(
     `Adapter cwd cannot be inside Paperclip-managed non-workspace directory: ${normalizedCwd}. ` +
-    `Expected location is under ${workspacesDir}/ or outside ${normalizedRoot}/.`,
+    `Expected location is under ${allowedSubtrees.join("/ or ")}/ or outside ${normalizedRoot}/.`,
   );
 }
 
