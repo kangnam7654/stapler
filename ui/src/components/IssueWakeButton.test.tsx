@@ -253,3 +253,53 @@ describe("IssueWakeButton — active-run state", () => {
     expect(mockWakeup).not.toHaveBeenCalled();
   });
 });
+
+describe("IssueWakeButton — skipped, error, busy", () => {
+  it("shows warn toast when wakeup returns { status: 'skipped' }", async () => {
+    mockWakeup.mockResolvedValue({ status: "skipped" } as never);
+    const user = userEvent.setup();
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+
+    await user.click(await screen.findByRole("button", { name: "에이전트 깨우기" }));
+
+    await waitFor(() => {
+      expect(mockPushToast).toHaveBeenCalledWith({
+        tone: "warn",
+        title: "깨우기를 건너뛰었습니다",
+        body: "에이전트의 wakeOnDemand 설정을 확인하세요.",
+      });
+    });
+  });
+
+  it("shows error toast when wakeup throws", async () => {
+    mockWakeup.mockRejectedValue(new Error("network down"));
+    const user = userEvent.setup();
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+
+    await user.click(await screen.findByRole("button", { name: "에이전트 깨우기" }));
+
+    await waitFor(() => {
+      expect(mockPushToast).toHaveBeenCalledWith({
+        tone: "error",
+        title: "깨우기 실패",
+        body: "network down",
+      });
+    });
+  });
+
+  it("disables button while a wakeup mutation is in-flight", async () => {
+    let resolve!: (v: { id: string }) => void;
+    mockWakeup.mockImplementation(
+      () => new Promise<{ id: string }>((r) => { resolve = r; }) as never,
+    );
+    const user = userEvent.setup();
+    render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
+
+    const btn = await screen.findByRole("button", { name: "에이전트 깨우기" });
+    await user.click(btn);
+
+    await waitFor(() => expect((btn as HTMLButtonElement).disabled).toBe(true));
+    resolve({ id: "run-new" });
+    await waitFor(() => expect((btn as HTMLButtonElement).disabled).toBe(false));
+  });
+});
