@@ -129,6 +129,7 @@ import { InheritableField } from "@/components/InheritableField";
 import { DraftInput } from "@/components/agent-config-primitives";
 import { BulkApplyModal } from "@/components/BulkApplyModal";
 import { WorkspacePathActions } from "../components/WorkspacePathActions.js";
+import { IssueWakeButton } from "../components/IssueWakeButton";
 
 /* ------------------------------------------------------------------ */
 /*  Section wrapper                                                    */
@@ -1005,6 +1006,41 @@ export function DesignGuide() {
             selected
           />
         </div>
+      </Section>
+
+      {/* ============================================================ */}
+      {/*  ISSUE WAKE BUTTON                                            */}
+      {/* ============================================================ */}
+      <Section title="IssueWakeButton">
+        <SubSection title="With assignee (idle)">
+          <IssueWakeButton
+            issue={
+              {
+                id: "demo-issue",
+                companyId: "demo-co",
+                assigneeAgentId: "demo-agent",
+              } as never
+            }
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Click does nothing in the design guide (network calls go through mocks in real usage).
+            In the real app: clicks `POST /agents/:id/wakeup` with payload {`{ issueId }`}, shows toast.
+          </p>
+        </SubSection>
+        <SubSection title="No assignee (renders nothing)">
+          <div className="text-xs text-muted-foreground">
+            <IssueWakeButton
+              issue={
+                {
+                  id: "demo-issue-2",
+                  companyId: "demo-co",
+                  assigneeAgentId: null,
+                } as never
+              }
+            />
+            <span>↑ component rendered above this line, but returns null when assignee is missing.</span>
+          </div>
+        </SubSection>
       </Section>
 
       {/* ============================================================ */}
