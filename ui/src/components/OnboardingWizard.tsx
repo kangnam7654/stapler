@@ -32,6 +32,8 @@ import {
 } from "@paperclipai/adapter-codex-local";
 import { DEFAULT_CURSOR_LOCAL_MODEL } from "@paperclipai/adapter-cursor-local";
 import { DEFAULT_GEMINI_LOCAL_MODEL } from "@paperclipai/adapter-gemini-local";
+import { DEFAULT_LM_STUDIO_BASE_URL } from "@paperclipai/adapter-lm-studio-local";
+import { DEFAULT_OLLAMA_BASE_URL } from "@paperclipai/adapter-ollama-local";
 import { resolveRouteOnboardingOptions } from "../lib/onboarding-route";
 import { AsciiArtAnimation } from "./AsciiArtAnimation";
 import { OpenCodeLogoIcon } from "./OpenCodeLogoIcon";
@@ -1133,11 +1135,17 @@ export function OnboardingWizard() {
                         )}
 
                         {(adapterType === "http" ||
-                          adapterType === "openclaw_gateway") && (
+                          adapterType === "openclaw_gateway" ||
+                          adapterType === "lm_studio_local" ||
+                          adapterType === "ollama_local") && (
                           <div>
                             <label className="text-xs text-muted-foreground mb-1 block">
                               {adapterType === "openclaw_gateway"
                                 ? "Gateway URL"
+                                : adapterType === "lm_studio_local"
+                                ? "LM Studio Base URL"
+                                : adapterType === "ollama_local"
+                                ? "Ollama Base URL"
                                 : "Webhook URL"}
                             </label>
                             <input
@@ -1145,11 +1153,21 @@ export function OnboardingWizard() {
                               placeholder={
                                 adapterType === "openclaw_gateway"
                                   ? "ws://127.0.0.1:18789"
+                                  : adapterType === "lm_studio_local"
+                                  ? DEFAULT_LM_STUDIO_BASE_URL
+                                  : adapterType === "ollama_local"
+                                  ? DEFAULT_OLLAMA_BASE_URL
                                   : "https://..."
                               }
                               value={url}
                               onChange={(e) => setUrl(e.target.value)}
                             />
+                            {(adapterType === "lm_studio_local" ||
+                              adapterType === "ollama_local") && (
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                외부 서버에서 실행 중이면 호스트 주소를 입력하세요. 비워두면 기본값을 사용합니다.
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
