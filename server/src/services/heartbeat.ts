@@ -30,7 +30,7 @@ import { companySkillService } from "./company-skills.js";
 import { companyService } from "./companies.js";
 import { budgetService, type BudgetEnforcementScope } from "./budgets.js";
 import { secretService } from "./secrets.js";
-import { resolveDefaultAgentWorkspaceDir, resolveManagedProjectWorkspaceDir, resolveHomeAwarePath } from "../home-paths.js";
+import { resolveDefaultAgentWorkspaceDir, resolveManagedProjectWorkspaceDir, resolveHomeAwarePath, resolvePaperclipInstanceRoot } from "../home-paths.js";
 import { summarizeHeartbeatRunResultJson } from "./heartbeat-run-summary.js";
 import {
   buildWorkspaceReadyComment,
@@ -59,7 +59,7 @@ import {
   resolveSessionCompactionPolicy,
   type SessionCompactionPolicy,
 } from "@paperclipai/adapter-utils";
-import { applyWorkspaceCwdFallback } from "./heartbeat-cwd-fallback.js";
+import { resolveRuntimeConfigCwd } from "./heartbeat-cwd-fallback.js";
 
 const MAX_LIVE_LOG_CHUNK_BYTES = 8 * 1024;
 const HEARTBEAT_MAX_CONCURRENT_RUNS_DEFAULT = 1;
@@ -2128,13 +2128,32 @@ export function heartbeatService(db: Db) {
       mergedConfig,
     );
     const runtimeSkillEntries = await companySkills.listRuntimeSkillEntries(agent.companyId);
+    // Inject PAPERCLIP_INSTANCE_ROOT so adapter-side safety guards
+    // (e.g. assertCwdNotInPaperclipManaged in lm-studio-local & ollama-local)
+    // know the boundary that must not be written into. Best-effort — guard
+    // becomes a no-op on resolve failure but main path still works.
+    let paperclipInstanceRoot = "";
+    try {
+      paperclipInstanceRoot = resolvePaperclipInstanceRoot();
+    } catch (instanceRootErr) {
+      logger.warn(
+        {
+          runId: run.id,
+          error: instanceRootErr instanceof Error ? instanceRootErr.message : String(instanceRootErr),
+        },
+        "Failed to resolve PAPERCLIP_INSTANCE_ROOT; adapter safety guard will be disabled for this run",
+      );
+    }
+    const runtimeConfigEnv = {
+      ...(parseObject(resolvedConfig.env as unknown)),
+      ...(paperclipInstanceRoot.length > 0 ? { PAPERCLIP_INSTANCE_ROOT: paperclipInstanceRoot } : {}),
+    };
     const runtimeConfig = {
       ...resolvedConfig,
       paperclipRuntimeSkills: runtimeSkillEntries,
+      env: runtimeConfigEnv,
     };
-    // Inject resolved workspace cwd when adapter config has no explicit cwd.
-    // This allows company-level and project-level workspace paths to drive
-    // adapter execution without requiring a project_workspace record.
+
     if (executionProjectRow && !company) {
       // Should not happen — companyService.getById is called above for the
       // same companyId. Log so a missing company row is observable instead of
@@ -2148,13 +2167,23 @@ export function heartbeatService(db: Db) {
         "Skipping workspace cwd fallback: project row present but company not found",
       );
     }
-    const runtimeConfigWithCwd = executionProjectRow && company
-      ? applyWorkspaceCwdFallback(runtimeConfig, {
+
+    // resolveRuntimeConfigCwd handles BOTH branches:
+    // - executionProjectRow && company → resolveForProject (project workspace)
+    // - else → fallbackCwd (executionWorkspace.cwd, set by realizeExecutionWorkspace below)
+    // The fallbackCwd is computed AFTER realizeExecutionWorkspace, so we
+    // re-apply this resolver after that call. For now compute the project
+    // branch only; the no-project branch is filled in below.
+    const projectCtx = (executionProjectRow && company)
+      ? {
           companyName: company.name,
           companyRootPath: company.workspaceRootPath ?? null,
           projectName: executionProjectRow.name,
           projectPathOverride: executionProjectRow.workspacePathOverride ?? null,
-        })
+        }
+      : null;
+    const runtimeConfigWithCwd = projectCtx
+      ? resolveRuntimeConfigCwd(runtimeConfig, { projectCtx, fallbackCwd: "" })
       : runtimeConfig;
     // Ensure the resolved fallback directory exists before the adapter starts.
     // runtimeConfigWithCwd is a union of T (with cwd?: string) and runtimeConfig
@@ -2211,6 +2240,15 @@ export function heartbeatService(db: Db) {
       },
       recorder: workspaceOperationRecorder,
     });
+    // No-project branch: fill cwd with the realized executionWorkspace.cwd
+    // so adapters that fall back to config.cwd still get a valid value.
+    // This was the heart of Bug B (CMP-12 incident).
+    const runtimeConfigWithCwdResolved = projectCtx
+      ? runtimeConfigWithCwd
+      : resolveRuntimeConfigCwd(runtimeConfigWithCwd, {
+          projectCtx: null,
+          fallbackCwd: executionWorkspace.cwd ?? "",
+        });
     const resolvedProjectId = executionWorkspace.projectId ?? issueRef?.projectId ?? executionProjectId ?? null;
     const resolvedProjectWorkspaceId = issueRef?.projectWorkspaceId ?? resolvedWorkspace.workspaceId ?? null;
     const shouldReuseExisting =
@@ -2628,13 +2666,13 @@ export function heartbeatService(db: Db) {
         );
       }
       // Company defaults were merged early (before workspace-policy and issue
-      // overrides) into `config`.  The runtimeConfigWithCwd carries the full
+      // overrides) into `config`.  The runtimeConfigWithCwdResolved carries the full
       // resolved value with workspace cwd fallback injected; pass it to the adapter.
       const adapterResult = await adapter.execute({
         runId: run.id,
         agent,
         runtime: runtimeForAdapter,
-        config: runtimeConfigWithCwd as Record<string, unknown>,
+        config: runtimeConfigWithCwdResolved as Record<string, unknown>,
         context,
         onLog,
         onMeta: onAdapterMeta,
