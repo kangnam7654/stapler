@@ -52,6 +52,8 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.liveRuns(issueId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.activity(issueId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.runs(issueId) });
+    // Also refresh the company-scoped live-runs widget (sidebar badge, company live-runs page).
+    queryClient.invalidateQueries({ queryKey: queryKeys.liveRuns(companyId!) });
   }
 
   async function fireWakeup(kind: "fresh" | "restart") {
