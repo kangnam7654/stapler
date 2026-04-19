@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 3100
+    },
+    {
+      "name": "dev:server",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:server"],
+      "port": 3100
+    },
+    {
+      "name": "dev:ui",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:ui"],
+      "port": 5173
+    },
+    {
+      "name": "docs:dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["docs:dev"],
+      "port": 3000
+    }
+  ]
+}
