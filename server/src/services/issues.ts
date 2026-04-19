@@ -860,14 +860,32 @@ export function issueService(db: Db) {
         delete issueData.executionWorkspacePreference;
         delete issueData.executionWorkspaceSettings;
       }
-      if (data.assigneeAgentId && data.assigneeUserId) {
+
+      // Caller-as-default-assignee fallback.
+      // When an agent creates an issue and does not specify ANY assignee
+      // (both fields completely omitted from payload), self-assign to the
+      // caller. This prevents agent-spawned backlog from becoming orphaned
+      // and inactionable. Explicit `null` is respected as opt-out, and board
+      // (user) callers keep current "unassigned by default" behavior.
+      const assigneeAgentIdProvided = "assigneeAgentId" in issueData;
+      const assigneeUserIdProvided = "assigneeUserId" in issueData;
+      if (
+        !assigneeAgentIdProvided &&
+        !assigneeUserIdProvided &&
+        typeof issueData.createdByAgentId === "string" &&
+        issueData.createdByAgentId.length > 0
+      ) {
+        issueData.assigneeAgentId = issueData.createdByAgentId;
+      }
+
+      if (issueData.assigneeAgentId && issueData.assigneeUserId) {
         throw unprocessable("Issue can only have one assignee");
       }
-      if (data.assigneeAgentId) {
-        await assertAssignableAgent(companyId, data.assigneeAgentId);
+      if (issueData.assigneeAgentId) {
+        await assertAssignableAgent(companyId, issueData.assigneeAgentId);
       }
-      if (data.assigneeUserId) {
-        await assertAssignableUser(companyId, data.assigneeUserId);
+      if (issueData.assigneeUserId) {
+        await assertAssignableUser(companyId, issueData.assigneeUserId);
       }
       if (data.projectWorkspaceId) {
         await assertValidProjectWorkspace(companyId, data.projectId, data.projectWorkspaceId);
@@ -875,7 +893,7 @@ export function issueService(db: Db) {
       if (data.executionWorkspaceId) {
         await assertValidExecutionWorkspace(companyId, data.projectId, data.executionWorkspaceId);
       }
-      if (data.status === "in_progress" && !data.assigneeAgentId && !data.assigneeUserId) {
+      if (issueData.status === "in_progress" && !issueData.assigneeAgentId && !issueData.assigneeUserId) {
         throw unprocessable("in_progress issues require an assignee");
       }
       return db.transaction(async (tx) => {

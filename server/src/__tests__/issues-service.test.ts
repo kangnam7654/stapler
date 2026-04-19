@@ -314,3 +314,112 @@ describeEmbeddedPostgres("issueService.list participantAgentId", () => {
     ]));
   });
 });
+
+describeEmbeddedPostgres("issueService.create assignee fallback", () => {
+  let db!: ReturnType<typeof createDb>;
+  let svc!: ReturnType<typeof issueService>;
+  let tempDb: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>> | null = null;
+
+  beforeAll(async () => {
+    tempDb = await startEmbeddedPostgresTestDatabase("paperclip-issues-create-fallback-");
+    db = createDb(tempDb.connectionString);
+    svc = issueService(db);
+  }, 20_000);
+
+  afterEach(async () => {
+    await db.delete(issueComments);
+    await db.delete(issueInboxArchives);
+    await db.delete(activityLog);
+    await db.delete(issues);
+    await db.delete(agents);
+    await db.delete(companies);
+  });
+
+  afterAll(async () => {
+    await tempDb?.cleanup();
+  });
+
+  async function setupCompanyWithTwoAgents() {
+    const companyId = randomUUID();
+    const callerAgentId = randomUUID();
+    const otherAgentId = randomUUID();
+    await db.insert(companies).values({
+      id: companyId,
+      name: "AssigneeFallbackCo",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+    await db.insert(agents).values([
+      {
+        id: callerAgentId,
+        companyId,
+        name: "Caller",
+        role: "engineer",
+        status: "active",
+        adapterType: "codex_local",
+        adapterConfig: {},
+        runtimeConfig: {},
+        permissions: {},
+      },
+      {
+        id: otherAgentId,
+        companyId,
+        name: "Other",
+        role: "engineer",
+        status: "active",
+        adapterType: "codex_local",
+        adapterConfig: {},
+        runtimeConfig: {},
+        permissions: {},
+      },
+    ]);
+    return { companyId, callerAgentId, otherAgentId };
+  }
+
+  it("U-A1: agent caller with both assignee fields omitted gets self-assigned", async () => {
+    const { companyId, callerAgentId } = await setupCompanyWithTwoAgents();
+    const issue = await svc.create(companyId, {
+      title: "Self-assign me",
+      status: "backlog",
+      createdByAgentId: callerAgentId,
+      // assigneeAgentId and assigneeUserId both omitted
+    });
+    expect(issue.assigneeAgentId).toBe(callerAgentId);
+    expect(issue.createdByAgentId).toBe(callerAgentId);
+  });
+
+  it("U-A2: agent caller with explicit assigneeAgentId=null is respected (no fallback)", async () => {
+    const { companyId, callerAgentId } = await setupCompanyWithTwoAgents();
+    const issue = await svc.create(companyId, {
+      title: "Intentionally unassigned",
+      status: "backlog",
+      createdByAgentId: callerAgentId,
+      assigneeAgentId: null,
+    });
+    expect(issue.assigneeAgentId).toBeNull();
+    expect(issue.createdByAgentId).toBe(callerAgentId);
+  });
+
+  it("U-A3: board user caller with both omitted stays null (current behavior preserved)", async () => {
+    const { companyId } = await setupCompanyWithTwoAgents();
+    const issue = await svc.create(companyId, {
+      title: "Board-created backlog",
+      status: "backlog",
+      createdByUserId: "local-board",
+      // createdByAgentId omitted → caller is not an agent
+    });
+    expect(issue.assigneeAgentId).toBeNull();
+  });
+
+  it("U-A4: agent caller with explicit assigneeAgentId pointing to another agent is respected", async () => {
+    const { companyId, callerAgentId, otherAgentId } = await setupCompanyWithTwoAgents();
+    const issue = await svc.create(companyId, {
+      title: "Delegated to teammate",
+      status: "backlog",
+      createdByAgentId: callerAgentId,
+      assigneeAgentId: otherAgentId,
+    });
+    expect(issue.assigneeAgentId).toBe(otherAgentId);
+    expect(issue.createdByAgentId).toBe(callerAgentId);
+  });
+});
