@@ -1,5 +1,6 @@
 // src/server/execute.ts
 import fs from "node:fs/promises";
+import path from "node:path";
 import type {
   AdapterExecutionContext,
   AdapterExecutionResult,
@@ -10,6 +11,7 @@ import {
   asStringArray,
   buildBundleTree,
   buildPaperclipEnv,
+  ensureAbsoluteDirectory,
   parseObject,
 } from "@paperclipai/adapter-utils/server-utils";
 import {
@@ -24,6 +26,31 @@ import {
   DEFAULT_OLLAMA_MODEL,
   PROVIDER_NAME,
 } from "../index.js";
+
+/**
+ * Refuse adapter cwd that resolves inside `${PAPERCLIP_INSTANCE_ROOT}/`
+ * unless it's under `${PAPERCLIP_INSTANCE_ROOT}/workspaces/`.
+ * Defense-in-depth against regressions like the CMP-12 instructionsRootPath
+ * fallback that wrote tool output into the read-only AGENTS.md bundle dir.
+ */
+function assertCwdNotInPaperclipManaged(cwd: string, instanceRoot: string): void {
+  if (instanceRoot.length === 0) return;
+  const normalizedCwd = path.resolve(cwd);
+  const normalizedRoot = path.resolve(instanceRoot);
+  const isInsideRoot =
+    normalizedCwd === normalizedRoot ||
+    normalizedCwd.startsWith(normalizedRoot + path.sep);
+  if (!isInsideRoot) return;
+  const workspacesDir = path.resolve(normalizedRoot, "workspaces");
+  const isInWorkspaces =
+    normalizedCwd === workspacesDir ||
+    normalizedCwd.startsWith(workspacesDir + path.sep);
+  if (isInWorkspaces) return;
+  throw new Error(
+    `Adapter cwd cannot be inside Paperclip-managed non-workspace directory: ${normalizedCwd}. ` +
+    `Expected location is under ${workspacesDir}/ or outside ${normalizedRoot}/.`,
+  );
+}
 
 const DEFAULT_PROMPT_TEMPLATE = `You are {{agent.name}}, an AI agent running inside the Paperclip control plane.
 
@@ -111,7 +138,23 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const model = asString(config.model, DEFAULT_OLLAMA_MODEL);
   const instructionsFilePath = asString(config.instructionsFilePath, "");
   const instructionsRootPath = asString(config.instructionsRootPath, "");
-  const cwd = asString(config.cwd, instructionsRootPath || process.cwd());
+
+  // Workspace cwd resolution — canonical pattern (mirrors claude-local).
+  // Priority: paperclipWorkspace.cwd > config.cwd (override when agent_home) > process.cwd().
+  // instructionsRootPath is NEVER a cwd fallback — only used by buildBundleTree below.
+  const workspaceContext = parseObject(context.paperclipWorkspace);
+  const workspaceCwd = asString(workspaceContext.cwd, "");
+  const workspaceSource = asString(workspaceContext.source, "");
+  const configuredCwd = asString(config.cwd, "");
+  const useConfiguredInsteadOfAgentHome =
+    workspaceSource === "agent_home" && configuredCwd.length > 0;
+  const effectiveWorkspaceCwd = useConfiguredInsteadOfAgentHome ? "" : workspaceCwd;
+  const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
+  assertCwdNotInPaperclipManaged(
+    cwd,
+    asString(parseObject(config.env).PAPERCLIP_INSTANCE_ROOT, ""),
+  );
+  await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
   let systemPrompt = asString(config.systemPrompt, "");
   if (instructionsFilePath) {
     try {
