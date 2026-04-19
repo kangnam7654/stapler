@@ -27,18 +27,27 @@ test.describe("Onboarding wizard", () => {
     await page.goto("/");
 
     // Step 1: Create company (회사 만들기)
+    // On a fresh server the wizard auto-opens. With existing companies we need
+    // to click either "Add company" (sidebar rail) or the App.tsx fallback
+    // ("Create your first company" / "Create another company" / "New Company").
     const wizardHeading = page.locator("h3", { hasText: /회사 만들기|Create.*company/i });
-    const newCompanyBtn = page.getByRole("button", { name: "New Company" });
+    const addCompanySidebarBtn = page.getByRole("button", { name: "Add company" });
+    const createFirstCompanyBtn = page.getByRole("button", {
+      name: /Create your first company|Create another company|New Company/i,
+    });
 
     await expect(
-      wizardHeading.or(newCompanyBtn)
+      wizardHeading.or(addCompanySidebarBtn).or(createFirstCompanyBtn),
     ).toBeVisible({ timeout: 15_000 });
-
-    if (await newCompanyBtn.isVisible()) {
-      await newCompanyBtn.click();
+    if (!(await wizardHeading.isVisible())) {
+      if (await addCompanySidebarBtn.isVisible()) {
+        await addCompanySidebarBtn.click();
+      } else if (await createFirstCompanyBtn.isVisible()) {
+        await createFirstCompanyBtn.click();
+      }
     }
 
-    await expect(wizardHeading).toBeVisible({ timeout: 5_000 });
+    await expect(wizardHeading).toBeVisible({ timeout: 10_000 });
 
     const companyNameInput = page.locator('input[placeholder="Acme Corp"]');
     await companyNameInput.fill(COMPANY_NAME);
