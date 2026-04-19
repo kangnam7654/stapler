@@ -23,7 +23,11 @@ import {
 } from "../lib/model-utils";
 import { getUIAdapter } from "../adapters";
 import { defaultCreateValues } from "./agent-config-defaults";
-import { stripCompanyDefaultFields } from "./onboarding-wizard-helpers";
+import {
+  buildCompanyAdapterDefaultsPatch,
+  isInScopeAdapterType,
+  stripCompanyDefaultFields,
+} from "./onboarding-wizard-helpers";
 import { parseOnboardingGoalInput } from "../lib/onboarding-goal";
 import { launchOnboarding } from "../lib/onboarding-launch";
 import { onboardingApi } from "../api/onboarding";
@@ -550,6 +554,22 @@ export function OnboardingWizard() {
         const result = adapterEnvResult ?? (await runAdapterEnvironmentTest());
         if (!result) return;
         if (result.checks.some((c) => c.level === "error")) return;
+      }
+
+      // 2026-04-19: persist URL/model to company.adapterDefaults so the CEO
+      // (and every future agent in this company) inherits via deep merge
+      // instead of pinning its own value. See spec
+      // docs/superpowers/specs/2026-04-19-wizard-company-adapter-defaults-design.md.
+      if (isInScopeAdapterType(adapterType)) {
+        const patch = buildCompanyAdapterDefaultsPatch(adapterType, { url, model });
+        if (patch) {
+          const existing = (companies.find((c) => c.id === createdCompanyId)
+            ?.adapterDefaults ?? {}) as Record<string, unknown>;
+          await companiesApi.update(createdCompanyId, {
+            adapterDefaults: { ...existing, [adapterType]: patch } as import("@paperclipai/shared").CompanyAdapterDefaults,
+          });
+          queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
+        }
       }
 
       const agent = await agentsApi.create(createdCompanyId, {
