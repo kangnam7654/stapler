@@ -1,7 +1,11 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AdapterEnvironmentTestResult, AdapterDetectionResult } from "@paperclipai/shared";
+import type {
+  AdapterEnvironmentTestResult,
+  AdapterDetectionResult,
+  CompanyAdapterDefaults,
+} from "@paperclipai/shared";
 import { useLocation, useNavigate, useParams } from "@/lib/router";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
@@ -564,9 +568,9 @@ export function OnboardingWizard() {
         const patch = buildCompanyAdapterDefaultsPatch(adapterType, { url, model });
         if (patch) {
           const existing = (companies.find((c) => c.id === createdCompanyId)
-            ?.adapterDefaults ?? {}) as Record<string, unknown>;
+            ?.adapterDefaults ?? {}) as CompanyAdapterDefaults;
           await companiesApi.update(createdCompanyId, {
-            adapterDefaults: { ...existing, [adapterType]: patch } as import("@paperclipai/shared").CompanyAdapterDefaults,
+            adapterDefaults: { ...existing, [adapterType]: patch },
           });
           queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
         }
