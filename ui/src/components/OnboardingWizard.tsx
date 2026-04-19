@@ -23,6 +23,7 @@ import {
 } from "../lib/model-utils";
 import { getUIAdapter } from "../adapters";
 import { defaultCreateValues } from "./agent-config-defaults";
+import { stripCompanyDefaultFields } from "./onboarding-wizard-helpers";
 import { parseOnboardingGoalInput } from "../lib/onboarding-goal";
 import { launchOnboarding } from "../lib/onboarding-launch";
 import { onboardingApi } from "../api/onboarding";
@@ -358,7 +359,6 @@ export function OnboardingWizard() {
 
   function buildAdapterConfig(): Record<string, unknown> {
     const adapter = getUIAdapter(adapterType);
-    const trimmedUrl = url.trim();
     const config = adapter.buildAdapterConfig({
       ...defaultCreateValues,
       adapterType,
@@ -373,14 +373,11 @@ export function OnboardingWizard() {
       command,
       args,
       url,
-      // LM Studio defaults `lmStudioBaseUrlMode` to "company" which blocks
-      // build-config from persisting `baseUrl`. In onboarding there is no
-      // company default to inherit, so when the user enters a URL we treat
-      // it as an explicit custom override.
-      lmStudioBaseUrlMode:
-        adapterType === "lm_studio_local" && trimmedUrl.length > 0
-          ? "custom"
-          : defaultCreateValues.lmStudioBaseUrlMode,
+      // After 2026-04-19: wizard now writes URL/model to company.adapterDefaults
+      // BEFORE creating the CEO (see handleStep2Next). The CEO inherits via
+      // resolveAgentAdapterConfig deep merge, so we keep the default mode
+      // ("company") even when the wizard collected a URL.
+      lmStudioBaseUrlMode: defaultCreateValues.lmStudioBaseUrlMode,
       dangerouslySkipPermissions:
         adapterType === "claude_local" || adapterType === "opencode_local",
       dangerouslyBypassSandbox:
@@ -398,7 +395,9 @@ export function OnboardingWizard() {
       env.ANTHROPIC_API_KEY = { type: "plain", value: "" };
       config.env = env;
     }
-    return config;
+    // Remove fields that the wizard has written to company.adapterDefaults so
+    // the agent inherits them via deep merge instead of pinning its own value.
+    return stripCompanyDefaultFields(adapterType, config);
   }
 
   async function runAdapterEnvironmentTest(
