@@ -21,10 +21,16 @@ interface IssueWakeButtonProps {
   issue: Issue;
 }
 
-const IDLE_LABEL = "지금 처리하기";
-const ACTIVE_LABEL = "처리 중 — 클릭하면 재시작";
-const IDLE_TOOLTIP = "담당 에이전트가 즉시 이 이슈를 확인하도록 요청합니다";
-const ACTIVE_TOOLTIP = "이미 처리 중인 작업을 취소하고 다시 시작합니다";
+const LABELS = {
+  idle: {
+    aria: "지금 처리하기",
+    tooltip: "담당 에이전트가 즉시 이 이슈를 확인하도록 요청합니다",
+  },
+  active: {
+    aria: "처리 중 — 클릭하면 재시작",
+    tooltip: "이미 처리 중인 작업을 취소하고 다시 시작합니다",
+  },
+} as const;
 
 export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
   const agentId = issue.assigneeAgentId;
@@ -36,6 +42,14 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
   const { pushToast } = useToast();
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  function toastError(title: string, err: unknown) {
+    pushToast({
+      tone: "error",
+      title,
+      body: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   const activeRunQuery = useQuery({
     queryKey: queryKeys.issues.activeRun(issueId),
@@ -92,11 +106,7 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     try {
       await fireWakeup("fresh");
     } catch (err) {
-      pushToast({
-        tone: "error",
-        title: "처리 요청 실패",
-        body: err instanceof Error ? err.message : String(err),
-      });
+      toastError("처리 요청 실패", err);
     } finally {
       setBusy(false);
     }
@@ -110,20 +120,12 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
       try {
         await heartbeatsApi.cancel(activeRun.id);
       } catch (err) {
-        pushToast({
-          tone: "error",
-          title: "이전 작업 취소 실패",
-          body: err instanceof Error ? err.message : String(err),
-        });
+        toastError("이전 작업 취소 실패", err);
         return;
       }
       await fireWakeup("restart");
     } catch (err) {
-      pushToast({
-        tone: "error",
-        title: "처리 요청 실패",
-        body: err instanceof Error ? err.message : String(err),
-      });
+      toastError("처리 요청 실패", err);
     } finally {
       setBusy(false);
     }
@@ -137,6 +139,8 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     }
   }
 
+  const labels = isActive ? LABELS.active : LABELS.idle;
+
   return (
     <>
       <Button
@@ -144,8 +148,8 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
         size="icon-xs"
         disabled={busy}
         onClick={handleClick}
-        title={isActive ? ACTIVE_TOOLTIP : IDLE_TOOLTIP}
-        aria-label={isActive ? ACTIVE_LABEL : IDLE_LABEL}
+        title={labels.tooltip}
+        aria-label={labels.aria}
       >
         <Zap
           className={cn(

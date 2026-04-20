@@ -11,7 +11,6 @@ test("IssueWakeButton: wakes the assigned agent with issueId payload", async ({ 
   expect(companyResp.ok()).toBeTruthy();
   const company = await companyResp.json();
 
-  // FIX #1: correct route is POST /api/companies/:companyId/agents (not /api/agents)
   const agentResp = await request.post(`/api/companies/${company.id}/agents`, {
     data: {
       name: "Wake Tester",
@@ -36,14 +35,13 @@ test("IssueWakeButton: wakes the assigned agent with issueId payload", async ({ 
   expect(issueResp.ok()).toBeTruthy();
   const issue = await issueResp.json();
 
-  // 2. Stub: intercept wakeup so we never actually invoke an LLM.
-  // Use regex patterns to match URLs with query strings (e.g. ?companyId=...).
+  // Stub wakeup so the test never invokes a real LLM. RegExp (not glob) is
+  // required because the actual URL carries `?companyId=...`.
   let wakeupCalls = 0;
   let lastWakeupBody: unknown = null;
   await page.route(new RegExp(`/api/agents/${agent.id}/wakeup`), async (route) => {
     wakeupCalls++;
     lastWakeupBody = JSON.parse(route.request().postData() || "{}");
-    // FIX #3: server returns 202 for a successful wakeup (not 200)
     await route.fulfill({
       status: 202,
       contentType: "application/json",

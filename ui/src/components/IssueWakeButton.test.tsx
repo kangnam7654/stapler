@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -76,8 +77,10 @@ function makeQueryClient() {
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {
+  // useState lazy init: one QueryClient per Wrapper instance, not per render.
+  const [client] = useState(makeQueryClient);
   return (
-    <QueryClientProvider client={makeQueryClient()}>
+    <QueryClientProvider client={client}>
       <ToastProvider>{children}</ToastProvider>
     </QueryClientProvider>
   );
