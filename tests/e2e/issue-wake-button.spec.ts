@@ -64,12 +64,12 @@ test("IssueWakeButton: wakes the assigned agent with issueId payload", async ({ 
   await page.goto(`/issues/${issue.id}`);
 
   // 4. Locate and click the Zap button (idle aria-label)
-  const wakeBtn = page.getByRole("button", { name: "에이전트 깨우기" }).first();
+  const wakeBtn = page.getByRole("button", { name: "지금 처리하기" }).first();
   await expect(wakeBtn).toBeVisible();
   await wakeBtn.click();
 
   // 5. Assert: success toast appears and wakeup was called with correct payload
-  await expect(page.getByText("에이전트를 깨웠습니다")).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText("이슈 처리를 요청했습니다")).toBeVisible({ timeout: 5000 });
   expect(wakeupCalls).toBe(1);
   expect(lastWakeupBody).toMatchObject({
     source: "on_demand",

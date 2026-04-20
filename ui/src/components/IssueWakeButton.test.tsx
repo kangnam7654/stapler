@@ -105,7 +105,7 @@ describe("IssueWakeButton — visibility & idle render", () => {
 
   it("renders the wake button when issue has an assignee", async () => {
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
-    const btn = await screen.findByRole("button", { name: "에이전트 깨우기" });
+    const btn = await screen.findByRole("button", { name: "지금 처리하기" });
     expect(btn).toBeTruthy();
   });
 });
@@ -115,7 +115,7 @@ describe("IssueWakeButton — fresh wake (no active run)", () => {
     const user = userEvent.setup();
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
 
-    const btn = await screen.findByRole("button", { name: "에이전트 깨우기" });
+    const btn = await screen.findByRole("button", { name: "지금 처리하기" });
     await user.click(btn);
 
     await waitFor(() => {
@@ -134,7 +134,7 @@ describe("IssueWakeButton — fresh wake (no active run)", () => {
     await waitFor(() => {
       expect(mockPushToast).toHaveBeenCalledWith({
         tone: "success",
-        title: "에이전트를 깨웠습니다",
+        title: "이슈 처리를 요청했습니다",
       });
     });
   });
@@ -185,7 +185,7 @@ describe("IssueWakeButton — active-run state", () => {
   it("uses the active-run aria-label and shows green pulse", async () => {
     mockActiveRun.mockResolvedValue(makeActiveRun());
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
-    const btn = await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" });
+    const btn = await screen.findByRole("button", { name: "처리 중 — 클릭하면 재시작" });
     expect(btn).toBeTruthy();
     const icon = btn.querySelector("svg");
     // SVG className is SVGAnimatedString in jsdom — use getAttribute("class") for string assertions
@@ -199,10 +199,10 @@ describe("IssueWakeButton — active-run state", () => {
     const user = userEvent.setup();
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
 
-    const btn = await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" });
+    const btn = await screen.findByRole("button", { name: "처리 중 — 클릭하면 재시작" });
     await user.click(btn);
 
-    expect(await screen.findByText("현재 실행 중입니다")).toBeTruthy();
+    expect(await screen.findByText("이미 처리 중입니다")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "취소" }));
     expect(mockCancel).not.toHaveBeenCalled();
@@ -214,7 +214,7 @@ describe("IssueWakeButton — active-run state", () => {
     const user = userEvent.setup();
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
 
-    const btn = await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" });
+    const btn = await screen.findByRole("button", { name: "처리 중 — 클릭하면 재시작" });
     await user.click(btn);
     await user.click(await screen.findByRole("button", { name: "재시작" }));
 
@@ -229,7 +229,7 @@ describe("IssueWakeButton — active-run state", () => {
     await waitFor(() => {
       expect(mockPushToast).toHaveBeenCalledWith({
         tone: "success",
-        title: "이전 run을 취소하고 새로 시작했습니다",
+        title: "이전 작업을 취소하고 다시 시작했습니다",
       });
     });
   });
@@ -240,13 +240,13 @@ describe("IssueWakeButton — active-run state", () => {
     const user = userEvent.setup();
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
 
-    await user.click(await screen.findByRole("button", { name: "현재 실행 중 — 클릭하면 재시작" }));
+    await user.click(await screen.findByRole("button", { name: "처리 중 — 클릭하면 재시작" }));
     await user.click(await screen.findByRole("button", { name: "재시작" }));
 
     await waitFor(() => {
       expect(mockPushToast).toHaveBeenCalledWith({
         tone: "error",
-        title: "이전 run 취소 실패",
+        title: "이전 작업 취소 실패",
         body: "boom",
       });
     });
@@ -260,13 +260,13 @@ describe("IssueWakeButton — skipped, error, busy", () => {
     const user = userEvent.setup();
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
 
-    await user.click(await screen.findByRole("button", { name: "에이전트 깨우기" }));
+    await user.click(await screen.findByRole("button", { name: "지금 처리하기" }));
 
     await waitFor(() => {
       expect(mockPushToast).toHaveBeenCalledWith({
         tone: "warn",
-        title: "깨우기를 건너뛰었습니다",
-        body: "에이전트의 wakeOnDemand 설정을 확인하세요.",
+        title: "처리 요청을 건너뛰었습니다",
+        body: "담당 에이전트의 wakeOnDemand 설정을 확인하세요.",
       });
     });
   });
@@ -276,12 +276,12 @@ describe("IssueWakeButton — skipped, error, busy", () => {
     const user = userEvent.setup();
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
 
-    await user.click(await screen.findByRole("button", { name: "에이전트 깨우기" }));
+    await user.click(await screen.findByRole("button", { name: "지금 처리하기" }));
 
     await waitFor(() => {
       expect(mockPushToast).toHaveBeenCalledWith({
         tone: "error",
-        title: "깨우기 실패",
+        title: "처리 요청 실패",
         body: "network down",
       });
     });
@@ -295,7 +295,7 @@ describe("IssueWakeButton — skipped, error, busy", () => {
     const user = userEvent.setup();
     render(<IssueWakeButton issue={makeIssue()} />, { wrapper: Wrapper });
 
-    const btn = await screen.findByRole("button", { name: "에이전트 깨우기" });
+    const btn = await screen.findByRole("button", { name: "지금 처리하기" });
     await user.click(btn);
 
     await waitFor(() => expect((btn as HTMLButtonElement).disabled).toBe(true));

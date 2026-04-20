@@ -21,8 +21,10 @@ interface IssueWakeButtonProps {
   issue: Issue;
 }
 
-const IDLE_LABEL = "에이전트 깨우기";
-const ACTIVE_LABEL = "현재 실행 중 — 클릭하면 재시작";
+const IDLE_LABEL = "지금 처리하기";
+const ACTIVE_LABEL = "처리 중 — 클릭하면 재시작";
+const IDLE_TOOLTIP = "담당 에이전트가 즉시 이 이슈를 확인하도록 요청합니다";
+const ACTIVE_TOOLTIP = "이미 처리 중인 작업을 취소하고 다시 시작합니다";
 
 export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
   const agentId = issue.assigneeAgentId;
@@ -70,16 +72,16 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     if ("status" in result && result.status === "skipped") {
       pushToast({
         tone: "warn",
-        title: "깨우기를 건너뛰었습니다",
-        body: "에이전트의 wakeOnDemand 설정을 확인하세요.",
+        title: "처리 요청을 건너뛰었습니다",
+        body: "담당 에이전트의 wakeOnDemand 설정을 확인하세요.",
       });
     } else {
       pushToast({
         tone: "success",
         title:
           kind === "restart"
-            ? "이전 run을 취소하고 새로 시작했습니다"
-            : "에이전트를 깨웠습니다",
+            ? "이전 작업을 취소하고 다시 시작했습니다"
+            : "이슈 처리를 요청했습니다",
       });
     }
     invalidate();
@@ -92,7 +94,7 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     } catch (err) {
       pushToast({
         tone: "error",
-        title: "깨우기 실패",
+        title: "처리 요청 실패",
         body: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -110,7 +112,7 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
       } catch (err) {
         pushToast({
           tone: "error",
-          title: "이전 run 취소 실패",
+          title: "이전 작업 취소 실패",
           body: err instanceof Error ? err.message : String(err),
         });
         return;
@@ -119,7 +121,7 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     } catch (err) {
       pushToast({
         tone: "error",
-        title: "깨우기 실패",
+        title: "처리 요청 실패",
         body: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -142,7 +144,7 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
         size="icon-xs"
         disabled={busy}
         onClick={handleClick}
-        title={isActive ? ACTIVE_LABEL : IDLE_LABEL}
+        title={isActive ? ACTIVE_TOOLTIP : IDLE_TOOLTIP}
         aria-label={isActive ? ACTIVE_LABEL : IDLE_LABEL}
       >
         <Zap
@@ -156,9 +158,9 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>현재 실행 중입니다</DialogTitle>
+            <DialogTitle>이미 처리 중입니다</DialogTitle>
             <DialogDescription>
-              이 이슈에 대해 에이전트가 이미 실행 중입니다. 지금 실행 중인 run을 취소하고 다시
+              이 이슈는 이미 담당 에이전트가 처리 중입니다. 진행 중인 작업을 취소하고 다시
               시작할까요?
             </DialogDescription>
           </DialogHeader>
