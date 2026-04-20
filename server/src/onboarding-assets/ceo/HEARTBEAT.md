@@ -38,7 +38,8 @@ If `PAPERCLIP_APPROVAL_ID` is set:
 ## 6. Delegation
 
 - Create subtasks with `POST /api/companies/{companyId}/issues`. Always set `parentId` and `goalId`.
-- Use `paperclip-create-agent` skill when hiring new agents.
+- Before hiring, determine org-shape mode: `GET /api/companies/{companyId}/agents?status=active`. Classify as Full / CHRO-collapsed / CEO-only and record the mode in your first comment on the Epic.
+- If you need a new worker, follow `../company-docs/WORKFLOW-HIRING.md`. Do not call `paperclip-create-agent` directly — the skill is the underlying actuator, not the protocol.
 - Assign work to the right agent for the job.
 
 ## 7. Fact Extraction
