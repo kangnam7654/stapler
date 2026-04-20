@@ -32,6 +32,10 @@ import {
   isInScopeAdapterType,
   stripCompanyDefaultFields,
 } from "./onboarding-wizard-helpers";
+import {
+  resolveLmStudioBaseUrlMode,
+  resolveLmStudioEffectiveBaseUrl,
+} from "../adapters/lm-studio-local/base-url";
 import { parseOnboardingGoalInput } from "../lib/onboarding-goal";
 import { launchOnboarding } from "../lib/onboarding-launch";
 import { onboardingApi } from "../api/onboarding";
@@ -365,7 +369,9 @@ export function OnboardingWizard() {
     closeOnboarding();
   }
 
-  function buildAdapterConfig(): Record<string, unknown> {
+  function buildAdapterConfig(
+    opts: { forTest?: boolean } = {},
+  ): Record<string, unknown> {
     const adapter = getUIAdapter(adapterType);
     const config = adapter.buildAdapterConfig({
       ...defaultCreateValues,
@@ -403,6 +409,26 @@ export function OnboardingWizard() {
       env.ANTHROPIC_API_KEY = { type: "plain", value: "" };
       config.env = env;
     }
+    if (opts.forTest) {
+      // Environment tests must probe the user-typed URL, not the default the
+      // server falls back to. The company.adapterDefaults patch only lands
+      // AFTER the test runs (see handleStep2Next ordering) and the standalone
+      // "Test" button skips the patch entirely — so we keep baseUrl on the
+      // ephemeral test payload instead of stripping it. Mirrors
+      // AgentConfigForm.buildAdapterConfigForTest for lm_studio_local.
+      if (adapterType === "lm_studio_local") {
+        const company =
+          companies.find((c) => c.id === createdCompanyId) ?? null;
+        const mode = resolveLmStudioBaseUrlMode(undefined, url);
+        config.baseUrlMode = mode;
+        config.baseUrl = resolveLmStudioEffectiveBaseUrl({
+          company,
+          mode,
+          baseUrl: url,
+        });
+      }
+      return config;
+    }
     // Remove fields that the wizard has written to company.adapterDefaults so
     // the agent inherits them via deep merge instead of pinning its own value.
     return stripCompanyDefaultFields(adapterType, config);
@@ -424,7 +450,7 @@ export function OnboardingWizard() {
         createdCompanyId,
         adapterType,
         {
-          adapterConfig: adapterConfigOverride ?? buildAdapterConfig()
+          adapterConfig: adapterConfigOverride ?? buildAdapterConfig({ forTest: true })
         }
       );
       setAdapterEnvResult(result);
