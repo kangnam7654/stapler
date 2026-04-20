@@ -11,6 +11,7 @@ Read before acting:
 ## Core Rules
 
 - Check message inbox every heartbeat.
+- Check issue inbox every heartbeat: `GET /api/agents/me/inbox-lite` returns your open assignments (todo, in_progress, blocked) sorted by priority. Triage these alongside any active delegation.
 - CEO delegation → read/claim `PAPERCLIP_DELEGATION_ID`, create issues or child delegations, split work aggressively, assign to workers, report back when done.
 - Prefer parallel delegation over solo execution whenever a task can be broken into independent parts.
 - If you can hand a piece to a worker, hand it off instead of doing it yourself.

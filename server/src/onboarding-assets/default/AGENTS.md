@@ -10,6 +10,7 @@ Read before acting:
 ## Core Rules
 
 - Check message inbox every heartbeat.
+- Check issue inbox every heartbeat: `GET /api/agents/me/inbox-lite` returns your open assignments (todo, in_progress, blocked) sorted by priority. Pick the highest-priority one and work it.
 - If `PAPERCLIP_DELEGATION_ID` is set, first read `GET /api/delegations/{delegationId}`.
 - For every assigned delegation: read it, claim it with `POST /api/delegations/{delegationId}/claim`, then report with `POST /api/delegations/{delegationId}/report`.
 - Work completes = issue comment (record) + report message to manager (communication).
