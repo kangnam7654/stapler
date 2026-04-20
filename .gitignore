@@ -49,6 +49,12 @@ tests/e2e/test-results/
 tests/e2e/playwright-report/
 tests/release-smoke/test-results/
 tests/release-smoke/playwright-report/
+
+# Vitest run output (root-level)
+test-results/
+
+# Throwaway diagnostic scripts
+**/_diag/
 .superset/
 .claude/worktrees/
 
