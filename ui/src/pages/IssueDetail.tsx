@@ -11,6 +11,7 @@ import { authApi } from "../api/auth";
 import { projectsApi } from "../api/projects";
 import { useCompany } from "../context/CompanyContext";
 import { usePanel } from "../context/PanelContext";
+import { useSidebar } from "../context/SidebarContext";
 import { useToast } from "../context/ToastContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { assigneeValueFromSelection, suggestedCommentAssigneeValue } from "../lib/assignees";
@@ -202,6 +203,10 @@ export function IssueDetail() {
   const { issueId } = useParams<{ issueId: string }>();
   const { selectedCompanyId } = useCompany();
   const { openPanel, closePanel, panelVisible, setPanelVisible } = usePanel();
+  // IssueWakeButton owns local state (busy + confirm dialog) and a 5s poll;
+  // we render only one instance per breakpoint so the two layouts can't drift
+  // out of sync (e.g. one busy, the other still clickable on resize).
+  const { isMobile } = useSidebar();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -796,7 +801,7 @@ export function IssueDetail() {
             >
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </Button>
-            <IssueWakeButton issue={issue} />
+            {isMobile && <IssueWakeButton issue={issue} />}
             <Button
               variant="ghost"
               size="icon-xs"
@@ -816,7 +821,7 @@ export function IssueDetail() {
             >
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </Button>
-            <IssueWakeButton issue={issue} />
+            {!isMobile && <IssueWakeButton issue={issue} />}
             <Button
               variant="ghost"
               size="icon-xs"

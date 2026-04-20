@@ -2083,6 +2083,12 @@ export function agentRoutes(db: Db) {
     }
 
     const actor = getActorInfo(req);
+    // Audit trail: include issueId from payload so the log answers
+    // "which issue did this wake target?" without joining run context.
+    const payloadIssueId =
+      typeof req.body.payload?.issueId === "string" && req.body.payload.issueId.length > 0
+        ? req.body.payload.issueId
+        : null;
     await logActivity(db, {
       companyId: agent.companyId,
       actorType: actor.actorType,
@@ -2092,7 +2098,7 @@ export function agentRoutes(db: Db) {
       action: "heartbeat.invoked",
       entityType: "heartbeat_run",
       entityId: run.id,
-      details: { agentId: id },
+      details: { agentId: id, ...(payloadIssueId ? { issueId: payloadIssueId } : {}) },
     });
 
     res.status(202).json(run);
@@ -2258,6 +2264,17 @@ export function agentRoutes(db: Db) {
   router.post("/heartbeat-runs/:runId/cancel", async (req, res) => {
     assertBoard(req);
     const runId = req.params.runId as string;
+    // SECURITY: fetch first and verify company access before mutating.
+    // Without this, any board user could cancel any company's run by guessing
+    // the run UUID. Matches the pattern of every other /heartbeat-runs/:runId
+    // route in this file (see GET handlers above and below).
+    const existing = await heartbeat.getRun(runId);
+    if (!existing) {
+      res.status(404).json({ error: t("error.heartbeatRunNotFound") });
+      return;
+    }
+    assertCompanyAccess(req, existing.companyId);
+
     const run = await heartbeat.cancelRun(runId);
 
     if (run) {

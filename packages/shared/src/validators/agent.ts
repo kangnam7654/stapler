@@ -93,12 +93,25 @@ export const createAgentKeySchema = z.object({
 
 export type CreateAgentKey = z.infer<typeof createAgentKeySchema>;
 
+// Hard caps on free-form inputs prevent DB storage abuse and CPU-bound
+// validation paths. Numbers are intentionally generous — real callers send
+// short strings and small payloads; these only block adversarial inputs.
+const WAKE_REASON_MAX = 2_000;
+const WAKE_IDEMPOTENCY_KEY_MAX = 256;
+const WAKE_PAYLOAD_MAX_KEYS = 32;
+
 export const wakeAgentSchema = z.object({
   source: z.enum(["timer", "assignment", "on_demand", "automation"]).optional().default("on_demand"),
   triggerDetail: z.enum(["manual", "ping", "callback", "system"]).optional(),
-  reason: z.string().optional().nullable(),
-  payload: z.record(z.unknown()).optional().nullable(),
-  idempotencyKey: z.string().optional().nullable(),
+  reason: z.string().max(WAKE_REASON_MAX).optional().nullable(),
+  payload: z
+    .record(z.unknown())
+    .refine((p) => Object.keys(p).length <= WAKE_PAYLOAD_MAX_KEYS, {
+      message: `payload may have at most ${WAKE_PAYLOAD_MAX_KEYS} top-level keys`,
+    })
+    .optional()
+    .nullable(),
+  idempotencyKey: z.string().max(WAKE_IDEMPOTENCY_KEY_MAX).optional().nullable(),
   forceFreshSession: z.preprocess(
     (value) => (value === null ? undefined : value),
     z.boolean().optional().default(false),

@@ -21,17 +21,6 @@ interface IssueWakeButtonProps {
   issue: Issue;
 }
 
-const LABELS = {
-  idle: {
-    aria: "지금 처리하기",
-    tooltip: "담당 에이전트가 즉시 이 이슈를 확인하도록 요청합니다",
-  },
-  active: {
-    aria: "처리 중 — 클릭하면 재시작",
-    tooltip: "이미 처리 중인 작업을 취소하고 다시 시작합니다",
-  },
-} as const;
-
 export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
   const agentId = issue.assigneeAgentId;
   const companyId = issue.companyId;
@@ -41,7 +30,9 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
   const queryClient = useQueryClient();
   const { pushToast } = useToast();
   const [busy, setBusy] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Holds the run id we plan to cancel. Captured at dialog-open time so a
+  // late refetch (5s poll window) can't switch it out from under the user.
+  const [pendingCancelRunId, setPendingCancelRunId] = useState<string | null>(null);
 
   function toastError(title: string, err: unknown) {
     pushToast({
@@ -58,53 +49,58 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     enabled: shouldRender,
   });
 
-  if (!shouldRender) return null;
+  if (!shouldRender || !agentId || !companyId) return null;
+
+  // Re-bind to local consts so the closures below see narrowed (non-null) types.
+  // TypeScript can't prove the outer-scope vars stay narrowed across function
+  // bodies declared after this guard.
+  const wakeAgentId = agentId;
+  const wakeCompanyId = companyId;
 
   const activeRun = activeRunQuery.data ?? null;
   const isActive = activeRun !== null;
+  const confirmOpen = pendingCancelRunId !== null;
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.activeRun(issueId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.liveRuns(issueId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.activity(issueId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.issues.runs(issueId) });
-    // Also refresh the company-scoped live-runs widget (sidebar badge, company live-runs page).
-    queryClient.invalidateQueries({ queryKey: queryKeys.liveRuns(companyId!) });
+    // Also refresh the company-scoped live-runs widget (sidebar badge,
+    // company live-runs page).
+    queryClient.invalidateQueries({ queryKey: queryKeys.liveRuns(wakeCompanyId) });
   }
 
-  async function fireWakeup(kind: "fresh" | "restart") {
+  async function fireWakeup(): Promise<"fired" | "skipped"> {
     const result = await agentsApi.wakeup(
-      agentId!,
+      wakeAgentId,
       {
         source: "on_demand",
         triggerDetail: "manual",
         reason: "manual_wake_from_issue",
         payload: { issueId },
       },
-      companyId!,
+      wakeCompanyId,
     );
+    invalidate();
     if ("status" in result && result.status === "skipped") {
       pushToast({
         tone: "warn",
         title: "처리 요청을 건너뛰었습니다",
         body: "담당 에이전트의 wakeOnDemand 설정을 확인하세요.",
       });
-    } else {
-      pushToast({
-        tone: "success",
-        title:
-          kind === "restart"
-            ? "이전 작업을 취소하고 다시 시작했습니다"
-            : "이슈 처리를 요청했습니다",
-      });
+      return "skipped";
     }
-    invalidate();
+    return "fired";
   }
 
   async function doFreshWake() {
     setBusy(true);
     try {
-      await fireWakeup("fresh");
+      const outcome = await fireWakeup();
+      if (outcome === "fired") {
+        pushToast({ tone: "success", title: "이슈 처리를 요청했습니다" });
+      }
     } catch (err) {
       toastError("처리 요청 실패", err);
     } finally {
@@ -112,18 +108,24 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
     }
   }
 
-  async function doRestart() {
-    setConfirmOpen(false);
-    if (!activeRun) return;
+  async function doRestart(runIdToCancel: string) {
+    setPendingCancelRunId(null);
     setBusy(true);
     try {
-      try {
-        await heartbeatsApi.cancel(activeRun.id);
-      } catch (err) {
-        toastError("이전 작업 취소 실패", err);
-        return;
+      await heartbeatsApi.cancel(runIdToCancel);
+    } catch (err) {
+      toastError("이전 작업 취소 실패", err);
+      setBusy(false);
+      return;
+    }
+    try {
+      const outcome = await fireWakeup();
+      if (outcome === "fired") {
+        pushToast({
+          tone: "success",
+          title: "이전 작업을 취소하고 다시 시작했습니다",
+        });
       }
-      await fireWakeup("restart");
     } catch (err) {
       toastError("처리 요청 실패", err);
     } finally {
@@ -132,14 +134,14 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
   }
 
   function handleClick() {
-    if (isActive) {
-      setConfirmOpen(true);
+    if (activeRun) {
+      // Capture the run id NOW — by the time the user confirms, the 5s poll
+      // may have refetched and replaced activeRun with a different value.
+      setPendingCancelRunId(activeRun.id);
     } else {
       void doFreshWake();
     }
   }
-
-  const labels = isActive ? LABELS.active : LABELS.idle;
 
   return (
     <>
@@ -148,8 +150,12 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
         size="icon-xs"
         disabled={busy}
         onClick={handleClick}
-        title={labels.tooltip}
-        aria-label={labels.aria}
+        title={
+          isActive
+            ? "이미 처리 중인 작업을 취소하고 다시 시작합니다"
+            : "담당 에이전트가 즉시 이 이슈를 확인하도록 요청합니다"
+        }
+        aria-label={isActive ? "처리 중 — 클릭하면 재시작" : "지금 처리하기"}
       >
         <Zap
           className={cn(
@@ -159,7 +165,12 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
         />
       </Button>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) setPendingCancelRunId(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>이미 처리 중입니다</DialogTitle>
@@ -169,10 +180,16 @@ export function IssueWakeButton({ issue }: IssueWakeButtonProps) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+            <Button variant="ghost" onClick={() => setPendingCancelRunId(null)}>
               취소
             </Button>
-            <Button onClick={() => void doRestart()}>재시작</Button>
+            <Button
+              onClick={() => {
+                if (pendingCancelRunId) void doRestart(pendingCancelRunId);
+              }}
+            >
+              재시작
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
