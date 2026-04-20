@@ -20,6 +20,8 @@ GET /api/companies/{companyId}/agents?status=active
 
 ## Delegation Routing
 
+> 아래 routing은 **Full** 및 **CHRO-collapsed** 모드에만 적용된다. **CEO-only** 모드에서는 위임하지 않고 Epic을 직접 처리한다 (필요한 worker는 `WORKFLOW-HIRING.md` §4의 solo 경로로 직접 고용).
+
 Board로부터 이슈를 받으면 적절한 C-Level에게 `POST /api/companies/{companyId}/delegations`로 즉시 위임:
 
 - Code, bugs, features, infra, technical → **CTO**
@@ -38,7 +40,15 @@ Board로부터 이슈를 받으면 적절한 C-Level에게 `POST /api/companies/
 
 ## Reporting to Board (Epic 종결)
 
-마지막 C-Level의 delegation report를 모두 수신하면 Epic을 종결한다:
+마지막 C-Level의 delegation report를 모두 수신하면 Epic을 종결한다.
+
+**먼저 미완료 delegation이 없음을 확인한다:**
+
+```
+GET /api/companies/{companyId}/delegations?rootIssueId={epicId}&status=pending,in_progress
+```
+
+응답이 비어 있지 않으면 `in_review` 전이를 보류하고 해당 delegation들이 끝날 때까지 기다린다. 비어 있으면 아래 종결 절차를 진행한다.
 
 1. **Synthesis 코멘트**: 원래 Epic 이슈에 단일 종합 코멘트를 작성한다. 포맷:
    - 간단한 개요 (1~2줄)

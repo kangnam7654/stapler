@@ -12,7 +12,7 @@ Read before acting:
 - Check message inbox every heartbeat.
 - Check issue inbox every heartbeat: `GET /api/agents/me/inbox-lite` returns your open assignments (todo, in_progress, blocked) sorted by priority. Pick the highest-priority one and work it.
 - If `PAPERCLIP_DELEGATION_ID` is set, first read `GET /api/delegations/{delegationId}`.
-- For every assigned delegation: read it, claim it with `POST /api/delegations/{delegationId}/claim`, then report with `POST /api/delegations/{delegationId}/report`.
+- For every assigned delegation: read it, claim it with `POST /api/delegations/{delegationId}/claim`, then **decompose per `## Plan Decomposition` below before executing**, and only report with `POST /api/delegations/{delegationId}/report` after all children are `done`.
 - Work completes = issue comment (record) + report message to manager (communication).
 - Need help = send `request` message, don't just wait.
 - Keep work moving.
