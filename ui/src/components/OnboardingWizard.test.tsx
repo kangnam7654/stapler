@@ -108,6 +108,7 @@ import { agentsApi } from "../api/agents";
 const mockCreate = vi.mocked(companiesApi.create);
 const mockUpdate = vi.mocked(companiesApi.update);
 const mockAgentCreate = vi.mocked(agentsApi.create);
+const mockTestEnv = vi.mocked(agentsApi.testEnvironment);
 
 function renderWizard() {
   const qc = new QueryClient({
@@ -210,6 +211,12 @@ afterEach(() => {
   mockCreate.mockReset();
   mockUpdate.mockReset();
   mockAgentCreate.mockReset();
+  mockTestEnv.mockReset();
+  mockTestEnv.mockResolvedValue({
+    status: "pass",
+    checks: [],
+    testedAt: new Date().toISOString(),
+  } as never);
   mockCompanies = [];
 });
 
@@ -321,5 +328,31 @@ describe("OnboardingWizard step 2 — company adapter defaults", () => {
     });
     expect(mockAgentCreate).not.toHaveBeenCalled();
     expect(screen.getByText(/network down/)).toBeTruthy();
+  });
+
+  // W-9 (regression: see fix/onboarding-wizard-test-baseurl)
+  // Bug: stripCompanyDefaultFields removed `baseUrl` from the test-env
+  // payload. Server then could not see the user-typed URL (and the
+  // company.adapterDefaults patch had not been written yet at test time),
+  // so testEnvironment fell back to http://localhost:1234.
+  // Expectation: when the user enters a custom LM Studio URL and
+  // handleStep2Next runs, the testEnvironment request must carry the
+  // user-typed baseUrl so the probe targets the right server.
+  it("sends user-typed baseUrl in the LM Studio test-environment request", async () => {
+    renderWizard();
+    await completeStep1();
+    await selectAdapterAndContinue({
+      adapterType: "lm_studio_local",
+      url: "http://10.0.0.1:1234",
+    });
+
+    await waitFor(() => {
+      expect(mockTestEnv).toHaveBeenCalled();
+    });
+
+    const [, , payload] = mockTestEnv.mock.calls[0]!;
+    expect(payload.adapterConfig).toMatchObject({
+      baseUrl: "http://10.0.0.1:1234",
+    });
   });
 });
